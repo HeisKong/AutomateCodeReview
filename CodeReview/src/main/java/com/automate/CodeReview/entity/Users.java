@@ -31,6 +31,9 @@ public class Users {
     @Column(name = "password_hash",  nullable = false,  unique = true)
     private String password;
 
+    @Column(name = "phone", nullable = false, unique = true,  length = 13)
+    private String phoneNumber;
+
     @Column(name = "role",   nullable = false)
     private String role;
 
