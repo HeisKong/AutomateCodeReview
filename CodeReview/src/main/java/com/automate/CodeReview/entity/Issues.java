@@ -1,4 +1,4 @@
-package entity;
+package com.automate.CodeReview.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
