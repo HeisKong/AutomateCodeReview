@@ -1,7 +1,6 @@
 package entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -26,7 +26,7 @@ public class Projects {
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinColumn(name = "id",  nullable = false)
-    private Users userId;
+    private List<Users> userId;
 
     @Column(name = "name" , nullable = false)
     private String name;

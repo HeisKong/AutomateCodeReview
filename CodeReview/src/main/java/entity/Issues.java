@@ -41,9 +41,9 @@ public class Issues {
     @Column(name = "message",  nullable = false)
     private String message;
 
-
-    @Column(name = "user_id")
-    private Projects assignedTo;
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private List<Projects> assignedTo;
 
     @Column(name = "status",  nullable = false)
     private String status;

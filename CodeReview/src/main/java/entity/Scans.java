@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -24,7 +25,7 @@ public class Scans {
 
     @OneToMany(fetch = FetchType.LAZY)
     @JoinColumn(name = "id",   nullable = false)
-    private Projects projectId;
+    private List<Projects> projectId;
 
     @Column(name = "status",  nullable = false)
     private String status;
