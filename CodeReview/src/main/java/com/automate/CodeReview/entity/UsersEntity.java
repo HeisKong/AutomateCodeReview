@@ -1,7 +1,6 @@
-package entity;
+package com.automate.CodeReview.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,7 +8,6 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.UUID;
 
 @Getter
@@ -18,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @Entity
 @Table(name = "Users")
-public class Users {
+public class UsersEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -32,6 +30,9 @@ public class Users {
 
     @Column(name = "password_hash",  nullable = false,  unique = true)
     private String password;
+
+    @Column(name = "phone", nullable = false, unique = true,  length = 13)
+    private String phoneNumber;
 
     @Column(name = "role",   nullable = false)
     private String role;

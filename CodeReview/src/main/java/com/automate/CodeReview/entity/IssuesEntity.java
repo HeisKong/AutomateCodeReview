@@ -1,4 +1,4 @@
-package entity;
+package com.automate.CodeReview.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @Entity
 @Table(name = "issues")
-public class Issues {
+public class IssuesEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,7 +24,7 @@ public class Issues {
 
     @OneToMany(fetch = FetchType.LAZY)
     @Column(name = "id",  nullable = false, unique = true)
-    private List<Scans> scanId;
+    private List<ScansEntity> scanId;
 
     @Column(name = "issue_key",  nullable = false)
     private String issueKey;
@@ -41,9 +41,9 @@ public class Issues {
     @Column(name = "message",  nullable = false)
     private String message;
 
-
-    @Column(name = "user_id")
-    private Projects assignedTo;
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private List<ProjectsEntity> assignedTo;
 
     @Column(name = "status",  nullable = false)
     private String status;

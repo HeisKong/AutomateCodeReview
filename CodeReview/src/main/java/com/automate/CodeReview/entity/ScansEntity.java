@@ -1,4 +1,4 @@
-package entity;
+package com.automate.CodeReview.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -16,7 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @Entity
 @Table(name = "scans")
-public class Scans {
+public class ScansEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -24,7 +25,7 @@ public class Scans {
 
     @OneToMany(fetch = FetchType.LAZY)
     @JoinColumn(name = "id",   nullable = false)
-    private Projects projectId;
+    private List<ProjectsEntity> projectId;
 
     @Column(name = "status",  nullable = false)
     private String status;

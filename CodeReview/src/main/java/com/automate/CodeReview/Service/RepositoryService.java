@@ -1,5 +1,6 @@
 package com.automate.CodeReview.Service;
 
+import com.automate.CodeReview.Models.RepositoryModel;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -24,7 +25,7 @@ public class RepositoryService {
     }
 
     //update
-    public RepositoryModel update(UUID id, RepositoryModel repo){
+    public RepositoryModel updateRepository(UUID id, RepositoryModel repo){
         return null;
     }
 
