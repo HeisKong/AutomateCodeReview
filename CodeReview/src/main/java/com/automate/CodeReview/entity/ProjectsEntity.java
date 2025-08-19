@@ -18,7 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @Entity
 @Table(name = "projects")
-public class Projects {
+public class ProjectsEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -26,7 +26,7 @@ public class Projects {
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinColumn(name = "id",  nullable = false)
-    private List<Users> userId;
+    private List<UsersEntity> userId;
 
     @Column(name = "name" , nullable = false)
     private String name;

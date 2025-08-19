@@ -16,18 +16,18 @@ import java.util.UUID;
 @NoArgsConstructor
 @Entity
 @Table(name = "comments")
-public class Comments {
+public class CommentsEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id")
-    private Issues issuesId;
+    private IssuesEntity issuesId;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id")
-    private Users userId;
+    private UsersEntity userId;
 
     @Column(name = "comment")
     private String comment;
