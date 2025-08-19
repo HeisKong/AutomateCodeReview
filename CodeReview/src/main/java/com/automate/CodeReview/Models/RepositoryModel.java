@@ -23,6 +23,4 @@ public class RepositoryModel {
     private String repositoryUrl;
 
     private String projectType;
-
-    private String sonarProjectKey;
 }
