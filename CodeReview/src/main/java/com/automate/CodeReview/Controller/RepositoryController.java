@@ -1,15 +1,15 @@
 package com.automate.CodeReview.Controller;
 
+import com.automate.CodeReview.Models.RepositoryModel;
 import com.automate.CodeReview.Service.RepositoryService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Controller
+@RestController
 @RequestMapping("/api/repositories")
 public class RepositoryController {
 

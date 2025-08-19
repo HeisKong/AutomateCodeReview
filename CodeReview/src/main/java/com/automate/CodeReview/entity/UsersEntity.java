@@ -16,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @Entity
 @Table(name = "Users")
-public class Users {
+public class UsersEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)

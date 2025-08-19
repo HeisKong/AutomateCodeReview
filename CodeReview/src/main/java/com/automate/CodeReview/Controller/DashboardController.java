@@ -1,16 +1,19 @@
 package com.automate.CodeReview.Controller;
 
 
+import com.automate.CodeReview.Models.DashboardModel;
+import com.automate.CodeReview.Models.HistoryModel;
+import com.automate.CodeReview.Models.TrendsModel;
 import com.automate.CodeReview.Service.DashboardService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-@Controller
+@RestController
 @RequestMapping("/api/dashboard")
 public class DashboardController {
 
@@ -21,17 +24,17 @@ public class DashboardController {
     }
 
     @GetMapping("/{projectId}")
-    public ResponseEntity<DashboardModel> getOverview(@PathVariable UUID id){
-        return ResponseEntity.ok(dashboardService.getOverview(id));
+    public ResponseEntity<DashboardModel> getOverview(@PathVariable UUID projectId){
+        return ResponseEntity.ok(dashboardService.getOverview(projectId));
     }
 
     @GetMapping("/{projectId}/history")
-    public ResponseEntity<HistoryModel> getHistory(@PathVariable UUID id){
-        return ResponseEntity.ok(dashboardService.getHistory(id));
+    public ResponseEntity<HistoryModel> getHistory(@PathVariable UUID projectId){
+        return ResponseEntity.ok(dashboardService.getHistory(projectId));
     }
 
     @GetMapping("/{projectId}/trends")
-    public ResponseEntity<TrendsModel> getTrends(@PathVariable UUID id){
-        return ResponseEntity.ok(dashboardService.getTrends(id));
+    public ResponseEntity<TrendsModel> getTrends(@PathVariable UUID projectId){
+        return ResponseEntity.ok(dashboardService.getTrends(projectId));
     }
 }
