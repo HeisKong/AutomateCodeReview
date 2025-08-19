@@ -12,6 +12,6 @@ import java.util.UUID;
 public class DashboardModel {
 
     private UUID id;
-    private  String name;
+    private String name;
     private String metrics;
 }
