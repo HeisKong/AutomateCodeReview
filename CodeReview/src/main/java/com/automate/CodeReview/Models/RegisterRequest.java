@@ -1,0 +1,14 @@
+package com.automate.CodeReview.Models;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
+public record RegisterRequest(
+        @NotBlank String username,
+        @NotBlank String password,
+        @NotBlank @Email String email,
+        @NotBlank String phoneNumber,
+        @NotBlank String role
+) {
+}
+
