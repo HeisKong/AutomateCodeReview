@@ -1,4 +1,4 @@
-package com.automate.CodeReview.repositoty;
+package com.automate.CodeReview.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
