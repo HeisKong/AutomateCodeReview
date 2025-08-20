@@ -16,7 +16,7 @@ public class RepositoryModel {
     private UUID id;
 
     // ควรใช้เป็น list ของ userId (UUID) หรือ object ตามที่ต้องการ map
-    private List<UUID> userIds;
+    private List<UUID> userId;
 
     private String name;
 

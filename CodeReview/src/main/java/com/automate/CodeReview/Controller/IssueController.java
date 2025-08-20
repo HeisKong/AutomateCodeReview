@@ -1,6 +1,7 @@
 package com.automate.CodeReview.Controller;
 
 
+import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.Service.IssueService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
