@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -15,12 +16,12 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "Users")
+@Table(name = "users")
 public class UsersEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;
+    private UUID userId;
 
     @Column(name = "username",  nullable = false)
     private String username;
@@ -41,4 +42,9 @@ public class UsersEntity {
     @Column(name = "create_at",  nullable = false)
     private LocalDateTime createdAt;
 
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<ProjectsEntity> projects;
+
+    @OneToMany(mappedBy = "assignedTo", fetch = FetchType.LAZY)
+    private List<IssuesEntity> issues;
 }
