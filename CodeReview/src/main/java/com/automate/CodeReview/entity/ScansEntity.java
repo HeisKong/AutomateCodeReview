@@ -20,12 +20,12 @@ import java.util.UUID;
 public class ScansEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID scanId;
 
-    @OneToMany(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id",   nullable = false)
-    private List<ProjectsEntity> projectId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id",   nullable = false)
+    private ProjectsEntity project;
 
     @Column(name = "status",  nullable = false)
     private String status;
@@ -46,4 +46,7 @@ public class ScansEntity {
 
     @Column(name = "log_file_path",   nullable = false)
     private String logFilePath;
+
+    @OneToMany(mappedBy = "scan",fetch = FetchType.LAZY)
+    private List<IssuesEntity> issues;
 }

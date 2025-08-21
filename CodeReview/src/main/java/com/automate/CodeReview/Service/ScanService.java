@@ -1,6 +1,8 @@
 package com.automate.CodeReview.Service;
 
 
+import com.automate.CodeReview.Models.ScanLogModel;
+import com.automate.CodeReview.Models.ScanModel;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,6 +20,7 @@ public class ScanService {
     }
 
     public ScanModel GetByIdScan(UUID id){
+        //จะใช้อันนนี้ก้ได้นะเเต่ถ้าทำใน repo มันใช้ jdbc ดึงได้เลย
         return null;
     }
 
@@ -26,6 +29,10 @@ public class ScanService {
     }
 
     public ScanModel cancelScan(UUID id){
+        return null;
+    }
+
+    public ScanLogModel getScanLogById(UUID id) {
         return null;
     }
 }

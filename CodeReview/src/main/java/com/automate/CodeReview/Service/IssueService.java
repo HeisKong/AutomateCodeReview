@@ -1,6 +1,7 @@
 package com.automate.CodeReview.Service;
 
 
+import com.automate.CodeReview.Models.IssueModel;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
