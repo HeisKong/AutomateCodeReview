@@ -21,9 +21,9 @@ public class CommentsEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id")
-    private IssuesEntity issuesId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "issues_id")
+    private IssuesEntity issues;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id")
