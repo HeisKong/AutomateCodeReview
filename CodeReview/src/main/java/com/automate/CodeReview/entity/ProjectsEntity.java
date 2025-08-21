@@ -22,11 +22,12 @@ public class ProjectsEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;
+    private UUID projectId;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id",  nullable = false)
-    private List<UsersEntity> userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private UsersEntity user;
+
 
     @Column(name = "name" , nullable = false)
     private String name;
@@ -49,4 +50,7 @@ public class ProjectsEntity {
     @UpdateTimestamp
     @Column(name = "updated_at",   nullable = false)
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "project", fetch = FetchType.LAZY)
+    private List<ScansEntity> scan;
 }

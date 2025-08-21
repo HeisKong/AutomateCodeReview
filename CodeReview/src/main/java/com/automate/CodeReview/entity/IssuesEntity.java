@@ -19,7 +19,7 @@ import java.util.UUID;
 public class IssuesEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID issuesId;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -42,8 +42,8 @@ public class IssuesEntity {
     private String message;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private ProjectsEntity assignedTo;
+    @JoinColumn(name = "assigned_to")
+    private UsersEntity assignedTo;
 
     @Column(name = "status",  nullable = false)
     private String status;

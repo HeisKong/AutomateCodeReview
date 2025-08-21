@@ -1,8 +1,10 @@
 package com.automate.CodeReview.repository;
 
+import com.automate.CodeReview.entity.CommentsEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
-
-public interface CommentsRepository extends JpaRepository<CommentsRepository, UUID> {
+@Repository
+public interface CommentsRepository extends JpaRepository<CommentsEntity, UUID> {
 }
