@@ -3,14 +3,13 @@ package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Service.IssueService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Controller
+@RestController
 @RequestMapping("/api/issues")
 public class IssueController {
 
@@ -22,7 +21,7 @@ public class IssueController {
 
     @GetMapping
     public List<IssueModel> getAllIssue(){
-        return IssueService.getAllIssue();
+        return issueService.getAllIssue();
     }
 
     @GetMapping("/{id}")

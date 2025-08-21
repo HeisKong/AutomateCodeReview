@@ -20,11 +20,11 @@ public class IssuesEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private UUID id;
+    private UUID issuesId;
 
-    @OneToMany(fetch = FetchType.LAZY)
-    @Column(name = "id",  nullable = false, unique = true)
-    private List<ScansEntity> scanId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "scan_id", nullable = false, unique = true)
+    private ScansEntity scan;
 
     @Column(name = "issue_key",  nullable = false)
     private String issueKey;
@@ -41,9 +41,9 @@ public class IssuesEntity {
     @Column(name = "message",  nullable = false)
     private String message;
 
-    @OneToMany(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private List<ProjectsEntity> assignedTo;
+    private ProjectsEntity assignedTo;
 
     @Column(name = "status",  nullable = false)
     private String status;
@@ -51,4 +51,7 @@ public class IssuesEntity {
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "issues" ,fetch = FetchType.LAZY)
+    private List<CommentsEntity> comments;
 }
