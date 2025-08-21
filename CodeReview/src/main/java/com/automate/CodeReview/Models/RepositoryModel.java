@@ -14,10 +14,10 @@ import java.util.UUID;
 public class RepositoryModel {
 
     // ใช้สำหรับกรณี update หรือ mapping กลับมาจาก DB
-    private UUID id;
+    private UUID projectId;
 
     // ควรใช้เป็น list ของ userId (UUID) หรือ object ตามที่ต้องการ map
-    private List<UUID> userId;
+    private UUID user;
 
     private String name;
 
