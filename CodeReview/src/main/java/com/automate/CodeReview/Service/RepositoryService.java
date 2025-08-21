@@ -24,17 +24,17 @@ public class RepositoryService {
 
     //create
     public RepositoryModel createRepository(RepositoryModel repo){
-        if (repo.getId() == null) {
-            repo.setId(UUID.randomUUID());
+        if (repo.getProjectId() == null) {
+            repo.setProjectId(UUID.randomUUID());
         }
-
         //เดี๋ยวกลับมาแก้ ยังงงๆอยู่ อันนี้ก็ใช้ได้
-        List<UUID> userIds = repo.getUserIds() != null ? repo.getUserIds() : List.of();
-        List<UsersEntity> user = usersRepository.findAllById(userIds);
+        UUID userId = repo.getUser();
+        UsersEntity user = usersRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         ProjectsEntity project = new ProjectsEntity();
-        project.setId(repo.getId());
-        project.setUserId(user);
+        project.setProjectId(repo.getProjectId());
+        project.setUser(user);
         project.setName(repo.getName());
         project.setRepositoryUrl(repo.getRepositoryUrl());
         project.setSonarProjectKey(repo.getSonarProjectKey());
@@ -43,7 +43,7 @@ public class RepositoryService {
         project.setUpdatedAt(repo.getUpdatedAt());
 
         ProjectsEntity saveProject = projectsRepository.save(project);
-        repo.setId(saveProject.getId());
+        repo.setProjectId(saveProject.getProjectId());
         repo.setName(saveProject.getName());
         repo.setRepositoryUrl(saveProject.getRepositoryUrl());
         repo.setSonarProjectKey(saveProject.getSonarProjectKey());
@@ -64,7 +64,7 @@ public class RepositoryService {
 
         for (ProjectsEntity projectsEntity : project) {
             RepositoryModel model = new RepositoryModel();
-            model.setId(projectsEntity.getId());
+            model.setProjectId(projectsEntity.getProjectId());
             model.setName(projectsEntity.getName());
             model.setRepositoryUrl(projectsEntity.getRepositoryUrl());
             model.setProjectType(projectsEntity.getProjectType());
@@ -77,7 +77,7 @@ public class RepositoryService {
     public RepositoryModel getByIdDetail(UUID id){
         ProjectsEntity project = projectsRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
         RepositoryModel model = new RepositoryModel();
-        model.setId(project.getId());
+        model.setProjectId(project.getProjectId());
         model.setName(project.getName());
         model.setRepositoryUrl(project.getRepositoryUrl());
         model.setProjectType(project.getProjectType());
@@ -96,7 +96,7 @@ public class RepositoryService {
         project.setUpdatedAt(repo.getUpdatedAt());
 
         ProjectsEntity updatedProject = projectsRepository.save(project);
-        repo.setId(updatedProject.getId());
+        repo.setProjectId(updatedProject.getProjectId());
         repo.setName(updatedProject.getName());
         repo.setRepositoryUrl(updatedProject.getRepositoryUrl());
         repo.setProjectType(updatedProject.getProjectType());
@@ -110,9 +110,9 @@ public class RepositoryService {
         projectsRepository.deleteById(id);
     }
 
-    //clone ทำพร้อม update เดียวค่อยไปแก้
+   /* //clone ทำพร้อม update เดียวค่อยไปแก้
     public RepositoryModel cloneRepository(UUID id){
         return null;
-    }
+    }*/
 
 }
