@@ -19,14 +19,14 @@ import java.util.UUID;
 public class CommentsEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private UUID commentId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "issues_id")
-    private IssuesEntity issues;
+    private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "userId")
+    @JoinColumn(name = "id")
+    private IssuesEntity issuesId;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id")
     private UsersEntity userId;
 
     @Column(name = "comment")

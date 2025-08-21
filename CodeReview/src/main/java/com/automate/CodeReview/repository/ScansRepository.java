@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import java.util.UUID;
 @Repository
-public interface ScansRepository extends JpaRepository<ScansRepository, UUID> {
+public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
     @Query("SELECT s FROM ScansEntity s WHERE s.id = :id")
     Optional<ScansEntity> getByIdScan(@Param("id") UUID id);
 
