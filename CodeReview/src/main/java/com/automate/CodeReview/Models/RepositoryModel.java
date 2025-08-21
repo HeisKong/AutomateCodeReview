@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,4 +24,10 @@ public class RepositoryModel {
     private String repositoryUrl;
 
     private String projectType;
+
+    private String sonarProjectKey;
+
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
 }
