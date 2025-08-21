@@ -18,7 +18,7 @@ import java.util.UUID;
 @Table(name = "comments")
 public class CommentsEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID commentId;
 
     @ManyToOne(fetch = FetchType.LAZY)

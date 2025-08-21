@@ -20,7 +20,7 @@ import java.util.UUID;
 public class ScansEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID scanId;
 
     @ManyToOne(fetch = FetchType.LAZY)

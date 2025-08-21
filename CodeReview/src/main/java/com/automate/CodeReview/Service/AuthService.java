@@ -52,7 +52,7 @@ public class AuthService {
     }
     private UserModel toModel(UsersEntity e) {
         UserModel m = new UserModel();
-        m.setId(e.getId());
+        m.setId(e.getUserId());
         m.setUsername(e.getUsername());
         m.setEmail(e.getEmail());
         m.setPhoneNumber(e.getPhoneNumber());
