@@ -36,14 +36,14 @@ public class AuthService {
 
     public LoginResponse login(LoginRequest req) {
         authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.username(), req.password())
+                new UsernamePasswordAuthenticationToken(req.email(), req.password())
         );
 
 
-        UsersEntity u = usersRepository.findByUsername(req.username())
+        UsersEntity u = usersRepository.findByEmail(req.email())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        String token = jwtService.generateToken(u.getUsername());
+        String token = jwtService.generateToken(u.getEmail());
 
 
         UserModel model = toModel(u);

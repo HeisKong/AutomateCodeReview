@@ -15,15 +15,17 @@ public class JpaUserDetailsService implements UserDetailsService {
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        UsersEntity u = usersRepository.findByUsername(username)
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        UsersEntity u = usersRepository.findByEmail(email) // เปลี่ยนเป็น email
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         String role = u.getRole();
-        if (role != null && role.startsWith("ROLE_")) role = role.substring(5);
+        if (role != null && role.startsWith("ROLE_")) {
+            role = role.substring(5);
+        }
 
-        return User.withUsername(u.getUsername())
-                .password(u.getPassword())   // ต้องเป็น BCrypt hash
+        return User.withUsername(u.getEmail())  // ใช้ email เป็น username
+                .password(u.getPassword())      // ต้องเป็น BCrypt hash
                 .roles(role == null ? "USER" : role)
                 .build();
     }

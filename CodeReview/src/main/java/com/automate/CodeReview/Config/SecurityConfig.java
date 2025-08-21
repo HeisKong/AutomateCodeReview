@@ -49,7 +49,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // ต้องมีถ้าคุณจะเรียก authenticate() ตอน login
+    // จะเรียก authenticate() ตอน login
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
         return cfg.getAuthenticationManager();
