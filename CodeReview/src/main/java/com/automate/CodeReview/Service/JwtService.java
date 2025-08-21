@@ -30,23 +30,23 @@ public class JwtService {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(String username) {
-        return generateToken(Map.of(), username);
+    public String generateToken(String email) {
+        return generateToken(Map.of(), email);
     }
 
-    public String generateToken(Map<String, Object> extraClaims, String username) {
+    public String generateToken(Map<String, Object> extraClaims, String email) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .setClaims(extraClaims)
-                .setSubject(username) // ใช้ username เป็น subject
+                .setSubject(email)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plusMillis(expirationMs)))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+    public String extractEmail(String token) {
+        return extractClaim(token, Claims::getSubject); // subject คือ email
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> resolver) {
@@ -54,10 +54,14 @@ public class JwtService {
         return resolver.apply(claims);
     }
 
-    public boolean isValid(String token, String username) {
-        String sub = extractUsername(token);
+    public boolean isValid(String token, String email) {
+        String tokenEmail = extractEmail(token);   // ดึง email จาก token
+        return tokenEmail.equalsIgnoreCase(email) && !isTokenExpired(token);
+    }
+
+    private boolean isTokenExpired(String token) {
         Date exp = extractClaim(token, Claims::getExpiration);
-        return username.equals(sub) && exp.after(new Date());
+        return exp.before(new Date());
     }
 
     private JwtParser parser() {

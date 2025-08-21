@@ -37,17 +37,17 @@ public class JwtFilter extends OncePerRequestFilter {
             String token = header.substring(7);
 
             try {
-                String username = jwtService.extractUsername(token);
-                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UserDetails user = userDetailsService.loadUserByUsername(username);
-                    if (jwtService.isValid(token, user.getUsername())) {
+                String email = jwtService.extractEmail(token);  // ใช้ email แทน
+                if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    UserDetails user = userDetailsService.loadUserByUsername(email); // load ด้วย email
+                    if (jwtService.isValid(token, email)) {  // ตรวจสอบด้วย email
                         UsernamePasswordAuthenticationToken auth =
                                 new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
                         auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     }
                 }
-            } catch (Exception ignored) {  }
+            } catch (Exception ignored) { }
         }
 
         chain.doFilter(req, res);
