@@ -21,7 +21,7 @@ import java.util.UUID;
 public class ProjectsEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID projectId;
 
     @ManyToOne(fetch = FetchType.LAZY)

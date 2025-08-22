@@ -29,7 +29,7 @@ public class UsersEntity {
     @Column(name = "email",   nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password_hash",  nullable = false,  unique = true)
+    @Column(name = "password_hash",  nullable = false)
     private String password;
 
     @Column(name = "phone", nullable = false, unique = true,  length = 13)
@@ -39,7 +39,7 @@ public class UsersEntity {
     private String role;
 
     @CreationTimestamp
-    @Column(name = "create_at",  nullable = false)
+    @Column(name = "created_at",  nullable = false)
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
