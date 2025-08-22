@@ -9,6 +9,7 @@ import com.automate.CodeReview.repository.ProjectsRepository;
 import com.automate.CodeReview.repository.ScansRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -33,8 +34,13 @@ public class DashboardService {
         return dashboardModel;
     }
 
-    public HistoryModel getHistory(UUID id){
-        return new HistoryModel();
+    public List<HistoryModel> getHistory(UUID id){
+        ProjectsEntity projectsEntity = projectsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+        HistoryModel historyModel = new HistoryModel();
+        historyModel.setName(projectsEntity.getName());
+        historyModel.setCreatedAt(projectsEntity.getCreatedAt());
+        return List.of(historyModel);
     }
 
     public TrendsModel getTrends(UUID id){
