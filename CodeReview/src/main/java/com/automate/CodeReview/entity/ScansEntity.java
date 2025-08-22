@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -41,7 +42,7 @@ public class ScansEntity {
     @Column(name = "quality_gate",  nullable = false)
     private String qualityGate;
 
-    @Column(name = "metrics",   nullable = false)
+    @Column(name = "metrics", columnDefinition = "jsonb")
     private String metrics;
 
     @Column(name = "log_file_path",   nullable = false)
