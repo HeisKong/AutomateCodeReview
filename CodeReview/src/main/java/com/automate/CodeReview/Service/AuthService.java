@@ -8,6 +8,7 @@ import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.UsersRepository;
 import com.automate.CodeReview.Service.JwtService;
 
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -62,12 +63,15 @@ public class AuthService {
     }
 
     public void register(RegisterRequest req) {
-        if (usersRepository.existsByUsername(req.username()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username already exists");
-        if (usersRepository.existsByEmail(req.email()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already exists");
-        if (usersRepository.existsByPhoneNumber(req.phoneNumber()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone already exists");
+        if (usersRepository.existsByUsername(req.username())) {
+            throw new DuplicateKeyException("Username already exists");
+        }
+        if (usersRepository.existsByEmail(req.email())) {
+            throw new DuplicateKeyException("Email already exists");
+        }
+        if (usersRepository.existsByPhoneNumber(req.phoneNumber())) {
+            throw new DuplicateKeyException("Phone number already exists");
+        }
 
         UsersEntity u = new UsersEntity();
         u.setUsername(req.username());

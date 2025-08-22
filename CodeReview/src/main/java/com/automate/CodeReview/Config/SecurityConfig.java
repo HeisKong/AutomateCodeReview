@@ -31,25 +31,21 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/user/**").hasAnyRole("USER","ADMIN")
-                        .anyRequest().permitAll()
-                )
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((req, res, e) -> {
-                            res.setStatus(401);
-                            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            res.getOutputStream().write("{\"error\":\"Unauthorized\"}".getBytes(StandardCharsets.UTF_8));
-                        })
-                )
+
+                                .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                                .requestMatchers("/api/test/**").permitAll()
+                                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                                .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN")
+                                .anyRequest().authenticated()
+                        )
+
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // จะเรียก authenticate() ตอน login
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
         return cfg.getAuthenticationManager();
