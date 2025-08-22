@@ -39,7 +39,7 @@ public class UsersEntity {
     private String role;
 
     @CreationTimestamp
-    @Column(name = "create_at",  nullable = false)
+    @Column(name = "created_at",  nullable = false)
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)

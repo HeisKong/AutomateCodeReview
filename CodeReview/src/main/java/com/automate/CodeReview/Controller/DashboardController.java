@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -29,7 +30,7 @@ public class DashboardController {
     }
 
     @GetMapping("/{projectId}/history")
-    public ResponseEntity<HistoryModel> getHistory(@PathVariable UUID projectId){
+    public ResponseEntity<List<HistoryModel>> getHistory(@PathVariable UUID projectId){
         return ResponseEntity.ok(dashboardService.getHistory(projectId));
     }
 
