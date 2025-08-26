@@ -5,10 +5,14 @@ import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.ProjectsRepository;
 import com.automate.CodeReview.repository.UsersRepository;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -110,9 +114,36 @@ public class RepositoryService {
         projectsRepository.deleteById(id);
     }
 
-   /* //clone ทำพร้อม update เดียวค่อยไปแก้
-    public RepositoryModel cloneRepository(UUID id){
-        return null;
-    }*/
+    public String cloneRepositoryByProjectId(UUID projectId) {
+        Optional<String> repoUrlOptional = projectsRepository.findRepositoryUrlByProjectId(projectId);
+
+        if (repoUrlOptional.isEmpty()) {
+            return "Repository URL not found for project ID: " + projectId;
+        }
+
+        String repoUrl = repoUrlOptional.get();
+
+        // ดึงชื่อ repo จาก URL เช่น https://github.com/user/my-app.git → my-app
+        String repoName = repoUrl.substring(repoUrl.lastIndexOf("/") + 1).replace(".git", "");
+
+        // สร้าง targetDir ตามชื่อ repo
+        String targetDir = "C:/cloned-projects/" + repoName;
+
+        try {
+            File directory = new File(targetDir);
+            if (directory.exists()) {
+                return "Target directory already exists: " + targetDir;
+            }
+
+            Git.cloneRepository()
+                    .setURI(repoUrl)
+                    .setDirectory(directory)
+                    .call();
+
+            return "Repository cloned successfully to " + targetDir;
+        } catch (GitAPIException e) {
+            return "Error cloning repository: " + e.getMessage();
+        }
+    }
 
 }
