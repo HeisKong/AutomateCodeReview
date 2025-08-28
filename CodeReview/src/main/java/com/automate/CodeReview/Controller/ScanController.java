@@ -3,21 +3,19 @@ package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Models.ScanLogModel;
 import com.automate.CodeReview.Models.ScanModel;
+import com.automate.CodeReview.Models.ScanRequest;
 import com.automate.CodeReview.Service.ScanService;
 import com.automate.CodeReview.entity.ScansEntity;
 import com.automate.CodeReview.repository.ScansRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-@Controller
+@RestController
 @RequestMapping("/api/scans")
 public class ScanController {
 
@@ -31,8 +29,8 @@ public class ScanController {
     }
 
     @PostMapping
-    public ResponseEntity<ScanModel> startScan(@PathVariable UUID repositoryId) {
-        ScanModel scan = scanService.startScan(repositoryId);
+    public ResponseEntity<ScanModel> startScan(@RequestBody ScanRequest req) {
+        ScanModel scan = scanService.startScan(req);
         return ResponseEntity.ok(scan);
     }
 
@@ -58,7 +56,7 @@ public class ScanController {
     }
 
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<ScanModel> cancelScan(@PathVariable UUID id) {
-        return ResponseEntity.ok(scanService.cancelScan(id));
+    public ResponseEntity<ScanModel> cancelScan(@PathVariable UUID scanId) {
+        return ResponseEntity.ok(scanService.cancelScan(scanId));
     }
 }

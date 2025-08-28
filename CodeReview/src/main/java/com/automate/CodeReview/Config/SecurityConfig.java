@@ -37,10 +37,10 @@ public class SecurityConfig {
                                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                 .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN")
-                                .anyRequest().authenticated()
-                        )
+                                .anyRequest().permitAll()
+                        );
 
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                //.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
