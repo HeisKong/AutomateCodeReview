@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.UUID;
 
 @Getter
@@ -15,26 +15,21 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "comments")
-public class CommentsEntity {
+@Table(name = "gate_history")
+public class GradeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID commentsId;
+    private UUID gateId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "issue_id",  nullable = false)
-    private IssuesEntity issues;
+    @JoinColumn(name =  "scan_id")
+    private ScansEntity scan;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private UsersEntity user;
-
-    @Column(name = "comment",  nullable = false)
-    private String comment;
+    @Column(name = "quality_gate")
+    private String qualityGate;
 
     @CreationTimestamp
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
+    private Date createdAt;
 }

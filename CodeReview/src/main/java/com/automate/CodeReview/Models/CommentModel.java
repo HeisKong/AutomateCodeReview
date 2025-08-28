@@ -1,7 +1,6 @@
 package com.automate.CodeReview.Models;
 
 
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,10 +11,10 @@ import java.util.UUID;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class TrendsModel {
+public class CommentModel {
 
-    private UUID id;
-    private String qualityGate;
-    private LocalDateTime startTime;
-
+    private UUID issueId;
+    private UUID userId;
+    private String comment;
+    private LocalDateTime createdAt;
 }
