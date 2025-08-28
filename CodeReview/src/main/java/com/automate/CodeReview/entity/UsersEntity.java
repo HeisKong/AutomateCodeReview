@@ -47,4 +47,7 @@ public class UsersEntity {
 
     @OneToMany(mappedBy = "assignedTo", fetch = FetchType.LAZY)
     private List<IssuesEntity> issues;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<CommentsEntity> comments;
 }

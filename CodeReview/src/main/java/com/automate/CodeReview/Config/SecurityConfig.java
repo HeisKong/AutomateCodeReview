@@ -43,8 +43,8 @@ public class SecurityConfig {
                             res.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             res.getOutputStream().write("{\"error\":\"Unauthorized\"}".getBytes(StandardCharsets.UTF_8));
                         })
-                )
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                );
+//                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

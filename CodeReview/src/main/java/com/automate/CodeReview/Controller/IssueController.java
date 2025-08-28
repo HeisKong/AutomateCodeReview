@@ -1,8 +1,10 @@
 package com.automate.CodeReview.Controller;
 
 
+import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.Service.IssueService;
+import com.automate.CodeReview.dto.CommentDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,14 +22,14 @@ public class IssueController {
         this.issueService = issueService;
     }
 
-    @GetMapping
-    public List<IssueModel> getAllIssue(){
-        return issueService.getAllIssue();
+    @GetMapping("/{userId}")
+    public List<IssueModel> getAllIssue(@PathVariable UUID userId) {
+        return issueService.getAllIssue(userId);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<IssueModel> getIssueById(@PathVariable UUID id){
-        IssueModel issue = issueService.getIssueById(id);
+    @GetMapping("/{issueId}")
+    public ResponseEntity<IssueModel> getIssueById(@PathVariable UUID issueId){
+        IssueModel issue = issueService.getIssueById(issueId);
         if(issue != null){
             return ResponseEntity.ok(issue);
         }else {
@@ -35,20 +37,26 @@ public class IssueController {
         }
     }
 
-    //เว้นไว้ก่อนยังไม่รู้จะใช้อะไร
     @PutMapping("/{id}/assign")
     public ResponseEntity<IssueModel> assign(@PathVariable UUID id,@RequestParam String assignTo){
         return ResponseEntity.ok(issueService.assign(id, assignTo));
     }
 
-    @PostMapping("/{id}/comments")
-    public ResponseEntity<Map<String, Object>> addComment(@PathVariable UUID id,@RequestBody String message){
-        return ResponseEntity.ok(issueService.addComment(id, message));
+
+    @PutMapping("/{issueId}/status")
+    public ResponseEntity<IssueModel> updateStatus(@PathVariable UUID issueId, @RequestParam String status){
+        return ResponseEntity.ok(issueService.updateStatus(issueId, status));
     }
 
-    @PutMapping("/{id}/status")
-    public ResponseEntity<IssueModel> updateStatus(@PathVariable UUID id, @RequestParam String status){
-        return ResponseEntity.ok(issueService.updateStatus(id, status));
+    @PostMapping("/{issueId}/comments")
+    public ResponseEntity<CommentModel> addComment(@PathVariable UUID issueId, @RequestBody CommentDTO message, @RequestParam UUID userId){
+        return ResponseEntity.ok(issueService.addComment(issueId, message.getComment(), userId));
     }
+
+    @GetMapping("/{issueId}/comments")
+    public ResponseEntity<List<CommentModel>> getCommentsByIssue(@PathVariable UUID issueId) {
+        return ResponseEntity.ok(issueService.getCommentsByIssue(issueId));
+    }
+
 
 }
