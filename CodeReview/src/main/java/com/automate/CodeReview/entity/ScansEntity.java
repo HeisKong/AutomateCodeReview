@@ -6,10 +6,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Getter
@@ -32,20 +37,21 @@ public class ScansEntity {
     private String status;
 
     @CreationTimestamp
-    @Column(name = "started_at",  nullable = false)
+    @Column(name = "started_at", nullable = false, updatable = false)
     private LocalDateTime startedAt;
 
-    @CreationTimestamp
-    @Column(name = "completed_at",  nullable = false)
+    @UpdateTimestamp
+    @Column(name = "completed_at",  nullable = true)
     private LocalDateTime completedAt;
 
-    @Column(name = "quality_gate",  nullable = false)
+    @Column(name = "quality_gate")
     private String qualityGate;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metrics", columnDefinition = "jsonb")
-    private String metrics;
+    private Map<String, Object> metrics;
 
-    @Column(name = "log_file_path",   nullable = false)
+    @Column(name = "log_file_path")
     private String logFilePath;
 
     @OneToMany(mappedBy = "scan",fetch = FetchType.LAZY)
