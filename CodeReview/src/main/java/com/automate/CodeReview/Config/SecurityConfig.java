@@ -39,7 +39,7 @@ public class SecurityConfig {
                                 .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN")
                                 .anyRequest().authenticated()
                         )
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
