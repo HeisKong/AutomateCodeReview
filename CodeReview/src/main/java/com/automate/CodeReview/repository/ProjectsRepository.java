@@ -13,4 +13,5 @@ public interface ProjectsRepository extends JpaRepository<ProjectsEntity, UUID> 
     @Query("SELECT p.repositoryUrl FROM ProjectsEntity p WHERE p.projectId = :projectId")
     Optional<String> findRepositoryUrlByProjectId(@Param("projectId") UUID projectId);
 
+    Optional<ProjectsEntity> findBySonarProjectKey(String sonarProjectKey);
 }
