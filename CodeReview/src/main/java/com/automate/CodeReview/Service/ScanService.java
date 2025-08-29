@@ -143,14 +143,18 @@ public class ScanService {
                 String fromConfig = sonarHostUrl(); // เช่น http://host.docker.internal:9000 (Windows)
                 String fromReport = rtOpt.map(rt -> rt.serverUrl).orElse(null);
 
+                if (fromReport != null && fromReport.contains("://sonarqube")) {
+                    fromReport = null;
+                }
+
                 // กรณี report-task เขียนเป็นชื่อ service ใน Docker (เช่น http://sonarqube:9000)
                 // มักจะ "เอื้อมไม่ถึง" จาก Host → เราจะแค่ลอง แต่ถ้าไม่ถึงจะ fallback เอง
                 String reachableHost = pickReachableSonarHost(
                         req.getToken(),
+                        fromConfig,                                 // <— ใช้ค่าคอนฟิกก่อน (localhost)
                         fromReport,
-                        fromConfig,
                         "http://localhost:9000",
-                        "http://host.docker.internal:9000"
+                        "http://host.docker.internal:9000"         // <— เผื่อไว้ (คุณทดสอบว่าเรียกได้จาก container)
                 );
                 if (reachableHost == null) {
                     res.setQualityGate("UNKNOWN");
@@ -191,6 +195,7 @@ public class ScanService {
             // เขียนไฟล์ log หลังจบ (เนื้อหาเต็มแล้ว)  // <--
             String logPath = writeLogsToFile(res.getScanId(), logs);
             res.setLogFilePath(logPath);
+            if (repoRoot != null) deleteQuietly(repoRoot);
         }
 
 
@@ -327,7 +332,7 @@ public class ScanService {
         if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
         cmd.addAll(List.of(
                 "docker","run","--rm",
-                "-e","SONAR_HOST_URL="+sonarHostUrl(),
+                "-e","SONAR_HOST_URL=http://host.docker.internal:9000",
                 "-e","SONAR_TOKEN="+req.getToken(),
                 "-v", repoRoot.toString()+":/usr/src",
                 scannerImage,
@@ -337,22 +342,21 @@ public class ScanService {
                 "-Dsonar.tests=src",
                 "-Dsonar.test.inclusions=**/*.spec.ts",
                 "-Dsonar.typescript.lcov.reportPaths=coverage/lcov.info",
-                "-Dsonar.sourceEncoding=UTF-8",
-                "-Dsonar.token="+req.getToken()
+                "-Dsonar.sourceEncoding=UTF-8"
         ));
         return cmd;
     }
 
     /* ---------- Maven (Spring Boot) ---------- */
     private List<String> dockerMavenBuild(Path pomDir) {
-        // mount root ของ repo และ set -w ไปที่โฟลเดอร์ที่มี pom.xml
         Path repoRoot = pomDir.getParent();
+        String rel = repoRoot.relativize(pomDir).toString().replace('\\','/');  // เปลี่ยนตรงนี้
         List<String> cmd = new ArrayList<>();
         if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
         cmd.addAll(List.of(
                 "docker","run","--rm",
                 "-v", repoRoot.toString()+":/usr/src",
-                "-w","/usr/src/"+ pomDir.getFileName().toString(),
+                "-w","/usr/src/"+ rel,                       // ใช้ rel
                 "maven:3-eclipse-temurin-21",
                 "mvn","-B","-DskipTests","package"
         ));
@@ -365,15 +369,14 @@ public class ScanService {
         if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
         cmd.addAll(List.of(
                 "docker","run","--rm",
-                "-e","SONAR_HOST_URL="+sonarHostUrl(),
+                "-e","SONAR_HOST_URL=http://host.docker.internal:9000",
                 "-e","SONAR_TOKEN="+req.getToken(),
                 "-v", repoRoot.toString()+":/usr/src",
                 scannerImage,
                 "-Dsonar.projectKey="+req.getProjectKey(),
                 "-Dsonar.sources=.",
                 "-Dsonar.java.binaries="+binaries,
-                "-Dsonar.sourceEncoding=UTF-8",
-                "-Dsonar.token="+req.getToken()
+                "-Dsonar.sourceEncoding=UTF-8"
         ));
         return cmd;
     }
@@ -381,12 +384,13 @@ public class ScanService {
     /* ---------- Gradle ---------- */
     private List<String> dockerGradleBuild(Path gradleDir) {
         Path repoRoot = gradleDir.getParent();
+        String rel = repoRoot.relativize(gradleDir).toString().replace('\\','/'); // เปลี่ยนตรงนี้
         List<String> cmd = new ArrayList<>();
         if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
         cmd.addAll(List.of(
                 "docker","run","--rm",
                 "-v", repoRoot.toString()+":/usr/src",
-                "-w","/usr/src/"+ gradleDir.getFileName().toString(),
+                "-w","/usr/src/"+ rel,                       // ใช้ rel
                 "gradle:8-jdk21",
                 "gradle","build","-x","test"
         ));
@@ -399,15 +403,14 @@ public class ScanService {
         if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
         cmd.addAll(List.of(
                 "docker","run","--rm",
-                "-e","SONAR_HOST_URL="+sonarHostUrl(),
+                "-e","SONAR_HOST_URL=http://host.docker.internal:9000",
                 "-e","SONAR_TOKEN="+req.getToken(),
                 "-v", repoRoot.toString()+":/usr/src",
                 scannerImage,
                 "-Dsonar.projectKey="+req.getProjectKey(),
                 "-Dsonar.sources=.",
                 "-Dsonar.java.binaries="+binaries,
-                "-Dsonar.sourceEncoding=UTF-8",
-                "-Dsonar.token="+req.getToken()
+                "-Dsonar.sourceEncoding=UTF-8"
         ));
         return cmd;
     }
@@ -461,52 +464,6 @@ public class ScanService {
             }
         } catch (Exception ignore) {}
         return "UNKNOWN";
-    }
-
-    private Map<String, Object> fetchMetrics(
-            String host,
-            String token,
-            String projectKey,
-            String branch,
-            String metricsCsv
-    ) {
-        Map<String, Object> lastError = null;
-        long delay = metricsDelayMs;
-
-        for (int attempt = 1; attempt <= metricsRetries; attempt++) {
-            Map<String, Object> m = fetchMetrics(host, token, projectKey, branch, metricsCsv);
-
-            // ถ้าไม่มี key "error" แสดงว่า success
-            if (m != null && !m.containsKey("error")) {
-                if (attempt > 1) {
-                    log.info("fetchMetrics success at attempt {}/{}", attempt, metricsRetries);
-                }
-                return m;
-            }
-
-            // จด error ล่าสุดไว้ แล้วรอเพื่อ retry
-            lastError = (m == null) ? Map.of("error", "null response") : m;
-            log.warn("fetchMetrics attempt {}/{} failed: {}", attempt, metricsRetries, lastError);
-
-            if (attempt < metricsRetries) {
-                try {
-                    Thread.sleep(delay);
-                } catch (InterruptedException ignored) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-                // exponential backoff
-                delay = Math.min(delay * 2, metricsMaxDelayMs);
-            }
-        }
-
-        // ครบ retry แล้วยังไม่สำเร็จ ส่ง error กลับ (รวม message จาก lastError ด้วย)
-        Map<String, Object> err = new LinkedHashMap<>();
-        err.put("error", "fetch metrics failed after retry");
-        if (lastError != null && lastError.get("message") != null) {
-            err.put("message", lastError.get("message"));
-        }
-        return err;
     }
     private Map<String,Object> fetchMetricsWithRetry(
             String host, String token, String projectKey, String branch, String metricsCsv,
@@ -574,10 +531,12 @@ public class ScanService {
 
     private boolean pingSonar(String host, String token) {
         try {
-            String url = host + "/api/system/health";
-            String json = httpGetWithToken(url, token);
+            // ใช้ endpoint public ที่ไม่ต้องเป็น admin
+            String url = host + "/api/server/version";
+            String json = httpGetWithToken(url, token); // จะได้เวอร์ชันเช่น "10.6.0.92116"
             return json != null && !json.isBlank();
         } catch (Exception e) {
+            log.warn("Ping failed {}: {}", host, e.toString());
             return false;
         }
     }
@@ -603,9 +562,15 @@ public class ScanService {
         con.setRequestProperty("Authorization", "Basic " + basic);
         con.setConnectTimeout(25000);
         con.setReadTimeout(60000);
-        try (InputStream in = con.getInputStream()) {
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+
+        int code = con.getResponseCode();
+        InputStream is = (code >= 200 && code < 300) ? con.getInputStream() : con.getErrorStream();
+        String body = (is != null) ? new String(is.readAllBytes(), StandardCharsets.UTF_8) : "";
+
+        if (code < 200 || code >= 300) {
+            throw new IOException("HTTP " + code + " " + url + " :: " + body);
         }
+        return body;
     }
 
     private void deleteQuietly(Path path) {
