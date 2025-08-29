@@ -51,9 +51,8 @@ public class RepositoryController {
         return ResponseEntity.noContent().build();
     }
 
-    /*@PostMapping("/{id}/clone")
-    public ResponseEntity<Map<String, String>> cloneRepository(@PathVariable UUID id) {
-        String path = String.valueOf(repositoryService.cloneRepository(id));
-        return ResponseEntity.ok(Map.of("clonePath", path));
-    }*/
+    @PostMapping("/clone")
+    public String cloneRepo(@RequestParam UUID projectId) {
+        return repositoryService.cloneRepositoryByProjectId(projectId);
+    }
 }
