@@ -10,7 +10,8 @@ import java.util.Optional;
 import java.util.UUID;
 @Repository
 public interface ProjectsRepository extends JpaRepository<ProjectsEntity, UUID> {
-    Optional<ProjectsEntity> findBySonarProjectKey(String sonarProjectKey);
     @Query("SELECT p.repositoryUrl FROM ProjectsEntity p WHERE p.projectId = :projectId")
     Optional<String> findRepositoryUrlByProjectId(@Param("projectId") UUID projectId);
+
+    Optional<ProjectsEntity> findBySonarProjectKey(String sonarProjectKey);
 }
