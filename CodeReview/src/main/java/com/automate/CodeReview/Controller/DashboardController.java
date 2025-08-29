@@ -24,18 +24,18 @@ public class DashboardController {
         this.dashboardService = dashboardService;
     }
 
-    @GetMapping("/{projectId}")
-    public ResponseEntity<DashboardModel> getOverview(@PathVariable UUID projectId){
-        return ResponseEntity.ok(dashboardService.getOverview(projectId));
+    @GetMapping("/{userId}")
+    public ResponseEntity<List<DashboardModel>> getOverview(@PathVariable UUID userId){
+        return ResponseEntity.ok(dashboardService.getOverview(userId));
     }
 
-    @GetMapping("/{projectId}/history")
-    public ResponseEntity<List<HistoryModel>> getHistory(@PathVariable UUID projectId){
-        return ResponseEntity.ok(dashboardService.getHistory(projectId));
+    @GetMapping("/{userId}/history")
+    public ResponseEntity<List<HistoryModel>> getHistory(@PathVariable UUID userId){
+        return ResponseEntity.ok(dashboardService.getHistory(userId));
     }
 
-    @GetMapping("/{projectId}/trends")
-    public ResponseEntity<TrendsModel> getTrends(@PathVariable UUID projectId){
-        return ResponseEntity.ok(dashboardService.getTrends(projectId));
+    @GetMapping("/{userId}/trends")
+    public ResponseEntity<List<TrendsModel>> getTrends(@PathVariable UUID userId){
+        return ResponseEntity.ok(dashboardService.getTrends(userId));
     }
 }
