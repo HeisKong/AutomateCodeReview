@@ -12,6 +12,4 @@ import java.util.UUID;
 public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
     @Query("SELECT s FROM ScansEntity s WHERE s.id = :id")
     Optional<ScansEntity> getByIdScan(@Param("id") UUID id);
-
-
 }

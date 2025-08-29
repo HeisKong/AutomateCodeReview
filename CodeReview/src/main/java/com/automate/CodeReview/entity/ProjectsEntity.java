@@ -25,7 +25,7 @@ public class ProjectsEntity {
     private UUID projectId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private UsersEntity user;
 
 
