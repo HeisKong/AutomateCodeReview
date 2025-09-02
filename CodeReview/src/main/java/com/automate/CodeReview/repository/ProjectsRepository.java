@@ -12,4 +12,6 @@ public interface ProjectsRepository extends JpaRepository<ProjectsEntity, UUID> 
     List<ProjectsEntity> findByUser_UserId(UUID userId);
 
     Optional<ProjectsEntity> findBySonarProjectKey(String sonarProjectKey);
+
+    Optional<String> findRepositoryUrlByProjectId(UUID projectId);
 }
