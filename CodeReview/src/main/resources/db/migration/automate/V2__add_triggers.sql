@@ -1,0 +1,21 @@
+CREATE OR REPLACE FUNCTION log_gate_history()
+    RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.quality_gate IS NOT NULL THEN
+        INSERT INTO gate_history (gate_id, scan_id, quality_gate, created_at)
+        VALUES (
+                   gen_random_uuid(),
+                   NEW.scan_id,
+                   NEW.quality_gate,
+                   COALESCE(NEW.completed_at, NEW.started_at, now())
+               );
+END IF;
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_log_gate_history ON scans;
+CREATE TRIGGER trg_log_gate_history
+    AFTER INSERT OR UPDATE OF quality_gate ON scans
+    FOR EACH ROW
+    EXECUTE FUNCTION log_gate_history();

@@ -115,7 +115,7 @@ public class RepositoryService {
     }
 
     public String cloneRepositoryByProjectId(UUID projectId) {
-        Optional<String> repoUrlOptional = projectsRepository.findRepositoryUrlByProjectId(projectId);
+        Optional<String> repoUrlOptional = projectsRepository.findRepositoryUrlByProjectId((projectId));
 
         if (repoUrlOptional.isEmpty()) {
             return "Repository URL not found for project ID: " + projectId;

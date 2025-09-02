@@ -43,7 +43,7 @@ public class DashboardService {
             DashboardModel model = new DashboardModel();
             model.setId(userId);
             model.setName(project.getName());
-            model.setMetrics(latestScan != null && latestScan.getMetrics() != null ? latestScan.getMetrics() : "0");
+            model.setMetrics(latestScan != null && latestScan.getMetrics() != null ? latestScan.getMetrics().toString() : "0");
             dashboardList.add(model);
         }
 
