@@ -1,9 +1,10 @@
 package com.automate.CodeReview.dto;
 
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 public class CommentDTO {
     private String comment;
-    public String getComment() { return comment; }
-    public void setComment(String comment) { this.comment = comment; }
-
 }

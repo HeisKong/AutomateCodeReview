@@ -1,5 +1,6 @@
 package com.automate.CodeReview.Models;
 
+import com.automate.CodeReview.dto.IssueDTO;
 import lombok.*;
 
 import java.util.UUID;
@@ -13,5 +14,8 @@ public class DashboardModel {
 
     private UUID id;
     private String name;
-    private String metrics;
+    private IssueDTO metrics;
+
+    public void setMetrics(String number) {
+    }
 }
