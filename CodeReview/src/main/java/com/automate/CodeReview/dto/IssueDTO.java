@@ -1,16 +1,12 @@
 package com.automate.CodeReview.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class IssueDTO {
 
-    private String bugs;
-    private String vulnerabilities;
-    private String codeSmells;
-    private String coverage;
+    private int bugs;
+    private int vulnerabilities;
+    private int codeSmells;
+    private int coverage;
 }
