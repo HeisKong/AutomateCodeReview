@@ -23,10 +23,10 @@ public class IssuesEntity {
     private UUID issuesId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "scan_id", nullable = false, unique = true)
+    @JoinColumn(name = "scan_id", nullable = false)
     private ScansEntity scan;
 
-    @Column(name = "issue_key",  nullable = false)
+    @Column(name = "issue_key")
     private String issueKey;
 
     @Column(name = "type",  nullable = false)
