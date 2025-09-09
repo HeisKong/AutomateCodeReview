@@ -67,6 +67,3 @@ CREATE INDEX IF NOT EXISTS idx_scans_project_id   ON public.scans(project_id);
 CREATE INDEX IF NOT EXISTS idx_issues_scan_id     ON public.issues(scan_id);
 CREATE INDEX IF NOT EXISTS idx_comments_issue_id  ON public.comments(issue_id);
 CREATE INDEX IF NOT EXISTS idx_comments_user_id   ON public.comments(user_id);
-
-ALTER TABLE public.scans ADD COLUMN IF NOT EXISTS ce_task_id varchar(128);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_scans_ce_task_id ON public.scans (ce_task_id);
