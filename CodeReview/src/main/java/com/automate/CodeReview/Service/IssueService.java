@@ -5,12 +5,14 @@ import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.entity.CommentsEntity;
 import com.automate.CodeReview.entity.IssuesEntity;
 import com.automate.CodeReview.entity.UsersEntity;
+import com.automate.CodeReview.exception.IssueNotFoundException;
+import com.automate.CodeReview.exception.NoIssuesFoundException;
+import com.automate.CodeReview.exception.UserNotFoundException;
 import com.automate.CodeReview.repository.CommentsRepository;
 import com.automate.CodeReview.repository.IssuesRepository;
 import com.automate.CodeReview.repository.UsersRepository;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,9 +34,8 @@ public class IssueService {
     public List<IssueModel> getAllIssue(UUID userId) {
         List<IssuesEntity> issues = issuesRepository.findByScan_Project_User_UserId(userId);
         if (issues.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No issues found for user");
+            throw new NoIssuesFoundException();
         }
-
         List<IssueModel> result = new ArrayList<>();
         for (IssuesEntity issue : issues) {
             IssueModel model = new IssueModel(
@@ -51,24 +52,26 @@ public class IssueService {
             );
             result.add(model);
         }
-
         return result;
     }
 
+    @Transactional
     public IssueModel assign(UUID issueId, String assignToUserId) {
         IssuesEntity issue = issuesRepository.findById(issueId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issue not found"));
+                .orElseThrow(IssueNotFoundException::new);
 
-        UsersEntity user = usersRepository.findById(UUID.fromString(assignToUserId))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        UUID assigneeUuid = UUID.fromString(assignToUserId); // ถ้าพัง -> IllegalArgumentException -> 400
+        UsersEntity user = usersRepository.findById(assigneeUuid)
+                .orElseThrow(UserNotFoundException::new);
 
         issue.setAssignedTo(user);
+        issuesRepository.save(issue);
         return getIssueById(issue.getIssuesId());
     }
 
     public IssueModel getIssueById(UUID issueId) {
         IssuesEntity issue = issuesRepository.findById(issueId)
-                .orElseThrow(() -> new RuntimeException("Issue not found"));
+                .orElseThrow(IssueNotFoundException::new);
 
         return new IssueModel(
                 issue.getIssuesId(),
@@ -84,19 +87,22 @@ public class IssueService {
         );
     }
 
+    @Transactional
     public IssueModel updateStatus(UUID issueId, String status) {
         IssuesEntity issue = issuesRepository.findById(issueId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issue not found"));
+                .orElseThrow(IssueNotFoundException::new);
 
         issue.setStatus(status);
+        issuesRepository.save(issue);
         return getIssueById(issue.getIssuesId());
     }
 
+    @Transactional
     public CommentModel addComment(UUID issueId, String comment, UUID userId) {
         IssuesEntity issue = issuesRepository.findById(issueId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issue not found"));
+                .orElseThrow(IssueNotFoundException::new);
         UsersEntity user = usersRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(UserNotFoundException::new);
 
         CommentsEntity entity = new CommentsEntity();
         entity.setIssues(issue);
@@ -110,13 +116,12 @@ public class IssueService {
         model.setCreatedAt(saved.getCreatedAt());
         model.setUserId(saved.getUser().getUserId());
         model.setIssueId(saved.getIssues().getIssuesId());
-
         return model;
     }
 
     public List<CommentModel> getCommentsByIssue(UUID issueId) {
         IssuesEntity issue = issuesRepository.findById(issueId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issue not found"));
+                .orElseThrow(IssueNotFoundException::new);
 
         List<CommentsEntity> comments = commentsRepository.findByIssues(issue);
 
@@ -129,5 +134,4 @@ public class IssueService {
             return model;
         }).toList();
     }
-
 }
