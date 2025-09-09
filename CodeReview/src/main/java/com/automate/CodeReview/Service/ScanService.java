@@ -11,9 +11,15 @@ import com.automate.CodeReview.repository.ScansRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.Nullable;
+import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -53,11 +59,7 @@ public class ScanService {
     @Value("${sonar.metrics:bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density}")
     private String metricsKeys;
 
-    @Value("${sonar.scanner-image:sonarsource/sonar-scanner-cli}")
-    private String scannerImage;
-
-
-    // retry config
+    // จำนวน retry ในการดึง metrics
     @Value("${sonar.metrics.retries:3}")
     private int metricsRetries;
 
@@ -67,6 +69,21 @@ public class ScanService {
     @Value("${sonar.metrics.max-delay-ms:15000}")
     private long metricsMaxDelayMs;
 
+    // Executables (ถ้าอยู่ใน PATH ใช้ค่า default ได้เลย)
+    @Value("${sonar.scanner-exec:sonar-scanner}")
+    private String scannerExec; // เช่น C:\\sonar\\bin\\sonar-scanner.bat บน Windows
+
+    @Value("${node.exec:node}")
+    private String nodeExec;    // เผื่ออยาก fix path (จริง ๆ ไม่ได้ใช้ตรง ๆ ในสคริปต์)
+    @Value("${npm.exec:npm}")
+    private String npmExec;
+
+    @Value("${maven.exec:mvn}")
+    private String mavenExec;
+
+    @Value("${gradle.exec:gradle}")
+    private String gradleExec;
+
     private static final boolean IS_WINDOWS =
             System.getProperty("os.name").toLowerCase().contains("win");
 
@@ -75,7 +92,7 @@ public class ScanService {
         return sonarHostUrlCfg;
     }
 
-
+    /* ===================== API หลัก ===================== */
 
     @Transactional
     public ScanModel startScan(ScanRequest req) {
@@ -96,16 +113,14 @@ public class ScanService {
 
         Path repoRoot = null;
 
-        
-        
-
         try {
-            // 1) clone repo
+            // 1) clone repo (host)
             repoRoot = Files.createTempDirectory("scan-");
-            List<String> gitCmd = req.getBranchName() != null && !req.getBranchName().isBlank()
-                    ? List.of("git","clone","--depth","1","--branch",req.getBranchName(),"--single-branch",req.getRepoUrl(),repoRoot.toString())
+            List<String> gitCmd = (req.getBranchName() != null && !req.getBranchName().isBlank())
+                    ? List.of("git","clone","--depth","1","--branch",req.getBranchName(),"--single-branch",
+                    req.getRepoUrl(),repoRoot.toString())
                     : List.of("git","clone","--depth","1",req.getRepoUrl(),repoRoot.toString());
-            int gitExit = runAndCapture(gitCmd, logs, null);
+            int gitExit = runAndCapture(gitCmd, logs, null, null);
             if (gitExit != 0) return fail(res, gitExit, "git clone failed\n"+logs);
 
             // 2) detect project type
@@ -113,77 +128,57 @@ public class ScanService {
             Path pomDir = hasPom(repoRoot);
             Path gradleDir = hasGradle(repoRoot);
 
+            // 3) prepare Sonar env (อย่าใส่ token ใน command line)
+            Map<String,String> sonarEnv = new HashMap<>();
+            sonarEnv.put("SONAR_HOST_URL", sonarHostUrl());
+            sonarEnv.put("SONAR_TOKEN", req.getToken());
+
             int exit;
             if (isAngular) {
-                exit = runAndCapture(dockerNodeInstall(repoRoot), logs, null);
+                // npm install
+                exit = runAndCapture(hostNodeInstall(repoRoot), logs, repoRoot.toFile(), null);
                 if (exit != 0) return fail(res, exit, "npm install failed\n"+logs);
-                runAndCapture(dockerNodeCoverage(repoRoot), logs, null); // optional
-                exit = runAndCapture(dockerSonarScanAngular(req, repoRoot), logs, repoRoot.toFile());
+
+                // optional coverage
+                runAndCapture(hostNodeCoverage(repoRoot), logs, repoRoot.toFile(), null);
+
+                // sonar-scanner CLI
+                exit = runAndCapture(hostSonarScanAngular(req, repoRoot), logs, repoRoot.toFile(), sonarEnv);
+
             } else if (pomDir != null) {
-                exit = runAndCapture(dockerMavenBuild(pomDir), logs, null);
+                // Maven build
+                exit = runAndCapture(hostMavenBuild(pomDir), logs, pomDir.toFile(), null);
                 if (exit != 0) return fail(res, exit, "maven build failed\n"+logs);
-                exit = runAndCapture(dockerSonarScanMaven(req, repoRoot, pomDir), logs, repoRoot.toFile());
+
+                // Maven Sonar plugin (ไม่ใส่ token ใน cmd; ส่งผ่าน ENV)
+                logs.append("[scan] Using Maven plugin: mvn verify sonar:sonar\n");
+                exit = runAndCapture(
+                        hostMavenSonarGoal(req, pomDir),
+                        logs,
+                        pomDir.toFile(),
+                        sonarEnv
+                );
+
             } else if (gradleDir != null) {
-                exit = runAndCapture(dockerGradleBuild(gradleDir), logs, null);
+                // Gradle build
+                exit = runAndCapture(hostGradleBuild(gradleDir), logs, gradleDir.toFile(), null);
                 if (exit != 0) return fail(res, exit, "gradle build failed\n"+logs);
-                exit = runAndCapture(dockerSonarScanGradle(req, repoRoot, gradleDir), logs, repoRoot.toFile());
+
+                // sonar-scanner CLI
+                exit = runAndCapture(hostSonarScanGradle(req, repoRoot, gradleDir), logs, repoRoot.toFile(), sonarEnv);
+
             } else {
                 return fail(res, 1, "Unknown project type: not Angular/Maven/Gradle");
             }
 
             res.setExitCode(exit);
             res.setOutput(logs.toString());
-            res.setStatus(exit == 0 ? "SUCCESS" : "FAIL");
+            res.setStatus(exit == 0 ? "SUCCESS" : "FAIL");  // ← ส่งงานเข้า SonarQube แล้ว
 
-            // 3) fetch QG + metrics if success
+            // 4) ไม่ดึง QG/Metrics ณ ตรงนี้ — รอ Webhook
             if (res.getExitCode() == 0) {
-                Optional<ReportTask> rtOpt = readReportTask(repoRoot);
-
-                // 1) เตรียม candidate host สำหรับ “ฝั่งแอป”
-                String fromConfig = sonarHostUrl(); // เช่น http://host.docker.internal:9000 (Windows)
-                String fromReport = rtOpt.map(rt -> rt.serverUrl).orElse(null);
-
-                if (fromReport != null && fromReport.contains("://sonarqube")) {
-                    fromReport = null;
-                }
-
-                // กรณี report-task เขียนเป็นชื่อ service ใน Docker (เช่น http://sonarqube:9000)
-                // มักจะ "เอื้อมไม่ถึง" จาก Host → เราจะแค่ลอง แต่ถ้าไม่ถึงจะ fallback เอง
-                String reachableHost = pickReachableSonarHost(
-                        req.getToken(),
-                        fromConfig,                                 // <— ใช้ค่าคอนฟิกก่อน (localhost)
-                        fromReport,
-                        "http://localhost:9000",
-                        "http://host.docker.internal:9000"         // <— เผื่อไว้ (คุณทดสอบว่าเรียกได้จาก container)
-                );
-                if (reachableHost == null) {
-                    res.setQualityGate("UNKNOWN");
-                    res.setMetrics(Map.of(
-                            "error","fetch metrics failed",
-                            "message","no reachable Sonar host (timeout)"
-                    ));
-                } else {
-                    // 2) รอ CE task เสร็จ (ถ้ามี ceTaskId) ด้วย host ที่เข้าถึงได้จริง
-                    if (rtOpt.isPresent() && rtOpt.get().ceTaskId != null) {
-                        boolean done = waitForCeTaskDone(reachableHost, req.getToken(), rtOpt.get().ceTaskId, 90_000);
-                        if (done) {
-                            res.setQualityGate(fetchQualityGateByAnalysis(reachableHost, req.getToken(), rtOpt.get().ceTaskId));
-                        } else {
-                            // fallback: ดึง QG แบบ projectKey แทน
-                            res.setQualityGate(fetchQualityGate(reachableHost, req.getToken(), req.getProjectKey(), null));
-                        }
-                    } else {
-                        // ไม่มี ceTaskId → ใช้ projectKey
-                        res.setQualityGate(fetchQualityGate(reachableHost, req.getToken(), req.getProjectKey(), null));
-                    }
-
-                    // 3) ดึง metrics ด้วย retry + host ที่เลือกไว้
-                    Map<String,Object> metrics = fetchMetricsWithRetry(
-                            reachableHost, req.getToken(), req.getProjectKey(),
-                            null, metricsKeys, metricsRetries, metricsDelayMs, metricsMaxDelayMs
-                    );
-                    res.setMetrics(metrics);
-                }
+                res.setQualityGate(null);
+                res.setMetrics(null);
             }
 
         } catch (Exception e) {
@@ -192,15 +187,12 @@ public class ScanService {
             res.setOutput(e.getMessage());
         } finally {
             res.setCompletedAt(LocalDateTime.now());
-            // เขียนไฟล์ log หลังจบ (เนื้อหาเต็มแล้ว)  // <--
             String logPath = writeLogsToFile(res.getScanId(), logs);
             res.setLogFilePath(logPath);
             if (repoRoot != null) deleteQuietly(repoRoot);
         }
 
-
-
-        // บันทึกลง DB
+        // บันทึกลง DB ของเรา (automateDB)
         ScansEntity entity = new ScansEntity();
 
         ProjectsEntity project = projectRepository.findBySonarProjectKey(req.getProjectKey())
@@ -223,12 +215,15 @@ public class ScanService {
         try {
             scanRepository.save(entity);
         } catch (Exception e) {
-            e.printStackTrace(); // จะบอกบรรทัดพังชัดเจนใน console
-            throw e; // หรือ return ResponseEntity.error(...) แทน
+            e.printStackTrace();
+            throw e;
         }
 
         return res;
     }
+
+    /* ===================== DTO/Helper ===================== */
+
     static class ReportTask {
         String ceTaskId;
         String projectKey;
@@ -263,19 +258,18 @@ public class ScanService {
         }
     }
 
-
     private String writeLogsToFile(UUID scanId, CharSequence logs) {
         try {
             Path dir = Paths.get(System.getProperty("java.io.tmpdir"), "scan-logs");
             Files.createDirectories(dir);
             Path f = dir.resolve("scan-" + scanId + ".log");
-            Files.writeString(f, logs, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.writeString(f, logs, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             return f.toAbsolutePath().toString();
         } catch (IOException e) {
             return null;
         }
     }
-
 
     /* ===================== Project type detection ===================== */
 
@@ -283,12 +277,14 @@ public class ScanService {
         return Files.exists(root.resolve("package.json")) &&
                 Files.exists(root.resolve("angular.json"));
     }
+
     private Path hasPom(Path root) throws IOException {
         try (var s = Files.walk(root, 4)) {
             return s.filter(p -> p.getFileName().toString().equalsIgnoreCase("pom.xml"))
                     .map(Path::getParent).findFirst().orElse(null);
         }
     }
+
     private Path hasGradle(Path root) throws IOException {
         try (var s = Files.walk(root, 4)) {
             return s.filter(p -> {
@@ -298,134 +294,113 @@ public class ScanService {
         }
     }
 
-    /* ===================== Docker commands per stack ===================== */
+    /* ===================== Host commands per stack ===================== */
 
-    /* ---------- Angular ---------- */
-    private List<String> dockerNodeInstall(Path repoRoot) {
-        List<String> cmd = new ArrayList<>();
-        if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
-        cmd.addAll(List.of(
-                "docker","run","--rm",
-                "-v", repoRoot.toString()+":/usr/src",
-                "-w", "/usr/src",
-                "node:18",
-                "bash","-lc","npm ci || npm install"
-        ));
-        return cmd;
+    // ----- Angular -----
+    private List<String> hostNodeInstall(Path repoRoot) {
+        // ใช้ npm ci ถ้าพร้อม lockfile, ถ้าไม่ก็ fallback npm install
+        return hostShell(npmExec + " ci || " + npmExec + " install");
     }
-    private List<String> dockerNodeCoverage(Path repoRoot) {
-        // พยายามสร้าง lcov ถ้าโปรเจ็กต์ตั้งไว้ (ไม่บังคับผ่าน)
-        List<String> cmd = new ArrayList<>();
-        if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
-        cmd.addAll(List.of(
-                "docker","run","--rm",
-                "-v", repoRoot.toString()+":/usr/src",
-                "-w", "/usr/src",
-                "node:18",
-                "bash","-lc","npm run test -- --watch=false --code-coverage || true"
-        ));
-        return cmd;
+
+    private List<String> hostNodeCoverage(Path repoRoot) {
+        // พยายามสร้าง lcov ถ้ามี script test (ไม่บังคับผ่าน)
+        return hostShell(npmExec + " run test -- --watch=false --code-coverage || " +
+                npmExec + " run test -- --code-coverage || true");
     }
-    private List<String> dockerSonarScanAngular(ScanRequest req, Path repoRoot) {
-        // ใช้พารามิเตอร์ตาม FR: sources/exclusions/tests/lcov
+
+    private List<String> hostSonarScanAngular(ScanRequest req, Path repoRoot) {
         List<String> cmd = new ArrayList<>();
-        if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
-        cmd.addAll(List.of(
-                "docker","run","--rm",
-                "-e","SONAR_HOST_URL=http://host.docker.internal:9000",
-                "-e","SONAR_TOKEN="+req.getToken(),
-                "-v", repoRoot.toString()+":/usr/src",
-                scannerImage,
-                "-Dsonar.projectKey="+req.getProjectKey(),
-                "-Dsonar.sources=src",
-                "-Dsonar.exclusions=**/node_modules/**,**/*.spec.ts",
-                "-Dsonar.tests=src",
-                "-Dsonar.test.inclusions=**/*.spec.ts",
-                "-Dsonar.typescript.lcov.reportPaths=coverage/lcov.info",
-                "-Dsonar.sourceEncoding=UTF-8"
-        ));
+        cmd.add(scannerExec);
+        cmd.add("-Dsonar.projectKey=" + req.getProjectKey());
+        cmd.add("-Dsonar.sources=src");
+        cmd.add("-Dsonar.exclusions=**/node_modules/**,**/*.spec.ts");
+        cmd.add("-Dsonar.tests=src");
+        cmd.add("-Dsonar.test.inclusions=**/*.spec.ts");
+        cmd.add("-Dsonar.typescript.lcov.reportPaths=coverage/lcov.info");
+        cmd.add("-Dsonar.sourceEncoding=UTF-8");
+        if (req.getBranchName() != null && !req.getBranchName().isBlank()) {
+            cmd.add("-Dsonar.branch.name=" + req.getBranchName());
+        }
         return cmd;
     }
 
-    /* ---------- Maven (Spring Boot) ---------- */
-    private List<String> dockerMavenBuild(Path pomDir) {
-        Path repoRoot = pomDir.getParent();
-        String rel = repoRoot.relativize(pomDir).toString().replace('\\','/');  // เปลี่ยนตรงนี้
-        List<String> cmd = new ArrayList<>();
-        if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
-        cmd.addAll(List.of(
-                "docker","run","--rm",
-                "-v", repoRoot.toString()+":/usr/src",
-                "-w","/usr/src/"+ rel,                       // ใช้ rel
-                "maven:3-eclipse-temurin-21",
-                "mvn","-B","-DskipTests","package"
-        ));
-        return cmd;
-    }
-    private List<String> dockerSonarScanMaven(ScanRequest req, Path repoRoot, Path pomDir) {
-        String rel = repoRoot.relativize(pomDir).toString().replace('\\','/');
-        String binaries = rel.isBlank() ? "target/classes" : rel + "/target/classes";
-        List<String> cmd = new ArrayList<>();
-        if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
-        cmd.addAll(List.of(
-                "docker","run","--rm",
-                "-e","SONAR_HOST_URL=http://host.docker.internal:9000",
-                "-e","SONAR_TOKEN="+req.getToken(),
-                "-v", repoRoot.toString()+":/usr/src",
-                scannerImage,
-                "-Dsonar.projectKey="+req.getProjectKey(),
-                "-Dsonar.sources=.",
-                "-Dsonar.java.binaries="+binaries,
-                "-Dsonar.sourceEncoding=UTF-8"
-        ));
-        return cmd;
+    // ----- Maven -----
+    private List<String> hostMavenBuild(Path pomDir) {
+        Path mvnwWin = pomDir.resolve("mvnw.cmd");
+        Path mvnwNix = pomDir.resolve("mvnw");
+        String cmd = Files.exists(mvnwWin) ? "\""+mvnwWin.toAbsolutePath()+"\"" :
+                Files.exists(mvnwNix) ? mvnwNix.toAbsolutePath().toString() :
+                        mavenExec; // ตกมาที่ค่าจาก config
+
+        // รันผ่าน shell เพื่อให้ .cmd/.bat ทำงานชัวร์บน Windows
+        return hostShell(cmd + " -B -DskipTests package");
     }
 
-    /* ---------- Gradle ---------- */
-    private List<String> dockerGradleBuild(Path gradleDir) {
-        Path repoRoot = gradleDir.getParent();
-        String rel = repoRoot.relativize(gradleDir).toString().replace('\\','/'); // เปลี่ยนตรงนี้
-        List<String> cmd = new ArrayList<>();
-        if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
-        cmd.addAll(List.of(
-                "docker","run","--rm",
-                "-v", repoRoot.toString()+":/usr/src",
-                "-w","/usr/src/"+ rel,                       // ใช้ rel
-                "gradle:8-jdk21",
-                "gradle","build","-x","test"
-        ));
-        return cmd;
+    private String resolveMvnCmd(Path pomDir) {
+        Path mvnwWin = pomDir.resolve("mvnw.cmd");
+        Path mvnwNix = pomDir.resolve("mvnw");
+        if (Files.exists(mvnwWin)) return "\""+mvnwWin.toAbsolutePath()+"\"";
+        if (Files.exists(mvnwNix)) return mvnwNix.toAbsolutePath().toString();
+        return mavenExec; // เช่น C:\Program Files\Apache\maven-3.9.9\bin\mvn.cmd หรือ "mvn"
     }
-    private List<String> dockerSonarScanGradle(ScanRequest req, Path repoRoot, Path gradleDir) {
+
+    private List<String> hostMavenSonarGoal(ScanRequest req, Path pomDir) {
+        String mvn = resolveMvnCmd(pomDir);
+        String branchArg = (req.getBranchName()!=null && !req.getBranchName().isBlank())
+                ? " -Dsonar.branch.name=" + req.getBranchName() : "";
+        String cmd = mvn + " -B -DskipTests verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar"
+                + " -Dsonar.projectKey=" + req.getProjectKey()
+                + " -Dsonar.host.url=" + sonarHostUrl()
+                + branchArg
+                + " -Dsonar.sourceEncoding=UTF-8";
+        return hostShell(cmd);
+    }
+
+    // ----- Gradle -----
+    private List<String> hostGradleBuild(Path gradleDir) {
+        Path gwWin = gradleDir.resolve("gradlew.bat");
+        Path gwNix = gradleDir.resolve("gradlew");
+        String cmd = Files.exists(gwWin) ? "\""+gwWin.toAbsolutePath()+"\"" :
+                Files.exists(gwNix) ? gwNix.toAbsolutePath().toString() :
+                        gradleExec;
+        return hostShell(cmd + " build -x test");
+    }
+
+    private List<String> hostSonarScanGradle(ScanRequest req, Path repoRoot, Path gradleDir) {
         String rel = repoRoot.relativize(gradleDir).toString().replace('\\','/');
         String binaries = rel.isBlank() ? "build/classes/java/main" : rel + "/build/classes/java/main";
+
         List<String> cmd = new ArrayList<>();
-        if (IS_WINDOWS) { cmd.add("cmd"); cmd.add("/c"); }
-        cmd.addAll(List.of(
-                "docker","run","--rm",
-                "-e","SONAR_HOST_URL=http://host.docker.internal:9000",
-                "-e","SONAR_TOKEN="+req.getToken(),
-                "-v", repoRoot.toString()+":/usr/src",
-                scannerImage,
-                "-Dsonar.projectKey="+req.getProjectKey(),
-                "-Dsonar.sources=.",
-                "-Dsonar.java.binaries="+binaries,
-                "-Dsonar.sourceEncoding=UTF-8"
-        ));
+        cmd.add(scannerExec);
+        cmd.add("-Dsonar.projectKey=" + req.getProjectKey());
+        cmd.add("-Dsonar.sources=.");
+        cmd.add("-Dsonar.java.binaries=" + binaries);
+        cmd.add("-Dsonar.sourceEncoding=UTF-8");
+        if (req.getBranchName() != null && !req.getBranchName().isBlank()) {
+            cmd.add("-Dsonar.branch.name=" + req.getBranchName());
+        }
         return cmd;
     }
 
-    /* ===================== Shared helpers ===================== */
+    /* ===================== Shared helpers (Host) ===================== */
 
-    private int runAndCapture(List<String> cmd, StringBuilder logs, File workDir) throws Exception {
+    // overload: เดิม + env
+    private int runAndCapture(List<String> cmd, StringBuilder logs, File workDir, Map<String,String> env) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
         if (workDir != null) pb.directory(workDir);
+        if (env != null && !env.isEmpty()) pb.environment().putAll(env);
         Process p = pb.start();
         try (BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
             String line; while ((line = br.readLine()) != null) logs.append(line).append("\n");
         }
         return p.waitFor();
+    }
+
+    /** สะดวกไว้รันคำสั่ง shell เดียว (เช่น "npm ci || npm install") */
+    private List<String> hostShell(String script) {
+        if (IS_WINDOWS) return List.of("cmd", "/c", script);
+        return List.of("bash", "-lc", script);
     }
 
     private ScanModel fail(ScanModel res, int exit, String message) {
@@ -436,123 +411,15 @@ public class ScanService {
         return res;
     }
 
-    private String fetchQualityGate(String host, String token, String projectKey, String branch) {
-        try {
-            String url = host + "/api/qualitygates/project_status?projectKey=" +
-                    URLEncoder.encode(projectKey, StandardCharsets.UTF_8);
-            String json = httpGetWithToken(url, token);
-            int idx = json.indexOf("\"status\":\"");
-            if (idx > -1) { int s = idx + 10; int e = json.indexOf("\"", s); return json.substring(s, e); }
-        } catch (Exception ignore) {}
-        return "UNKNOWN";
-    }
-
-    private String fetchQualityGateByAnalysis(String host, String token, String ceTaskId) {
-        try {
-            // จาก ceTaskId -> analysisId
-            String ceUrl = host + "/api/ce/task?id=" + URLEncoder.encode(ceTaskId, StandardCharsets.UTF_8);
-            String ceJson = httpGetWithToken(ceUrl, token);
-            int ai = ceJson.indexOf("\"analysisId\":\"");
-            if (ai > -1) {
-                int s = ai + 14, e = ceJson.indexOf("\"", s);
-                String analysisId = ceJson.substring(s, e);
-                String qgUrl = host + "/api/qualitygates/project_status?analysisId=" +
-                        URLEncoder.encode(analysisId, StandardCharsets.UTF_8);
-                String qgJson = httpGetWithToken(qgUrl, token);
-                int idx = qgJson.indexOf("\"status\":\"");
-                if (idx > -1) { int ss = idx + 10; int ee = qgJson.indexOf("\"", ss); return qgJson.substring(ss, ee); }
-            }
-        } catch (Exception ignore) {}
-        return "UNKNOWN";
-    }
-    private Map<String,Object> fetchMetricsWithRetry(
-            String host, String token, String projectKey, String branch, String metricsCsv,
-            int retries, long delayMs, long maxDelayMs
-    ) {
-        Map<String,Object> lastErr = null;
-        long delay = delayMs;
-        for (int i = 1; i <= retries; i++) {
-            Map<String,Object> m = fetchMetricsRaw(host, token, projectKey, branch, metricsCsv); // <--
-            if (m != null && !m.containsKey("error")) {
-                if (i > 1) {
-                    log.info("fetchMetrics success at attempt {}/{}", i, retries);
-                }
-                return m;
-            }
-            lastErr = (m == null) ? Map.of("error", "null response") : m;
-            log.warn("fetchMetrics attempt {}/{} failed: {}", i, retries, lastErr);
-
-            if (i < retries) {
-                try { Thread.sleep(delay); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
-                delay = Math.min(delay * 2, maxDelayMs);  // exponential backoff
-            }
-        }
-        Map<String,Object> err = new LinkedHashMap<>();
-        err.put("error", "fetch metrics failed after retry");
-        if (lastErr != null && lastErr.get("message") != null) {
-            err.put("message", lastErr.get("message"));
-        }
-        return err;
-    }
-
-    private Map<String,Object> fetchMetricsRaw(
-            String host, String token, String projectKey, String branch, String metricsCsv
-    ) {
-        Map<String, Object> result = new LinkedHashMap<>();
-        try {
-            String url = host + "/api/measures/component?component=" +
-                    URLEncoder.encode(projectKey, StandardCharsets.UTF_8) +
-                    "&metricKeys=" + URLEncoder.encode(metricsCsv, StandardCharsets.UTF_8);
-            if (branch != null && !branch.isBlank()) {
-                url += "&branch=" + URLEncoder.encode(branch, StandardCharsets.UTF_8);
-            }
-
-            String json = httpGetWithToken(url, token);
-            ObjectMapper om = new ObjectMapper();
-            JsonNode root = om.readTree(json);
-            JsonNode measures = root.path("component").path("measures");
-
-            if (measures.isArray()) {
-                for (JsonNode m : measures) {
-                    String metric = m.path("metric").asText();
-                    if (metric == null || metric.isBlank()) continue;
-                    JsonNode v = m.get("value");
-                    result.put(metric, (v != null && !v.isNull()) ? v.asText() : "N/A");
-                }
-            }
-            return result;
-        } catch (Exception e) {
-            return Map.of(
-                    "error", "fetch metrics failed",
-                    "message", e.getMessage()
-            );
-        }
-    }
-
     private boolean pingSonar(String host, String token) {
         try {
-            // ใช้ endpoint public ที่ไม่ต้องเป็น admin
             String url = host + "/api/server/version";
-            String json = httpGetWithToken(url, token); // จะได้เวอร์ชันเช่น "10.6.0.92116"
+            String json = httpGetWithToken(url, token); // จะได้เวอร์ชัน เช่น "10.6.0.92116"
             return json != null && !json.isBlank();
         } catch (Exception e) {
             log.warn("Ping failed {}: {}", host, e.toString());
             return false;
         }
-    }
-
-    /** เลือก host ที่ “เอื้อมถึงจริง” สำหรับฝั่งแอป */
-    private String pickReachableSonarHost(String token, String... candidates) {
-        for (String h : candidates) {
-            if (h == null || h.isBlank()) continue;
-            if (pingSonar(h, token)) {
-                log.info("Use reachable Sonar host: {}", h);
-                return h;
-            } else {
-                log.warn("Sonar host not reachable: {}", h);
-            }
-        }
-        return null;
     }
 
     private String httpGetWithToken(String url, String token) throws IOException {
@@ -579,29 +446,6 @@ public class ScanService {
                     .forEach(p -> { try { Files.deleteIfExists(p); } catch (IOException ignored) {} });
         } catch (IOException ignored) {}
     }
-
-    private boolean waitForCeTaskDone(String host, String token, String ceTaskId, long timeoutMs) {
-        long start = System.currentTimeMillis();
-        while (System.currentTimeMillis() - start < timeoutMs) {
-            try {
-                String url = host + "/api/ce/task?id=" + URLEncoder.encode(ceTaskId, StandardCharsets.UTF_8);
-                String json = httpGetWithToken(url, token);
-                // หา "status":"SUCCESS" หรือ "FAILED"/"CANCELED"
-                int st = json.indexOf("\"status\":\"");
-                if (st > -1) {
-                    int s = st + 10, e = json.indexOf("\"", s);
-                    String status = json.substring(s, e);
-                    if ("SUCCESS".equalsIgnoreCase(status)) return true;
-                    if ("FAILED".equalsIgnoreCase(status) || "CANCELED".equalsIgnoreCase(status)) return false;
-                }
-            } catch (Exception ignore) {}
-
-            try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
-        }
-        return false; // Timeout
-    }
-
-
 
     //ส่วนของ startScan
 
