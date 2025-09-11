@@ -29,6 +29,17 @@ public class GradeEntity {
     @Column(name = "quality_gate")
     private String qualityGate;
 
+    @Column(name = "reliability_gate")
+    private String reliabilityGate;
+
+    @Column(name = "security_gate")
+    private String securityGate;
+
+    @Column(name = "maintainability_gate")
+    private String maintainabilityGate;
+
+    @Column(name = "security_review_gate")
+    private String securityReviewGate;
     @CreationTimestamp
     @Column(name = "created_at")
     private Date createdAt;

@@ -55,10 +55,13 @@ CREATE TABLE IF NOT EXISTS public.comments (
 );
 
 CREATE TABLE IF NOT EXISTS public.gate_history (
-                                                   gate_id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                                                   scan_id     UUID NOT NULL REFERENCES public.scans(scan_id) ON DELETE CASCADE,
-                                                   quality_gate VARCHAR(10),
-                                                   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+                                                gate_id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                                scan_id     UUID NOT NULL REFERENCES public.scans(scan_id) ON DELETE CASCADE,
+                                                reliability_gate varchar(1),
+                                                security_gate varchar(1),
+                                                maintainability_gate varchar(1),
+                                                security_review_gate varchar(1),
+                                                created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Helpful indexes for FKs
@@ -67,3 +70,4 @@ CREATE INDEX IF NOT EXISTS idx_scans_project_id   ON public.scans(project_id);
 CREATE INDEX IF NOT EXISTS idx_issues_scan_id     ON public.issues(scan_id);
 CREATE INDEX IF NOT EXISTS idx_comments_issue_id  ON public.comments(issue_id);
 CREATE INDEX IF NOT EXISTS idx_comments_user_id   ON public.comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_gate_history_scan_id on public.gate_history(scan_id)

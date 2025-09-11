@@ -44,9 +44,21 @@ public class ScansEntity {
     @Column(name = "completed_at",  nullable = true)
     private LocalDateTime completedAt;
 
+    @Column(name = "reliability_gate")
+    private String reliabilityGate;
+
+    @Column(name = "security_gate")
+    private String securityGate;
+
+    @Column(name = "maintainability_gate")
+    private String maintainabilityGate;
+
+    @Column(name = "security_review_gate")
+    private String securityReviewGate;
+
     @Column(name = "quality_gate")
     private String qualityGate;
-
+    
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metrics", columnDefinition = "jsonb")
     private Map<String, Object> metrics;
