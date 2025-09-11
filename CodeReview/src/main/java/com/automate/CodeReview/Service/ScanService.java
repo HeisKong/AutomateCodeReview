@@ -36,6 +36,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
+import com.automate.CodeReview.exception.ScanNotFoundException;
+import com.automate.CodeReview.exception.ScanCancelConflictException;
+
 
 @Slf4j
 @Service
@@ -469,23 +472,32 @@ public class ScanService {
     }
 
     public ScanModel GetByIdScan(UUID id){
-        //จะใช้อันนนี้ก้ได้นะเเต่ถ้าทำใน repo มันใช้ jdbc ดึงได้เลย
-        return null;
+        ScansEntity entity = scanRepository.findById(id)
+                .orElseThrow(() -> new ScanNotFoundException(id));
+        return toModel(entity);
     }
 
     public ScanModel getLogScan(UUID id){
-        return null;
+        ScansEntity entity = scanRepository.findById(id)
+                .orElseThrow(() -> new ScanNotFoundException(id));
+
+        ScanModel model = toModel(entity);
+        model.setLogFilePath(entity.getLogFilePath());
+        return model;
     }
 
     public ScanModel cancelScan(UUID scanId){
         ScansEntity scan = scanRepository.findById(scanId)
-                .orElseThrow(() -> new RuntimeException("Scan not found"));
+                .orElseThrow(() -> new ScanNotFoundException(scanId));
 
-        if (scan.getStatus().equals("RUNNING")) {
-            scan.setStatus("CANCELLED");
-            scan.setCompletedAt(LocalDateTime.now());
-            scanRepository.save(scan);
+        if (!"RUNNING".equals(scan.getStatus())) {
+            throw new ScanCancelConflictException(scanId, scan.getStatus());
         }
+
+        scan.setStatus("CANCELLED");
+        scan.setCompletedAt(LocalDateTime.now());
+        scanRepository.save(scan);
+
         return toModel(scan);
     }
 

@@ -111,4 +111,23 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
+    @ExceptionHandler({
+            GitCloneException.class,
+            ProjectNotFoundException.class,
+            UserNotFoundException.class,
+            IssueNotFoundException.class,
+            NoIssuesFoundException.class,
+            RepositoryUrlNotFoundForProjectException.class,
+            ProjectsNotFoundForUserException.class,
+            TargetDirectoryAlreadyExistsException.class
+    })
+    public ResponseEntity<ErrorResponse> handleCustom(RuntimeException ex, HttpServletRequest request) {
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),  // หรือกำหนดเฉพาะ case ได้
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
 }
