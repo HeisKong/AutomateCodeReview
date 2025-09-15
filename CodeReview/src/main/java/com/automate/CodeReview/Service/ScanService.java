@@ -4,22 +4,12 @@ package com.automate.CodeReview.Service;
 import com.automate.CodeReview.Models.ScanLogModel;
 import com.automate.CodeReview.Models.ScanModel;
 import com.automate.CodeReview.Models.ScanRequest;
-import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.ScansEntity;
 import com.automate.CodeReview.repository.ProjectsRepository;
 import com.automate.CodeReview.repository.ScansRepository;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.Nullable;
-import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -30,12 +20,10 @@ import java.util.List;
 import java.util.UUID;
 
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -127,6 +115,7 @@ public class ScanService {
             boolean isAngular = isAngularProject(repoRoot);
             Path pomDir = hasPom(repoRoot);
             Path gradleDir = hasGradle(repoRoot);
+            boolean isNode = isNodeProject(repoRoot);
 
             // 3) prepare Sonar env (อย่าใส่ token ใน command line)
             Map<String,String> sonarEnv = new HashMap<>();
@@ -135,14 +124,10 @@ public class ScanService {
 
             int exit;
             if (isAngular) {
-                // npm install
                 exit = runAndCapture(hostNodeInstall(repoRoot), logs, repoRoot.toFile(), null);
                 if (exit != 0) return fail(res, exit, "npm install failed\n"+logs);
-
-                // optional coverage
                 runAndCapture(hostNodeCoverage(repoRoot), logs, repoRoot.toFile(), null);
 
-                // sonar-scanner CLI
                 exit = runAndCapture(hostSonarScanAngular(req, repoRoot), logs, repoRoot.toFile(), sonarEnv);
 
             } else if (pomDir != null) {
@@ -167,8 +152,16 @@ public class ScanService {
                 // sonar-scanner CLI
                 exit = runAndCapture(hostSonarScanGradle(req, repoRoot, gradleDir), logs, repoRoot.toFile(), sonarEnv);
 
+            } else if (isNode) {
+                // ✅ Fallback สำหรับ React/Next/Node
+                exit = runAndCapture(hostNodeInstall(repoRoot), logs, repoRoot.toFile(), null);
+                if (exit != 0) return fail(res, exit, "npm install failed\n"+logs);
+
+                runAndCapture(hostNodeCoverage(repoRoot), logs, repoRoot.toFile(), null); // best-effort
+                exit = runAndCapture(hostSonarScanNode(req, repoRoot), logs, repoRoot.toFile(), sonarEnv);
+
             } else {
-                return fail(res, 1, "Unknown project type: not Angular/Maven/Gradle");
+                return fail(res, 1, "Unknown project type: not Angular/Maven/Gradle/Node");
             }
 
             res.setExitCode(exit);
@@ -193,32 +186,32 @@ public class ScanService {
         }
 
         // บันทึกลง DB ของเรา (automateDB)
-        ScansEntity entity = new ScansEntity();
-
-        ProjectsEntity project = projectRepository.findBySonarProjectKey(req.getProjectKey())
-                .orElseGet(() -> {
-                    ProjectsEntity p = new ProjectsEntity();
-                    p.setSonarProjectKey(req.getProjectKey());
-                    p.setName(req.getProjectKey());
-                    p.setRepositoryUrl(req.getRepoUrl());
-                    return projectRepository.save(p);
-                });
-
-        entity.setProject(project);
-        entity.setStatus(res.getStatus());
-        entity.setMetrics(res.getMetrics());
-        entity.setLogFilePath(res.getLogFilePath());
-        entity.setQualityGate(res.getQualityGate());
-        entity.setStartedAt(res.getStartedAt());
-        entity.setCompletedAt(res.getCompletedAt());
-        entity.setLogFilePath(res.getLogFilePath() == null ? "-" : res.getLogFilePath());
-        try {
-            scanRepository.save(entity);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
-        }
-
+//        ScansEntity entity = new ScansEntity();
+//
+//        ProjectsEntity project = projectRepository.findBySonarProjectKey(req.getProjectKey())
+//                .orElseGet(() -> {
+//                    ProjectsEntity p = new ProjectsEntity();
+//                    p.setSonarProjectKey(req.getProjectKey());
+//                    p.setName(req.getProjectKey());
+//                    p.setRepositoryUrl(req.getRepoUrl());
+//                    return projectRepository.save(p);
+//                });
+//
+//        entity.setProject(project);
+//        entity.setStatus(res.getStatus());
+//        entity.setMetrics(res.getMetrics());
+//        entity.setLogFilePath(res.getLogFilePath());
+//        entity.setQualityGate(res.getQualityGate());
+//        entity.setStartedAt(res.getStartedAt());
+//        entity.setCompletedAt(res.getCompletedAt());
+//        entity.setLogFilePath(res.getLogFilePath() == null ? "-" : res.getLogFilePath());
+//        try {
+//            scanRepository.save(entity);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            throw e;
+//        }
+//
         return res;
     }
 
@@ -250,13 +243,6 @@ public class ScanService {
         }
     }
 
-    private Map<String,Object> parseJsonToMap(String json) {
-        try {
-            return new ObjectMapper().readValue(json, new TypeReference<Map<String,Object>>(){});
-        } catch (Exception e) {
-            return Map.of("error","parse failed","raw", json);
-        }
-    }
 
     private String writeLogsToFile(UUID scanId, CharSequence logs) {
         try {
@@ -272,6 +258,35 @@ public class ScanService {
     }
 
     /* ===================== Project type detection ===================== */
+    private List<String> hostSonarScanner(List<String> args) {
+        // join args เป็นสตริงเดียว โดยใส่ quote ถ้ามีช่องว่าง
+        String joined = args.stream()
+                .map(a -> a.matches(".*\\s+.*") ? "\"" + a + "\"" : a)
+                .collect(Collectors.joining(" "));
+
+        // ใส่ quote ให้ scannerExec ด้วย เผื่อ path มีช่องว่าง
+        String execQuoted = scannerExec.matches(".*\\s+.*") ? "\"" + scannerExec + "\"" : scannerExec;
+
+        String script = execQuoted + " " + joined;
+        return hostShell(script); // << ใช้เมธอดของคุณเองที่คืน ["cmd","/c",script] บน Windows
+    }
+
+    private boolean isNodeProject(Path root) {
+        return Files.exists(root.resolve("package.json"));
+    }
+
+    // ===== เพิ่มคำสั่ง sonar-scanner สำหรับ Node ทั่วไป =====
+    private List<String> hostSonarScanNode(ScanRequest req, Path repoRoot) {
+        boolean hasSrc = Files.exists(repoRoot.resolve("src"));
+        String sources = hasSrc ? "src" : ".";
+        return hostSonarScanner(List.of(
+                "-Dsonar.projectKey=" + req.getProjectKey(),
+                "-Dsonar.sources=" + sources,
+                "-Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**",
+                "-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info",
+                "-Dsonar.sourceEncoding=UTF-8"
+        ));
+    }
 
     private boolean isAngularProject(Path root) {
         return Files.exists(root.resolve("package.json")) &&
@@ -309,19 +324,14 @@ public class ScanService {
     }
 
     private List<String> hostSonarScanAngular(ScanRequest req, Path repoRoot) {
-        List<String> cmd = new ArrayList<>();
-        cmd.add(scannerExec);
-        cmd.add("-Dsonar.projectKey=" + req.getProjectKey());
-        cmd.add("-Dsonar.sources=src");
-        cmd.add("-Dsonar.exclusions=**/node_modules/**,**/*.spec.ts");
-        cmd.add("-Dsonar.tests=src");
-        cmd.add("-Dsonar.test.inclusions=**/*.spec.ts");
-        cmd.add("-Dsonar.typescript.lcov.reportPaths=coverage/lcov.info");
-        cmd.add("-Dsonar.sourceEncoding=UTF-8");
-        if (req.getBranchName() != null && !req.getBranchName().isBlank()) {
-            cmd.add("-Dsonar.branch.name=" + req.getBranchName());
-        }
-        return cmd;
+        return hostSonarScanner(List.of(
+                "-Dsonar.projectKey=" + req.getProjectKey(),
+                "-Dsonar.sources=src",
+                "-Dsonar.exclusions=**/node_modules/**,**/*.spec.ts",
+                "-Dsonar.tests=src",
+                "-Dsonar.test.inclusions=**/*.spec.ts",
+                "-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info",
+                "-Dsonar.sourceEncoding=UTF-8"));
     }
 
     // ----- Maven -----
@@ -346,12 +356,9 @@ public class ScanService {
 
     private List<String> hostMavenSonarGoal(ScanRequest req, Path pomDir) {
         String mvn = resolveMvnCmd(pomDir);
-        String branchArg = (req.getBranchName()!=null && !req.getBranchName().isBlank())
-                ? " -Dsonar.branch.name=" + req.getBranchName() : "";
         String cmd = mvn + " -B -DskipTests verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar"
                 + " -Dsonar.projectKey=" + req.getProjectKey()
                 + " -Dsonar.host.url=" + sonarHostUrl()
-                + branchArg
                 + " -Dsonar.sourceEncoding=UTF-8";
         return hostShell(cmd);
     }
@@ -369,17 +376,12 @@ public class ScanService {
     private List<String> hostSonarScanGradle(ScanRequest req, Path repoRoot, Path gradleDir) {
         String rel = repoRoot.relativize(gradleDir).toString().replace('\\','/');
         String binaries = rel.isBlank() ? "build/classes/java/main" : rel + "/build/classes/java/main";
-
-        List<String> cmd = new ArrayList<>();
-        cmd.add(scannerExec);
-        cmd.add("-Dsonar.projectKey=" + req.getProjectKey());
-        cmd.add("-Dsonar.sources=.");
-        cmd.add("-Dsonar.java.binaries=" + binaries);
-        cmd.add("-Dsonar.sourceEncoding=UTF-8");
-        if (req.getBranchName() != null && !req.getBranchName().isBlank()) {
-            cmd.add("-Dsonar.branch.name=" + req.getBranchName());
-        }
-        return cmd;
+        return hostSonarScanner(List.of(
+                "-Dsonar.projectKey=" + req.getProjectKey(),
+                "-Dsonar.sources=.",
+                "-Dsonar.java.binaries=" + binaries,
+                "-Dsonar.sourceEncoding=UTF-8"
+        ));
     }
 
     /* ===================== Shared helpers (Host) ===================== */
@@ -409,35 +411,6 @@ public class ScanService {
         res.setOutput(message);
         res.setCompletedAt(LocalDateTime.now());
         return res;
-    }
-
-    private boolean pingSonar(String host, String token) {
-        try {
-            String url = host + "/api/server/version";
-            String json = httpGetWithToken(url, token); // จะได้เวอร์ชัน เช่น "10.6.0.92116"
-            return json != null && !json.isBlank();
-        } catch (Exception e) {
-            log.warn("Ping failed {}: {}", host, e.toString());
-            return false;
-        }
-    }
-
-    private String httpGetWithToken(String url, String token) throws IOException {
-        String basic = Base64.getEncoder().encodeToString((token + ":").getBytes(StandardCharsets.UTF_8));
-        HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
-        con.setRequestMethod("GET");
-        con.setRequestProperty("Authorization", "Basic " + basic);
-        con.setConnectTimeout(25000);
-        con.setReadTimeout(60000);
-
-        int code = con.getResponseCode();
-        InputStream is = (code >= 200 && code < 300) ? con.getInputStream() : con.getErrorStream();
-        String body = (is != null) ? new String(is.readAllBytes(), StandardCharsets.UTF_8) : "";
-
-        if (code < 200 || code >= 300) {
-            throw new IOException("HTTP " + code + " " + url + " :: " + body);
-        }
-        return body;
     }
 
     private void deleteQuietly(Path path) {

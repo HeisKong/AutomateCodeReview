@@ -22,19 +22,22 @@ public class SonarWebhookController {
             @RequestBody byte[] rawBody,
             @RequestHeader(value = "X-Sonar-Webhook-HMAC-SHA256", required = false) String hmacHex,
             @RequestHeader(value = "X-SonarQube-Project", required = false) String projectKey,
-            @RequestHeader(value = "X-SonarQube-Delivery", required = false) String deliveryId // บางรุ่นมี
+            @RequestHeader(value = "X-SonarQube-Delivery", required = false) String deliveryId
     ) {
+        // 1) ตรวจ HMAC (ถ้าตั้ง secret)
         if (!sonarWehookService.verifyHmac(rawBody, hmacHex)) {
             log.warn("Webhook HMAC verify failed, delivery={}, project={}", deliveryId, projectKey);
+            // ถ้าอยากให้ Sonar แสดง “ส่งไม่สำเร็จ” ชัด ๆ ให้ตอบ 401
+            // ถ้าไม่อยากให้ Sonar retry ซ้ำ ให้เปลี่ยนเป็น ResponseEntity.ok().build()
             return ResponseEntity.status(401).build();
         }
 
-        // parse ให้เร็วที่สุด
+        // 2) parse payload ให้เร็วสุด
         var payload = sonarWehookService.parse(rawBody);
         if (payload == null) return ResponseEntity.badRequest().build();
 
+        // 3) ส่งไปทำงานแบบ async แล้วรีบตอบ 200 ภายใน ~10s
         sonarWehookService.processAsync(payload, projectKey, deliveryId);
         return ResponseEntity.ok().build();
-
     }
 }
