@@ -1,35 +1,50 @@
 package com.automate.CodeReview.Service;
 
+import com.automate.CodeReview.Config.SonarProperties;
 import com.automate.CodeReview.dto.SonarWebhookPayload;
+import com.automate.CodeReview.entity.IssuesEntity;
 import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.ScansEntity;
+import com.automate.CodeReview.repository.IssuesRepository;
 import com.automate.CodeReview.repository.ProjectsRepository;
 import com.automate.CodeReview.repository.ScansRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.*;
+import java.util.stream.Collectors;
+
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
 @Service
 @Slf4j
 public class SonarWehookService {
     private final ProjectsRepository projectsRepository;
     private final ScansRepository scansRepository;
+    private final IssuesRepository issuesRepository;
+    private final WebClient sonarWebClient;
+    private final SonarProperties props;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public SonarWehookService(ProjectsRepository projectsRepository, ScansRepository scansRepository) {
+    public SonarWehookService(ProjectsRepository projectsRepository, ScansRepository scansRepository,  IssuesRepository issuesRepository, SonarProperties props, WebClient sonarWebClient) {
         this.projectsRepository = projectsRepository;
         this.scansRepository = scansRepository;
+        this.issuesRepository = issuesRepository;
+        this.sonarWebClient = sonarWebClient;
+        this.props = props;
     }
 
     @Value("${sonar.host-url}")
@@ -44,13 +59,14 @@ public class SonarWehookService {
     @Value("${sonar.webhook.secret:}")
     private String webhookSecret;
 
-    /* ---------- HMAC: header = X-Sonar-Webhook-HMAC-SHA256 (hex ตัวเล็ก) ---------- */
-    public boolean verifyHmac(byte[] rawBody, String headerHex) {
-        if (webhookSecret == null || webhookSecret.isBlank()) return true; // ไม่ตั้ง secret ก็ผ่าน
+    /* ---------------- HMAC verify (ถ้าตั้ง secret) ---------------- */
+    public boolean verifyHmac(byte[] rawBody, @Nullable String headerHex) {
+        String secret = props.getWebhookSecret();
+        if (secret == null || secret.isBlank()) return true;
         if (headerHex == null || headerHex.isBlank()) return false;
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             byte[] sig = mac.doFinal(rawBody);
             String calcHex = toHexLower(sig);
             return constantTimeEquals(calcHex, headerHex);
@@ -76,47 +92,45 @@ public class SonarWehookService {
         return diff == 0;
     }
 
-    /* ---------- Parse ---------- */
-    public SonarWebhookPayload parse(byte[] body) {
+    /* ---------------- Parse ---------------- */
+    public @Nullable SonarWebhookPayload parse(byte[] body) {
         try { return objectMapper.readValue(body, SonarWebhookPayload.class); }
         catch (Exception e) { log.warn("parse webhook failed: {}", e.toString()); return null; }
     }
 
-    /* ---------- Async worker ---------- */
+    /* ---------------- Entry (async) ---------------- */
     @Async("webhookExecutor")
     public void processAsync(SonarWebhookPayload p, String projectHeader, String deliveryId) {
-        try {
-            process(p, projectHeader, deliveryId);
-        } catch (Exception e) {
-            log.error("webhook processAsync error: {}", e.toString(), e);
-        }
+        try { process(p, projectHeader, deliveryId); }
+        catch (Exception e) { log.error("webhook process error: {}", e.toString(), e); }
     }
 
+    /* ---------------- Main workflow ---------------- */
     private void process(SonarWebhookPayload p, String projectHeader, String deliveryId) throws Exception {
-        String projectKey = (p.getProject() != null && p.getProject().getKey() != null)
-                ? p.getProject().getKey()
-                : projectHeader;
-        String branch = (p.getBranch() != null) ? p.getBranch().getName() : null;
-        String taskId = p.getTaskId();
+        String projectKey = (p.getProject()!=null && p.getProject().getKey()!=null)
+                ? p.getProject().getKey() : projectHeader;
+        String taskId    = p.getTaskId();
+        String analysedAt = p.getAnalysedAt();  // <-- ใช้ชื่อ getter ของคุณจริง ๆ
+
+        Instant when = parseSonarTimestamp(analysedAt);
 
         if (projectKey == null || taskId == null) {
             log.warn("webhook missing projectKey/taskId, delivery={}", deliveryId);
             return;
         }
 
-        // 1) taskId -> analysisId
+        // 1) task -> analysisId
         String analysisId = fetchAnalysisId(taskId);
 
-        // 2) QG ณ analysis นั้น
-        String qualitygate = (analysisId != null) ? fetchQGByAnalysis(analysisId) : "UNKNOWN";
-        if (p.getQualityGate()!=null && p.getQualityGate().getStatus()!=null) {
-            qualitygate = p.getQualityGate().getStatus().toUpperCase(Locale.ROOT);
-        }
+        // 2) Quality Gate ณ analysis นั้น (ถ้ามีใน payload เอาค่านั้นก่อน)
+        String qg = (p.getQualityGate()!=null && p.getQualityGate().getStatus()!=null)
+                ? p.getQualityGate().getStatus().toUpperCase(Locale.ROOT)
+                : fetchQualityGate(analysisId);
 
-        // 3) Metrics ล่าสุดของโปรเจ็กต์ (ถ้า webhook มี branch ก็ส่ง branch ไปด้วย)
-        Map<String,Object> metrics = fetchMetrics(projectKey, branch);
+        // 3) Metrics ล่าสุดของโปรเจ็กต์ (ถ้า payload บอก branch ก็แนบไป)
+        Map<String,Object> metrics = fetchMetrics(projectKey);
 
-        // 4) บันทึก automateDB (ตัวอย่าง: สร้างแถวใหม่; ถ้าต้องการ update แถว SUBMITTED ให้ปรับตาม repo ของคุณ)
+        // 4) Upsert Project
         ProjectsEntity project = projectsRepository.findBySonarProjectKey(projectKey)
                 .orElseGet(() -> {
                     ProjectsEntity pe = new ProjectsEntity();
@@ -125,56 +139,72 @@ public class SonarWehookService {
                     return projectsRepository.save(pe);
                 });
 
-        ScansEntity entity = new ScansEntity();
-        entity.setProject(project);
-        entity.setStatus("SUCCESS");           // รอบนี้คือ ‘ผลวิเคราะห์ออกแล้ว’
-        entity.setQualityGate(qualitygate);
-        entity.setMetrics(metrics);
-        entity.setStartedAt(LocalDateTime.now());
-        entity.setCompletedAt(LocalDateTime.now());
-        entity.setLogFilePath("- (webhook)");
-        scansRepository.save(entity);
+        // 5) สร้างแถว Scan ใหม่ (หรือจะทำ idempotent ด้วย deliveryId/analysisId ก็ได้)
+        ScansEntity scan = new ScansEntity();
+        scan.setProject(project);
+        scan.setStatus("SUCCESS");
+        scan.setQualityGate(qg);
+        scan.setMetrics(metrics);
+        scan.setStartedAt(LocalDateTime.ofInstant(when, ZoneOffset.UTC));
+        scan.setCompletedAt(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
+        scan.setLogFilePath("- (webhook)");
+        scansRepository.save(scan);
 
-        log.info("Webhook stored: project={}, branch={}, qualitygate={}, delivery={}", projectKey, branch, qualitygate, deliveryId);
+        // 6) ดึง Issues ไล่หน้าแล้ว upsert ลงตาราง issues ผูกกับ scan นี้
+        importIssues(projectKey, scan);
+
+        log.info("Webhook stored: project={}, qg={}, delivery={}", projectKey, qg, deliveryId);
     }
 
-    private String fetchAnalysisId(String taskId) throws Exception {
-        String url = sonarHostUrl + "/api/ce/task?id=" + URLEncoder.encode(taskId, StandardCharsets.UTF_8);
-        String json = httpGet(url);
-        JsonNode n = objectMapper.readTree(json);
-        String analysisId = n.path("task").path("analysisId").asText(null);
-        return (analysisId != null && !analysisId.isBlank()) ? analysisId : null;
+    private static final DateTimeFormatter FLEX_OFFSET =
+            new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .append(ISO_LOCAL_DATE_TIME)
+                    .optionalStart().appendOffset("+HH:MM", "+00:00").optionalEnd() // +07:00
+                    .optionalStart().appendOffset("+HHMM", "+0000").optionalEnd()   // +0700
+                    .optionalStart().appendOffset("+HH", "Z").optionalEnd()         // +07 หรือ Z
+                    .toFormatter();
+
+    private static Instant parseSonarTimestamp(String ts) {
+        if (ts == null || ts.isBlank()) return Instant.now();
+        return OffsetDateTime.parse(ts, FLEX_OFFSET).toInstant();
     }
 
-    private String fetchQGByAnalysis(String analysisId) throws Exception {
-        String url = sonarHostUrl + "/api/qualitygates/project_status?analysisId=" +
-                URLEncoder.encode(analysisId, StandardCharsets.UTF_8);
-        String json = httpGet(url);
-        int idx = json.indexOf("\"status\":\"");
-        if (idx > -1) {
-            int s = idx + 10, e = json.indexOf("\"", s);
-            return json.substring(s, e);
-        }
-        return "UNKNOWN";
+    /* ---------------- Sonar calls ---------------- */
+
+    private @Nullable String fetchAnalysisId(String taskId) {
+        JsonNode n = sonarWebClient.get()
+                .uri(uri -> uri.path("/api/ce/task").queryParam("id", taskId).build())
+                .retrieve().bodyToMono(JsonNode.class).block();
+        String id = (n!=null) ? n.path("task").path("analysisId").asText(null) : null;
+        return (id!=null && !id.isBlank()) ? id : null;
     }
 
-    private Map<String,Object> fetchMetrics(String projectKey, String branch) {
+    private String fetchQualityGate(@Nullable String analysisId) {
+        if (analysisId == null) return "UNKNOWN";
+        JsonNode n = sonarWebClient.get()
+                .uri(uri -> uri.path("/api/qualitygates/project_status")
+                        .queryParam("analysisId", analysisId).build())
+                .retrieve().bodyToMono(JsonNode.class).block();
+        return (n!=null) ? n.path("projectStatus").path("status").asText("UNKNOWN") : "UNKNOWN";
+    }
+
+    private Map<String,Object> fetchMetrics(String projectKey) {
         Map<String,Object> result = new LinkedHashMap<>();
         try {
-            String url = sonarHostUrl + "/api/measures/component?component=" +
-                    URLEncoder.encode(projectKey, StandardCharsets.UTF_8) +
-                    "&metricKeys=" + URLEncoder.encode(metricsCsv, StandardCharsets.UTF_8);
-            if (branch != null && !branch.isBlank()) {
-                url += "&branch=" + URLEncoder.encode(branch, StandardCharsets.UTF_8);
-            }
-            String json = httpGet(url);
-            JsonNode measures = objectMapper.readTree(json).path("component").path("measures");
-            if (measures.isArray()) {
+            JsonNode root = sonarWebClient.get()
+                    .uri(uri -> uri.path("/api/measures/component")
+                            .queryParam("component", projectKey)
+                            .queryParam("metricKeys", sanitizeMetrics(props.getMetricsCsv(), metricsCsv))
+                            .build())
+                    .retrieve().bodyToMono(JsonNode.class).block();
+
+            JsonNode measures = (root==null) ? null : root.path("component").path("measures");
+            if (measures != null && measures.isArray()) {
                 for (JsonNode m : measures) {
-                    String metric = m.path("metric").asText(null);
-                    if (metric == null || metric.isBlank()) continue;
-                    JsonNode v = m.get("value");
-                    result.put(metric, (v != null && !v.isNull()) ? v.asText() : "N/A");
+                    String k = m.path("metric").asText();
+                    String v = m.hasNonNull("value") ? m.get("value").asText() : "N/A";
+                    if (k != null && !k.isBlank()) result.put(k, v);
                 }
             }
         } catch (Exception e) {
@@ -184,19 +214,58 @@ public class SonarWehookService {
         return result;
     }
 
-    private String httpGet(String url) throws java.io.IOException {
-        String basic = Base64.getEncoder().encodeToString((serviceToken + ":").getBytes(StandardCharsets.UTF_8));
-        var con = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
-        con.setRequestMethod("GET");
-        con.setRequestProperty("Authorization", "Basic " + basic);
-        con.setConnectTimeout(25000);
-        con.setReadTimeout(60000);
-        int code = con.getResponseCode();
-        var is = (code >= 200 && code < 300) ? con.getInputStream() : con.getErrorStream();
-        String body = (is != null) ? new String(is.readAllBytes(), StandardCharsets.UTF_8) : "";
-        if (code < 200 || code >= 300) throw new java.io.IOException("HTTP " + code + " " + url + " :: " + body);
-        return body;
+    private static String sanitizeMetrics(String fromProps, String fallbackCsv) {
+        String src = (fromProps != null && !fromProps.isBlank()) ? fromProps : fallbackCsv;
+        String out = Arrays.stream(src.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty())
+                .collect(Collectors.joining(","));
+        return out.isEmpty() ? "bugs" : out;
     }
 
+    /* ---------------- Import Issues (paged) ---------------- */
 
+    private void importIssues(String projectKey, ScansEntity scan) {
+        int page = 1, ps = props.getPageSize();
+        while (true) {
+            final int p  = page;
+            final int sz = ps;
+            JsonNode resp = sonarWebClient.get()
+                    .uri(uri -> uri.path("/api/issues/search")
+                            .queryParam("projects", projectKey) // แก้จาก projectKeys -> projects
+                            .queryParam("p", p)
+                            .queryParam("ps", sz)
+                            .build())
+                    .retrieve().bodyToMono(JsonNode.class).block();
+
+            JsonNode arr = (resp==null) ? null : resp.path("issues");
+            if (arr == null || !arr.isArray() || arr.isEmpty()) break;
+
+            arr.forEach(node -> upsertIssue(scan, node, projectKey));
+
+            int total = (resp!=null) ? resp.path("paging").path("total").asInt(page*ps) : page*ps;
+            if (page * ps >= total) break;
+            page++;
+        }
+    }
+
+    private void upsertIssue(ScansEntity scan, JsonNode i, String projectKey) {
+        String issueProject = i.path("project").asText(""); // หรือ "projectKey" แล้วแต่เวอร์ชัน
+        if (!projectKey.equals(issueProject)) return; // ข้ามถ้าไม่ตรง
+
+        String key = i.path("key").asText();
+        IssuesEntity entity = issuesRepository
+                .findByScan_ScanIdAndIssueKey(scan.getScanId(), key)
+                .orElseGet(IssuesEntity::new);
+
+        entity.setScan(scan);
+        entity.setIssueKey(key);
+        entity.setType(i.path("type").asText());
+        entity.setSeverity(i.path("severity").asText());
+        entity.setComponent(i.path("component").asText());
+        entity.setMessage(i.path("message").asText());
+        entity.setStatus(i.path("status").asText());
+        entity.setAssignedTo(null);
+
+        issuesRepository.save(entity);
+    }
 }
