@@ -472,6 +472,10 @@ public class ScanService {
         model.setProjectId(entity.getProject().getProjectId());
         model.setStatus(entity.getStatus());
         model.setQualityGate(entity.getQualityGate());
+//        model.setReliabilityGate(entity.getReliabilityGate());
+//        model.setMaintainabilityGate(entity.getMaintainabilityGate());
+//        model.setSecurityGate(entity.getSecurityGate());
+//        model.setSecurityReviewGate(entity.getSecurityReviewGate());
         model.setStartedAt(entity.getStartedAt());
         model.setCompletedAt(entity.getCompletedAt());
         return model;

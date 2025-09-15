@@ -21,6 +21,10 @@ public class ScanModel {
     private String branchName;
     private String status;
     private String qualityGate;
+    private String reliabilityGate;
+    private String securityGate;
+    private String maintainabilityGate;
+    private String securityReviewGate;
     private Map<String, Object> metrics;           // เก็บเป็น JSON string ตาม entity
     private String logFilePath;
     private LocalDateTime startedAt;

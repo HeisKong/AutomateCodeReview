@@ -16,6 +16,11 @@ public class TrendsModel {
 
     private UUID id;
     private String qualityGate;
+    private String reliabilityGate;
+    private String securityGate;
+    private String maintainabilityGate;
+    private String securityReviewGate;
+
     private LocalDateTime startTime;
 
 }

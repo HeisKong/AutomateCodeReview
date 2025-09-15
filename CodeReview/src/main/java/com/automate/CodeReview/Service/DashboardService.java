@@ -98,6 +98,11 @@ public class DashboardService {
                     model.setId(scan.getScanId());
                     model.setStartTime(scan.getStartedAt());
                     model.setQualityGate(gate.getQualityGate());
+                    model.setReliabilityGate(gate.getReliabilityGate());
+                    model.setSecurityGate(gate.getSecurityGate());
+                    model.setMaintainabilityGate(gate.getMaintainabilityGate());
+                    model.setSecurityReviewGate(gate.getSecurityReviewGate());
+
                     trendsList.add(model);
                 }
             }
