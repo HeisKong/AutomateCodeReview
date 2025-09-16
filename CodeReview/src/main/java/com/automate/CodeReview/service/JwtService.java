@@ -1,4 +1,4 @@
-package com.automate.CodeReview.Service;
+package com.automate.CodeReview.service;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;

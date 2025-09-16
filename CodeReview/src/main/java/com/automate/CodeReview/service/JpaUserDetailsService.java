@@ -1,4 +1,4 @@
-package com.automate.CodeReview.Service;
+package com.automate.CodeReview.service;
 
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.UsersRepository;

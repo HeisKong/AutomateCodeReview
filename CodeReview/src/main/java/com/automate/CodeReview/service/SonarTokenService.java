@@ -1,4 +1,4 @@
-package com.automate.CodeReview.Service;
+package com.automate.CodeReview.service;
 import org.springframework.stereotype.Service;
 
 @Service

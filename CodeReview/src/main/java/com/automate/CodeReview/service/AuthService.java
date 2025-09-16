@@ -1,4 +1,4 @@
-package com.automate.CodeReview.Service;
+package com.automate.CodeReview.service;
 
 import com.automate.CodeReview.Models.LoginRequest;
 import com.automate.CodeReview.Models.RegisterRequest;
@@ -6,16 +6,13 @@ import com.automate.CodeReview.Models.UserModel;
 import com.automate.CodeReview.Response.LoginResponse;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.UsersRepository;
-import com.automate.CodeReview.Service.JwtService;
 
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthService {

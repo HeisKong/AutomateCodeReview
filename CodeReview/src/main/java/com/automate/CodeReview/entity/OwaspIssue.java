@@ -25,6 +25,6 @@ public class OwaspIssue {
     private Instant updateDate;
     private String effort;
 
-    private String owaspCode; // A01..A10
+    private String owaspCode;
     private String owaspName;
 }

@@ -1,12 +1,11 @@
 package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Models.RepositoryModel;
-import com.automate.CodeReview.Service.RepositoryService;
+import com.automate.CodeReview.service.RepositoryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController

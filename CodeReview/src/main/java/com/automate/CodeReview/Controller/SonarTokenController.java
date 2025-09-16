@@ -1,5 +1,5 @@
 package com.automate.CodeReview.Controller;
-import com.automate.CodeReview.Service.SonarTokenService;
+import com.automate.CodeReview.service.SonarTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

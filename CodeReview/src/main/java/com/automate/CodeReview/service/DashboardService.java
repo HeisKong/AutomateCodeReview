@@ -1,4 +1,4 @@
-package com.automate.CodeReview.Service;
+package com.automate.CodeReview.service;
 
 import com.automate.CodeReview.Models.DashboardModel;
 import com.automate.CodeReview.Models.HistoryModel;

@@ -1,7 +1,7 @@
 package com.automate.CodeReview.Controller;
 
 
-import com.automate.CodeReview.Service.SonarWehookService;
+import com.automate.CodeReview.service.SonarWehookService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

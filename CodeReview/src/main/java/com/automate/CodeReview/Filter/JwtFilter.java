@@ -1,6 +1,6 @@
 package com.automate.CodeReview.Filter;
 
-import com.automate.CodeReview.Service.JwtService;
+import com.automate.CodeReview.service.JwtService;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.UsersRepository;
 import jakarta.servlet.FilterChain;
