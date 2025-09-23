@@ -1,7 +1,6 @@
 package com.automate.CodeReview.service;
 
 import com.automate.CodeReview.Config.SonarProperties;
-import com.automate.CodeReview.dto.SonarBatchResponse;
 import com.automate.CodeReview.dto.SonarSummary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -12,7 +11,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
-
+import org.springframework.beans.factory.annotation.Qualifier;
 import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -23,12 +22,16 @@ public class SonarService {
     @Autowired
     @Qualifier("sonarWebClient")
     private WebClient sonarClient;
-    @Autowired private SonarProperties props;
 
+    @Autowired
+    private SonarProperties props;
+
+    /** metric หลักที่ต้องการดึง */
     private static final List<String> METRICS = List.of(
             "security_rating",
             "reliability_rating",
-            "software_quality_maintainability_rating", // ถ้าไม่มีจะ fallback ไป sqale_rating ข้างล่าง
+            "software_quality_maintainability_rating",
+            "sqale_rating",
             "coverage",
             "duplicated_lines_density",
             "bugs",
@@ -36,19 +39,33 @@ public class SonarService {
             "code_smells"
     );
 
-    private String mapGrade(String n) {
-        return switch (n) {
+    /** ลำดับความสำคัญในการเลือก maintainability rating ที่มีจริง */
+    private static final List<String> MAINTAIN_KEYS = List.of(
+            "software_quality_maintainability_rating",
+            "sqale_rating"
+    );
+
+    private String mapGrade(Object raw) {
+        if (raw == null) return "N/A";
+        String val = raw.toString().trim();
+
+        // handle float values like "1.0"
+        if (val.endsWith(".0")) {
+            val = val.substring(0, val.length() - 2); // convert "1.0" -> "1"
+        }
+
+        return switch (val) {
             case "1" -> "A";
             case "2" -> "B";
             case "3" -> "C";
             case "4" -> "D";
             case "5" -> "E";
-            default -> null;
+            default -> val; // return as-is if not mapped
         };
     }
 
     private Retry retryPolicy() {
-        // retry แบบ backoff คงที่ง่าย ๆ; ปรับได้ตามต้องการ
+        // จะ retry ตามจำนวนที่ตั้งใน properties (เช่น 2 ครั้ง)
         return Retry.fixedDelay(props.getMaxRetries(), Duration.ofMillis(800))
                 .filter(ex -> true);
     }
@@ -64,24 +81,31 @@ public class SonarService {
                 .bodyToMono(Map.class)
                 .retryWhen(retryPolicy())
                 .map(json -> {
-                    Map component = (Map) json.get("component");
-                    List<Map<String, Object>> measures = (List<Map<String, Object>>) component.get("measures");
+                    Map<?, ?> component = (Map<?, ?>) json.get("component");
+                    if (component == null) {
+                        throw new IllegalStateException("No 'component' in response for key=" + projectKey);
+                    }
+
+                    Object measuresObj = component.get("measures");
+                    List<Map<String, Object>> measures = measuresObj instanceof List
+                            ? (List<Map<String, Object>>) measuresObj
+                            : Collections.emptyList();
 
                     Map<String, String> m = new HashMap<>();
                     for (var it : measures) {
                         m.put((String) it.get("metric"), String.valueOf(it.get("value")));
                     }
 
-                    // fallback: บางเวอร์ชันใช้ sqale_rating
-                    if (!m.containsKey("maintainability_rating") && m.containsKey("sqale_rating")) {
-                        m.put("maintainability_rating", m.get("sqale_rating"));
-                    }
+                    // เลือก maintainability key ที่เจอจริง
+                    String maintainKey = MAINTAIN_KEYS.stream()
+                            .filter(m::containsKey)
+                            .findFirst()
+                            .orElse(null);
 
-                    Map<String, String> grades = Map.of(
-                            "security", mapGrade(m.get("security_rating")),
-                            "reliability", mapGrade(m.get("reliability_rating")),
-                            "maintainability", mapGrade(m.get("maintainability_rating"))
-                    );
+                    Map<String, String> grades = new HashMap<>();
+                    grades.put("security", mapGrade(m.get("security_rating")));
+                    grades.put("reliability", mapGrade(m.get("reliability_rating")));
+                    grades.put("maintainability", maintainKey == null ? null : mapGrade(m.get(maintainKey)));
 
                     Map<String, String> metrics = new HashMap<>();
                     metrics.put("coverage", m.getOrDefault("coverage", null));
@@ -118,7 +142,7 @@ public class SonarService {
                             return comps.stream().map(c -> (String) c.get("key")).toList();
                         })
                 )
-                .takeUntil(list -> list.isEmpty())
+                .takeUntil(List::isEmpty)
                 .flatMapIterable(list -> list)
                 .distinct()
                 .collectList();
@@ -130,12 +154,11 @@ public class SonarService {
 
     /* ===== CSV helper ===== */
     public String toCsv(List<SonarSummary> items) {
-        // header
-        List<String> headers = new ArrayList<>(List.of(
+        List<String> headers = List.of(
                 "projectKey",
                 "securityGrade","reliabilityGrade","maintainabilityGrade",
                 "coverage","duplication","bugs","vulnerabilities","codeSmells"
-        ));
+        );
         StringBuilder sb = new StringBuilder();
         sb.append(String.join(",", headers)).append("\n");
 
@@ -160,7 +183,6 @@ public class SonarService {
 
     private String csv(String v) {
         if (v == null) return "";
-        // wrap ถ้ามีคอมมา/เครื่องหมายคำพูด
         if (v.contains(",") || v.contains("\"")) {
             return "\"" + v.replace("\"", "\"\"") + "\"";
         }
@@ -169,4 +191,3 @@ public class SonarService {
 
     private String safe(Object v) { return v == null ? "" : v.toString(); }
 }
-
