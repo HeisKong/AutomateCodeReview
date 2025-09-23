@@ -28,7 +28,7 @@ public class SonarService {
     private static final List<String> METRICS = List.of(
             "security_rating",
             "reliability_rating",
-            "maintainability_rating", // ถ้าไม่มีจะ fallback ไป sqale_rating ข้างล่าง
+            "software_quality_maintainability_rating", // ถ้าไม่มีจะ fallback ไป sqale_rating ข้างล่าง
             "coverage",
             "duplicated_lines_density",
             "bugs",
