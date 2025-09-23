@@ -4,6 +4,7 @@ import com.automate.CodeReview.Config.SonarProperties;
 import com.automate.CodeReview.dto.SonarBatchResponse;
 import com.automate.CodeReview.dto.SonarSummary;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -19,7 +20,9 @@ import java.util.stream.Collectors;
 @Service
 public class SonarService {
 
-    @Autowired private WebClient sonarClient;
+    @Autowired
+    @Qualifier("sonarWebClient")
+    private WebClient sonarClient;
     @Autowired private SonarProperties props;
 
     private static final List<String> METRICS = List.of(

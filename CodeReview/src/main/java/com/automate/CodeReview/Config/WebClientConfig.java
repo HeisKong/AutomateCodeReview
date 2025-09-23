@@ -23,7 +23,7 @@ public class WebClientConfig {
         this.sonarProperties = sonarProperties;
     }
 
-    @Bean("sonarWebClient")
+    @Bean
     public WebClient sonarWebClient() {
         WebClient.Builder b = WebClient.builder().baseUrl(sonarProperties.getHostUrl());
         if (sonarProperties.getServiceToken()!=null && !sonarProperties.getServiceToken().isBlank()) {

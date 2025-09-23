@@ -3,12 +3,14 @@ package com.automate.CodeReview.Config;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 
 @Data
 @Validated
+@Component
 @ConfigurationProperties("sonar")  // ผูกกับคีย์ prefix "sonar"
 public class SonarProperties {
 
@@ -34,9 +36,7 @@ public class SonarProperties {
     @Positive
     private int batchConcurrency = 8;
 
-    private List<String> metricsCsv = List.of(
-            "bugs","vulnerabilities","code_smells","coverage","duplicated_lines_density"
-    );
+    private String metricsCsv;
 
     private List<String> ratingMetrics = List.of(
             "security_rating","reliability_rating","maintainability_rating","sqale_rating"

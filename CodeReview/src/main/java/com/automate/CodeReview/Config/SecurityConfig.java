@@ -43,7 +43,7 @@ public class SecurityConfig {
                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                 .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN")
                                 .requestMatchers(HttpMethod.POST, "/api/sonar/webhook").permitAll()
-                                .anyRequest().authenticated()
+                                .anyRequest().permitAll()
                         )
                         .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
