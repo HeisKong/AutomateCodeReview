@@ -12,6 +12,9 @@ import java.util.UUID;
 public interface IssuesRepository extends JpaRepository<IssuesEntity, UUID> {
     List<IssuesEntity> findByScan_Project_User_UserId(UUID userId);
     List<IssuesEntity> findIssuesEntity_ByAssignedTo(UsersEntity assignedTo);
+<<<<<<< Updated upstream
 
     Optional<Object> findByScan_ScanIdAndIssueKey(UUID scanId, String key);
+=======
+>>>>>>> Stashed changes
 }
