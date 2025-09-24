@@ -4,6 +4,7 @@ import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.entity.CommentsEntity;
 import com.automate.CodeReview.entity.IssuesEntity;
+import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.exception.IssueNotFoundException;
 import com.automate.CodeReview.exception.NoIssuesFoundException;
@@ -11,8 +12,10 @@ import com.automate.CodeReview.exception.UserNotFoundException;
 import com.automate.CodeReview.repository.CommentsRepository;
 import com.automate.CodeReview.repository.IssuesRepository;
 import com.automate.CodeReview.repository.UsersRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,36 +34,46 @@ public class IssueService {
         this.commentsRepository = commentsRepository;
     }
 
+    @Transactional(readOnly = true)
     public List<IssueModel> getAllIssue(UUID userId) {
-        List<IssuesEntity> issues = issuesRepository.findByScan_Project_User_UserId(userId);
+        UsersEntity user = usersRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
+
+        List<IssuesEntity> issues = isAdmin
+                ? issuesRepository.findAll()
+                : issuesRepository.findIssuesEntity_ByAssignedTo(user);
+
         if (issues.isEmpty()) {
             throw new NoIssuesFoundException();
         }
-        List<IssueModel> result = new ArrayList<>();
+
+        List<IssueModel> result = new ArrayList<>(issues.size());
         for (IssuesEntity issue : issues) {
-            IssueModel model = new IssueModel(
+            result.add(new IssueModel(
                     issue.getIssuesId(),
-                    issue.getScan().getScanId(),
+                    issue.getScan() != null ? issue.getScan().getScanId() : null,
                     issue.getIssueKey(),
                     issue.getType(),
                     issue.getSeverity(),
                     issue.getComponent(),
                     issue.getMessage(),
-                    issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId().toString() : null,
+                    issue.getAssignedTo() != null ? String.valueOf(issue.getAssignedTo().getUserId()) : null,
                     issue.getStatus(),
-                    issue.getCreatedAt().toString()
-            );
-            result.add(model);
+                    issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null
+            ));
         }
         return result;
     }
+
 
     @Transactional
     public IssueModel assign(UUID issueId, String assignToUserId) {
         IssuesEntity issue = issuesRepository.findById(issueId)
                 .orElseThrow(IssueNotFoundException::new);
 
-        UUID assigneeUuid = UUID.fromString(assignToUserId); // ถ้าพัง -> IllegalArgumentException -> 400
+        UUID assigneeUuid = UUID.fromString(assignToUserId);
         UsersEntity user = usersRepository.findById(assigneeUuid)
                 .orElseThrow(UserNotFoundException::new);
 

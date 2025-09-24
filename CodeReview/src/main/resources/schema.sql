@@ -72,17 +72,6 @@ CREATE INDEX IF NOT EXISTS idx_comments_issue_id       ON public.comments(issue_
 CREATE INDEX IF NOT EXISTS idx_comments_user_id        ON public.comments(user_id);@@
 CREATE INDEX IF NOT EXISTS idx_gate_history_scan_id    ON public.gate_history(scan_id);@@
 
--- Add 4 gate columns to scans if missing (safe to re-run)
-ALTER TABLE public.scans
-    ADD COLUMN IF NOT EXISTS reliability_gate      VARCHAR(1),
-    ADD COLUMN IF NOT EXISTS security_gate         VARCHAR(1),
-    ADD COLUMN IF NOT EXISTS maintainability_gate  VARCHAR(1),
-    ADD COLUMN IF NOT EXISTS security_review_gate  VARCHAR(1);@@
-
--- Ensure default UUID on gate_history.gate_id
-ALTER TABLE public.gate_history
-    ALTER COLUMN gate_id SET DEFAULT gen_random_uuid();@@
-
 -- Trigger function (INSERT + UPDATE)
 CREATE OR REPLACE FUNCTION public.trg_scans_gate_history_cols()
     RETURNS trigger

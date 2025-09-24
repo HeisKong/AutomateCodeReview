@@ -1,6 +1,7 @@
 package com.automate.CodeReview.repository;
 
 import com.automate.CodeReview.entity.ProjectsEntity;
+import com.automate.CodeReview.entity.UsersEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,4 +15,7 @@ public interface ProjectsRepository extends JpaRepository<ProjectsEntity, UUID> 
     Optional<ProjectsEntity> findBySonarProjectKey(String sonarProjectKey);
 
     Optional<String> findRepositoryUrlByProjectId(UUID projectId);
+
+    String user(UsersEntity user);
+
 }

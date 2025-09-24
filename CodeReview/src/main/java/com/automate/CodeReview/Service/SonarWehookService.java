@@ -253,7 +253,7 @@ public class SonarWehookService {
         if (!projectKey.equals(issueProject)) return; // ข้ามถ้าไม่ตรง
 
         String key = i.path("key").asText();
-        IssuesEntity entity = issuesRepository
+        IssuesEntity entity = (IssuesEntity) issuesRepository
                 .findByScan_ScanIdAndIssueKey(scan.getScanId(), key)
                 .orElseGet(IssuesEntity::new);
 
