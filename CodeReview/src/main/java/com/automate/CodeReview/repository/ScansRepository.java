@@ -20,6 +20,8 @@ public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
             nativeQuery = true
     )
     String findMetricsByScanId(@Param("scanId") UUID scanId);
+    Optional<ScansEntity> findByAnalysisId(String analysisId);
+    Optional<ScansEntity> findByDeliveryId(String deliveryId);
 
     Optional<ScansEntity> findFirstByProject_ProjectIdOrderByStartedAtDesc(UUID projectId);
 

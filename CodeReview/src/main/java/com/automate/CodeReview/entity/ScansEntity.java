@@ -1,5 +1,6 @@
 package com.automate.CodeReview.entity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -44,6 +45,12 @@ public class ScansEntity {
     @Column(name = "completed_at",  nullable = true)
     private LocalDateTime completedAt;
 
+    @Column(name="analysis_id")
+    private String analysisId;
+
+    @Column(name="delivery_id")
+    private String deliveryId;
+
     @Column(name = "reliability_gate")
     private String reliabilityGate;
 
@@ -62,6 +69,10 @@ public class ScansEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metrics", columnDefinition = "jsonb")
     private Map<String, Object> metrics;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "payload_json", columnDefinition = "jsonb")
+    private JsonNode payloadJson; // เก็บ raw payload (String/Json แล้วแต่สะดวก)
 
     @Column(name = "log_file_path")
     private String logFilePath;
