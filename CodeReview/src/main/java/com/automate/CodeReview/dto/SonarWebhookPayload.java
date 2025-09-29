@@ -1,8 +1,11 @@
 package com.automate.CodeReview.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -41,6 +44,31 @@ public class SonarWebhookPayload {
     public static class QualityGate {
         private String name;
         private String status;
+        private java.util.List<Condition> conditions;
         // มี fields อื่น ๆ เช่น conditions ก็ปล่อยให้ ignoreUnknown ช่วยได้
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Condition {
+        // metric key
+        @JsonAlias({"metricKey","metric"})
+        private String metricKey;
+
+        // comparator/operator
+        @JsonAlias({"comparator","operator","op"})
+        private String comparator;
+
+        // threshold & actual
+        @JsonAlias({"errorThreshold","error"})
+        private String errorThreshold;
+
+        @JsonAlias({"actualValue","actual"})
+        private String actualValue;
+
+        // บาง payload มี status บางตัวไม่มี
+        private String status;
+
+        private String value;
     }
 }
