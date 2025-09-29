@@ -78,7 +78,7 @@ public class AuthService {
         u.setEmail(req.email());
         u.setPassword(encoder.encode(req.password())); // BCrypt
         u.setPhoneNumber(req.phoneNumber());
-        u.setRole(normalizeRole(req.role()));
+        u.setRole(normalizeRole("user"));
 
         usersRepository.save(u);
     }

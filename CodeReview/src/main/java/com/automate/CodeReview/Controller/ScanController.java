@@ -53,9 +53,4 @@ public class ScanController {
         ScanLogModel log = scanService.getScanLogById(id);
         return ResponseEntity.ok(log);
     }
-
-    @PostMapping("/{id}/cancel")
-    public ResponseEntity<ScanModel> cancelScan(@PathVariable UUID scanId) {
-        return ResponseEntity.ok(scanService.cancelScan(scanId));
-    }
 }
