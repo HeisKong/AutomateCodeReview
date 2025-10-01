@@ -10,11 +10,12 @@ import java.util.UUID;
 
 @Repository // จะใส่หรือไม่ใส่ก็ได้ แต่ช่วยให้อ่านง่าย
 public interface UsersRepository extends JpaRepository<UsersEntity, UUID> {
-    Optional<UsersEntity> findByUsername(String username);
     Optional<UsersEntity> findByEmail(String email);
     Optional<UsersEntity> findById(UUID id);
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
     boolean existsByPhoneNumber(String phoneNumber);
+    void deleteById(UUID id);
+    boolean existsById(UUID id);
 
 }

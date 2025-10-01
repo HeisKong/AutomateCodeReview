@@ -32,6 +32,9 @@ public class UsersEntity {
     @Column(name = "password_hash",  nullable = false)
     private String password;
 
+    @Column(name = "must_change_password", nullable = false)
+    private boolean forcePasswordChange = false;
+
     @Column(name = "phone", nullable = false, unique = true,  length = 13)
     private String phoneNumber;
 
