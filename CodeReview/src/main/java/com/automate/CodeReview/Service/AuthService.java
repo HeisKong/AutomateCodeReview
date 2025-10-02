@@ -10,12 +10,18 @@ import com.automate.CodeReview.Service.JwtService;
 
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class AuthService {
@@ -39,18 +45,33 @@ public class AuthService {
         authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.email(), req.password())
         );
-
-
         UsersEntity u = usersRepository.findByEmail(req.email())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         String token = jwtService.generateToken(u.getEmail());
-
-
-        UserModel model = toModel(u);
-
-        return new LoginResponse(token, model);
+        return new LoginResponse(token, toModel(u));
     }
+
+    public void register(RegisterRequest req) {
+        // ❌ ไม่เช็คซ้ำ/ไม่โยนที่นี่แล้ว (ให้ Controller ทำก่อนเรียกเมธอดนี้)
+        UsersEntity u = new UsersEntity();
+        u.setUsername(req.username().trim());
+        u.setEmail(req.email().trim());
+        u.setPassword(encoder.encode(req.password()));
+        u.setPhoneNumber(req.phoneNumber().trim());
+        u.setRole(normalizeRole("user"));
+        usersRepository.save(u);
+    }
+
+    /** ให้ Controller เรียกใช้เพื่อเช็คว่าฟิลด์ไหนซ้ำบ้าง */
+    public List<String> checkDuplicates(RegisterRequest req) {
+        List<String> fields = new ArrayList<>();
+        if (usersRepository.existsByUsername(req.username()))       fields.add("username");
+        if (usersRepository.existsByEmail(req.email()))             fields.add("email");
+        if (usersRepository.existsByPhoneNumber(req.phoneNumber())) fields.add("phoneNumber");
+        return fields;
+    }
+
     private UserModel toModel(UsersEntity e) {
         UserModel m = new UserModel();
         m.setId(e.getUserId());
@@ -62,28 +83,6 @@ public class AuthService {
         return m;
     }
 
-    public void register(RegisterRequest req) {
-        if (usersRepository.existsByUsername(req.username())) {
-            throw new DuplicateKeyException("Username already exists");
-        }
-        if (usersRepository.existsByEmail(req.email())) {
-            throw new DuplicateKeyException("Email already exists");
-        }
-        if (usersRepository.existsByPhoneNumber(req.phoneNumber())) {
-            throw new DuplicateKeyException("Phone number already exists");
-        }
-
-        UsersEntity u = new UsersEntity();
-        u.setUsername(req.username());
-        u.setEmail(req.email());
-        u.setPassword(encoder.encode(req.password())); // BCrypt
-        u.setPhoneNumber(req.phoneNumber());
-        u.setRole(normalizeRole("user"));
-
-        usersRepository.save(u);
-    }
-
-
     private String normalizeRole(String role) {
         if (role == null) return "USER";
         role = role.trim().toUpperCase();
@@ -91,3 +90,4 @@ public class AuthService {
         return "ADMIN".equals(role) ? "ADMIN" : "USER";
     }
 }
+

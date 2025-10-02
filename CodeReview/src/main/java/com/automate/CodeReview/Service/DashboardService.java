@@ -46,7 +46,6 @@ public class DashboardService {
 
         final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
 
-        // แอดมินเห็นทั้งหมด, ผู้ใช้ทั่วไปเห็นของตัวเอง
         List<ProjectsEntity> projects = isAdmin
                 ? projectsRepository.findAll()
                 : projectsRepository.findByUser_UserId(userId);
@@ -62,14 +61,13 @@ public class DashboardService {
                     .orElse(null);
 
             DashboardModel model = new DashboardModel();
-            // model.setId(project.getProjectId());
-            model.setId(userId);
-            model.setName(project.getName());
-//            model.setMetrics(
-//                    latestScan != null && latestScan.getMetrics() != null
-//                            ? String.valueOf(latestScan.getMetrics())
-//                            : "0"
-//            );
+            model.setProjectId(project.getProjectId());
+            model.setProjectName(project.getName());
+            model.setMetrics(
+                    latestScan != null && latestScan.getMetrics() != null
+                            ? String.valueOf(latestScan.getMetrics())
+                            : "0"
+            );
             dashboardList.add(model);
         }
         return dashboardList;
