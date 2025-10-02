@@ -1,4 +1,4 @@
-package com.automate.CodeReview.Models;
+package com.automate.CodeReview.dto;
 
 import lombok.*;
 

@@ -1,17 +1,19 @@
 package com.automate.CodeReview.Service;
 
-import com.automate.CodeReview.Models.LoginRequest;
-import com.automate.CodeReview.Models.RegisterRequest;
-import com.automate.CodeReview.Models.UpdateUserRequest;
+import com.automate.CodeReview.dto.ChangePasswordRequest;
+import com.automate.CodeReview.dto.LoginRequest;
+import com.automate.CodeReview.dto.RegisterRequest;
+import com.automate.CodeReview.dto.UpdateUserRequest;
 import com.automate.CodeReview.Models.UserModel;
 import com.automate.CodeReview.Response.LoginResponse;
 import com.automate.CodeReview.SecureRandom.PasswordUtils;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.UsersRepository;
-import com.automate.CodeReview.Service.JwtService;
 
+import com.automate.CodeReview.service.EmailService;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -20,6 +22,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -29,15 +34,17 @@ public class AuthService {
     private final PasswordEncoder encoder;
     private final UsersRepository usersRepository;
     private final JwtService jwtService;
+    private final EmailService emailService;
 
     public AuthService(AuthenticationManager authManager,
                        PasswordEncoder encoder,
                        UsersRepository usersRepository,
-                       JwtService jwtService) {
+                       JwtService jwtService, EmailService emailService) {
         this.authManager = authManager;
         this.encoder = encoder;
         this.usersRepository = usersRepository;
         this.jwtService = jwtService;
+        this.emailService = emailService;
     }
 
     public LoginResponse login(LoginRequest req) {
@@ -136,7 +143,7 @@ public class AuthService {
         usersRepository.deleteById(id);
     }
     @Transactional
-    public String adminResetPassword(String email) {
+    public ResponseEntity<Map<String, Object>> adminResetPassword(String email) {
         UsersEntity user = usersRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -148,8 +155,59 @@ public class AuthService {
         user.setForcePasswordChange(true);
         usersRepository.save(user);
 
-        // คืน temp password ใน response (เฉพาะ dev/test)
-        return tempPassword;
+        Map<String, Object> response = new HashMap<>();
+        response.put("email", user.getEmail());
+
+        // ส่งไปยังอีเมลผู้ใช้
+        try {
+            emailService.sendResetPassword(user.getEmail(), tempPassword);
+            response.put("status", "SUCCESS");
+            response.put("tempPassword", tempPassword); // สำหรับ debug / testing
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "FAILED");
+            response.put("message", "Failed to send reset password email");
+            // ถ้าอยากให้รหัสผ่านเปลี่ยนจริง แม้ส่งเมลล้มเหลว -> ไม่ throw exception
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @Transactional
+    public void changePassword(String principal, ChangePasswordRequest req) {
+        // ลองหา user ด้วยหลายทาง (username, email, uuid)
+        Optional<UsersEntity> maybeUser = usersRepository.findByUsername(principal);
+        if (maybeUser.isEmpty()) {
+            maybeUser = usersRepository.findByEmail(principal);
+        }
+        if (maybeUser.isEmpty()) {
+            // ลอง parse เป็น UUID ถ้า token เก็บ id เป็น sub
+            try {
+                UUID id = UUID.fromString(principal);
+                maybeUser = usersRepository.findById(id);
+            } catch (IllegalArgumentException ignored) {}
+        }
+
+        UsersEntity user = maybeUser
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        // validate new password
+        if (req.getNewPassword() == null || req.getNewPassword().length() < 6) { // ปรับตามนโยบาย
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password too weak (min 6 chars)");
+        }
+        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password and confirm do not match");
+        }
+
+        // ถ้า user ถูกบังคับให้เปลี่ยนพาสเวิร์ด (admin reset) -> oldPassword เป็น optional
+        if (!user.isForcePasswordChange()) {
+            if (req.getOldPassword() == null || !encoder.matches(req.getOldPassword(), user.getPassword())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old password is incorrect");
+            }
+        } // else: ถ้ forcePasswordChange==true ให้เปลี่ยนได้โดยไม่ต้องมี oldPassword
+
+        user.setPassword(encoder.encode(req.getNewPassword()));
+        user.setForcePasswordChange(false);
+        usersRepository.save(user);
     }
 
     private String normalizeRole(String role) {
