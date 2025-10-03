@@ -13,7 +13,7 @@ public class AsyncConfig {
         ThreadPoolTaskExecutor ex = new ThreadPoolTaskExecutor();
         ex.setCorePoolSize(2);
         ex.setMaxPoolSize(4);
-        ex.setQueueCapacity(200);
+        ex.setQueueCapacity(1000);
         ex.setThreadNamePrefix("sonar-webhook-");
         ex.initialize();
         return ex;

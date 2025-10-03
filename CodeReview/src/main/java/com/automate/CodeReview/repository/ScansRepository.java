@@ -21,4 +21,7 @@ public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
     )
     String findMetricsByScanId(@Param("scanId") UUID scanId);
 
+    Optional<ScansEntity> findFirstByProject_ProjectIdOrderByStartedAtDesc(UUID projectId);
+    Optional<ScansEntity> findByAnalysisId(String analysisId);
+    Optional<ScansEntity> findByDeliveryId(String deliveryId);
 }

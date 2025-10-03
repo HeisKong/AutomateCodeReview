@@ -12,8 +12,8 @@ import java.util.UUID;
 @NoArgsConstructor
 public class DashboardModel {
 
-    private UUID id;
-    private String name;
+    private UUID projectId;
+    private String projectName;
     private IssueDTO metrics;
 
     public void setMetrics(String number) {

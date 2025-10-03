@@ -166,7 +166,7 @@ public class ScanService {
 
             res.setExitCode(exit);
             res.setOutput(logs.toString());
-            res.setStatus(exit == 0 ? "SUCCESS" : "FAIL");  // ← ส่งงานเข้า SonarQube แล้ว
+            res.setStatus(exit == 0 ? "ACTIVE" : "ERROR");  // ← ส่งงานเข้า SonarQube แล้ว
 
             // 4) ไม่ดึง QG/Metrics ณ ตรงนี้ — รอ Webhook
             if (res.getExitCode() == 0) {
@@ -450,17 +450,6 @@ public class ScanService {
         return null;
     }
 
-    public ScanModel cancelScan(UUID scanId){
-        ScansEntity scan = scanRepository.findById(scanId)
-                .orElseThrow(() -> new RuntimeException("Scan not found"));
-
-        if (scan.getStatus().equals("RUNNING")) {
-            scan.setStatus("CANCELLED");
-            scan.setCompletedAt(LocalDateTime.now());
-            scanRepository.save(scan);
-        }
-        return toModel(scan);
-    }
 
     public ScanLogModel getScanLogById(UUID id) {
         return null;

@@ -26,6 +26,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class AuthService {
@@ -48,27 +50,34 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest req) {
-        // หา user ก่อน
-        UsersEntity user = usersRepository.findByEmail(req.email())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        authManager.authenticate(
+                new UsernamePasswordAuthenticationToken(req.email(), req.password())
+        );
+        UsersEntity u = usersRepository.findByEmail(req.email())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        try {
-            // ตรวจสอบรหัสผ่าน (Spring Security จะใช้ PasswordEncoder ที่ config ไว้)
-            authManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(req.email(), req.password())
-            );
-        } catch (BadCredentialsException ex) {
-            // ถ้ารหัสผ่านไม่ถูกต้อง
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "password is incorrect");
-        }
+        String token = jwtService.generateToken(u.getEmail());
+        return new LoginResponse(token, toModel(u));
+    }
 
-        // สร้าง JWT token
-        String token = jwtService.generateToken(user.getEmail());
+    public void register(RegisterRequest req) {
+        // ❌ ไม่เช็คซ้ำ/ไม่โยนที่นี่แล้ว (ให้ Controller ทำก่อนเรียกเมธอดนี้)
+        UsersEntity u = new UsersEntity();
+        u.setUsername(req.username().trim());
+        u.setEmail(req.email().trim());
+        u.setPassword(encoder.encode(req.password()));
+        u.setPhoneNumber(req.phoneNumber().trim());
+        u.setRole(normalizeRole("user"));
+        usersRepository.save(u);
+    }
 
-        // แปลงเป็น model (สำหรับ response)
-        UserModel model = toModel(user);
-
-        return new LoginResponse(token, model);
+    /** ให้ Controller เรียกใช้เพื่อเช็คว่าฟิลด์ไหนซ้ำบ้าง */
+    public List<String> checkDuplicates(RegisterRequest req) {
+        List<String> fields = new ArrayList<>();
+        if (usersRepository.existsByUsername(req.username()))       fields.add("username");
+        if (usersRepository.existsByEmail(req.email()))             fields.add("email");
+        if (usersRepository.existsByPhoneNumber(req.phoneNumber())) fields.add("phoneNumber");
+        return fields;
     }
 
     private UserModel toModel(UsersEntity e) {
@@ -225,3 +234,4 @@ public class AuthService {
         return "ADMIN".equals(role) ? "ADMIN" : "USER";
     }
 }
+
