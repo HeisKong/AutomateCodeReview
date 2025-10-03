@@ -15,6 +15,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -48,21 +49,29 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest req) {
-        authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.email(), req.password())
-        );
+        // หา user ก่อน
+        UsersEntity user = usersRepository.findByEmail(req.email())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
+        try {
+            // ตรวจสอบรหัสผ่าน (Spring Security จะใช้ PasswordEncoder ที่ config ไว้)
+            authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(req.email(), req.password())
+            );
+        } catch (BadCredentialsException ex) {
+            // ถ้ารหัสผ่านไม่ถูกต้อง
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "password is incorrect");
+        }
 
-        UsersEntity u = usersRepository.findByEmail(req.email())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        // สร้าง JWT token
+        String token = jwtService.generateToken(user.getEmail());
 
-        String token = jwtService.generateToken(u.getEmail());
-
-
-        UserModel model = toModel(u);
+        // แปลงเป็น model (สำหรับ response)
+        UserModel model = toModel(user);
 
         return new LoginResponse(token, model);
     }
+
     private UserModel toModel(UsersEntity e) {
         UserModel m = new UserModel();
         m.setId(e.getUserId());
