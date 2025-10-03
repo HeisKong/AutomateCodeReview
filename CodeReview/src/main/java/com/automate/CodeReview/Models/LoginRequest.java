@@ -1,4 +1,4 @@
-package com.automate.CodeReview.dto;
+package com.automate.CodeReview.Models;
 
 import jakarta.validation.constraints.NotBlank;
 

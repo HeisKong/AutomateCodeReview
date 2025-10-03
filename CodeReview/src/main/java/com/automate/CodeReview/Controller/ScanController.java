@@ -3,7 +3,7 @@ package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Models.ScanLogModel;
 import com.automate.CodeReview.Models.ScanModel;
-import com.automate.CodeReview.dto.ScanRequest;
+import com.automate.CodeReview.Models.ScanRequest;
 import com.automate.CodeReview.Service.ScanService;
 import com.automate.CodeReview.entity.ScansEntity;
 import com.automate.CodeReview.repository.ScansRepository;

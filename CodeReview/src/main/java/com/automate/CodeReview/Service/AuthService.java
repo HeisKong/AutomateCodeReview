@@ -1,8 +1,8 @@
 package com.automate.CodeReview.Service;
 
 import com.automate.CodeReview.dto.ChangePasswordRequest;
-import com.automate.CodeReview.dto.LoginRequest;
-import com.automate.CodeReview.dto.RegisterRequest;
+import com.automate.CodeReview.Models.LoginRequest;
+import com.automate.CodeReview.Models.RegisterRequest;
 import com.automate.CodeReview.dto.UpdateUserRequest;
 import com.automate.CodeReview.Models.UserModel;
 import com.automate.CodeReview.Response.LoginResponse;
@@ -17,7 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
