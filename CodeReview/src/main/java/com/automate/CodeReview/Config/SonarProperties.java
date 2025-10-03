@@ -1,24 +1,44 @@
 package com.automate.CodeReview.Config;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.*;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
+
+import java.util.List;
 
 @Data
 @Validated
+@Component
 @ConfigurationProperties("sonar")  // ผูกกับคีย์ prefix "sonar"
 public class SonarProperties {
-    @NotBlank private String hostUrl;            // http(s)://sonar:9000
-    private String serviceToken;                 // เว้นได้ถ้า dev เปิด anonymous
-    private String webhookSecret;                // ถ้าตั้ง secret ที่หน้า Webhook
-    @Min(50) @Max(5000)
+
+    @NotBlank
+    private String hostUrl;
+
+    private String serviceToken;
+
+    private String webhookSecret;
+
+    @Min(1) @Max(500)
     private int pageSize = 500;
-    @Min(1000) @Max(60000)
+
+    @Min(100) @Max(60000)
     private int connectTimeoutMs = 5000;
-    @Min(1000) @Max(120000)
+
+    @Min(500) @Max(180000)
     private int readTimeoutMs = 15000;
+
+    @PositiveOrZero
+    private int maxRetries = 2;
+
+    @Positive
+    private int batchConcurrency = 8;
+
     private String metricsCsv;
+
+    private List<String> ratingMetrics = List.of(
+            "security_rating","reliability_rating","maintainability_rating","sqale_rating"
+    );
 }

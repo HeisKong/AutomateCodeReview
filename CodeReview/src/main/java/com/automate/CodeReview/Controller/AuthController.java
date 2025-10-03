@@ -1,8 +1,9 @@
 package com.automate.CodeReview.Controller;
 
-import com.automate.CodeReview.Models.*;
 import com.automate.CodeReview.Response.LoginResponse;
 import com.automate.CodeReview.Service.AuthService;
+import com.automate.CodeReview.Models.LoginRequest;
+import com.automate.CodeReview.Models.RegisterRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
