@@ -72,14 +72,10 @@ CREATE INDEX IF NOT EXISTS idx_comments_issue_id       ON public.comments(issue_
 CREATE INDEX IF NOT EXISTS idx_comments_user_id        ON public.comments(user_id);@@
 CREATE INDEX IF NOT EXISTS idx_gate_history_scan_id    ON public.gate_history(scan_id);@@
 
-<<<<<<< Updated upstream
 -- (แนะนำครั้งเดียว) ใช้ uuid ฟังก์ชันถ้ายังไม่ได้เปิด
 -- CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 1) ฟังก์ชันทริกเกอร์: บันทึก 4 gates + quality_gate + created_at
-=======
--- Trigger function (INSERT + UPDATE)
->>>>>>> Stashed changes
 CREATE OR REPLACE FUNCTION public.trg_scans_gate_history_cols()
     RETURNS trigger
     LANGUAGE plpgsql
@@ -141,4 +137,20 @@ CREATE TRIGGER trg_scans_gate_history_au
     ON public.scans
     FOR EACH ROW
 EXECUTE FUNCTION public.trg_scans_gate_history_cols();
+
+@@
+-- Ensure must_change_password column exists and is sane
+ALTER TABLE public.users
+    ADD COLUMN IF NOT EXISTS must_change_password boolean;
+
+UPDATE public.users
+SET must_change_password = COALESCE(must_change_password, false)
+WHERE must_change_password IS NULL;
+
+ALTER TABLE public.users
+    ALTER COLUMN must_change_password SET NOT NULL;
+
+ALTER TABLE public.users
+    ALTER COLUMN must_change_password SET DEFAULT false;
+
 
