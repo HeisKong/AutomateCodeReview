@@ -6,18 +6,11 @@ import com.automate.CodeReview.entity.GradeEntity;
 import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.ScansEntity;
 import com.automate.CodeReview.entity.UsersEntity;
-<<<<<<< Updated upstream
-=======
-//import com.automate.CodeReview.exception.ProjectsNotFoundForUserException;
->>>>>>> Stashed changes
 import com.automate.CodeReview.repository.GradeRepository;
 import com.automate.CodeReview.repository.ProjectsRepository;
 import com.automate.CodeReview.repository.ScansRepository;
 import com.automate.CodeReview.repository.UsersRepository;
-<<<<<<< Updated upstream
 import com.fasterxml.jackson.databind.ObjectMapper;
-=======
->>>>>>> Stashed changes
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,64 +25,35 @@ public class DashboardService {
     private final ProjectsRepository projectsRepository;
     private final GradeRepository gradeRepository;
     private final UsersRepository usersRepository;
-<<<<<<< Updated upstream
     private final ObjectMapper objectMapper;
     public DashboardService(ProjectsRepository projectsRepository,
                             ScansRepository scansRepository,
                             GradeRepository gradeRepository,
                             UsersRepository usersRepository,
                             ObjectMapper objectMapper) {
-=======
-
-    public DashboardService(ProjectsRepository projectsRepository,
-                            ScansRepository scansRepository,
-                            GradeRepository gradeRepository,
-                            UsersRepository usersRepository) {
->>>>>>> Stashed changes
         this.projectsRepository = projectsRepository;
         this.scansRepository = scansRepository;
         this.gradeRepository = gradeRepository;
         this.usersRepository = usersRepository;
-<<<<<<< Updated upstream
         this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
     public List<DashboardModel.DashboardDTO> getOverview(UUID userId) {
-=======
-    }
-
-    @Transactional(readOnly = true)
-    public List<DashboardModel> getOverview(UUID userId) {
->>>>>>> Stashed changes
         UsersEntity user = usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
-<<<<<<< Updated upstream
-=======
-
-        // แอดมินเห็นทั้งหมด, ผู้ใช้ทั่วไปเห็นของตัวเอง
->>>>>>> Stashed changes
         List<ProjectsEntity> projects = isAdmin
                 ? projectsRepository.findAll()
                 : projectsRepository.findByUser_UserId(userId);
 
-<<<<<<< Updated upstream
 
         List<DashboardModel.DashboardDTO> dashboardList = new ArrayList<>(projects.size());
-=======
-//        if (projects.isEmpty()) {
-//            throw new ProjectsNotFoundForUserException();
-//        }
-
-        List<DashboardModel> dashboardList = new ArrayList<>(projects.size());
->>>>>>> Stashed changes
         for (ProjectsEntity project : projects) {
             ScansEntity latestScan = scansRepository
                     .findFirstByProject_ProjectIdOrderByStartedAtDesc(project.getProjectId())
                     .orElse(null);
-<<<<<<< Updated upstream
 
 
 //            for (ProjectsEntity project : projects) {
@@ -128,43 +92,15 @@ public class DashboardService {
             model.setProjectName(project.getName());
             model.setMetrics(latestScan != null ? (com.fasterxml.jackson.databind.JsonNode) latestScan.getMetrics() : null); // JsonNode → JSON ตรง ๆ
 
-=======
-
-            DashboardModel model = new DashboardModel();
-            // model.setId(project.getProjectId());
-            model.setId(userId);
-            model.setName(project.getName());
-//            model.setMetrics(
-//                    latestScan != null && latestScan.getMetrics() != null
-//                            ? String.valueOf(latestScan.getMetrics())
-//                            : "0"
-//            );
->>>>>>> Stashed changes
             dashboardList.add(model);
         }
         return dashboardList;
     }
 
     @Transactional(readOnly = true)
-<<<<<<< Updated upstream
     public List<DashboardModel.HistoryDTO> getHistory(UUID userId) {
         UsersEntity user = usersRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-=======
-    public List<HistoryModel> getHistory(UUID userId) {
-        UsersEntity user = usersRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
-
-
-        List<ProjectsEntity> projects = isAdmin
-                ? projectsRepository.findAll()
-                : projectsRepository.findByUser_UserId(userId);
-//        if (projects.isEmpty()) {
-//            throw new ProjectsNotFoundForUserException();
-//        }
->>>>>>> Stashed changes
 
         final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
 
@@ -192,26 +128,9 @@ public class DashboardService {
     }
 
     @Transactional(readOnly = true)
-<<<<<<< Updated upstream
     public List<DashboardModel.TrendsDTO> getTrends(UUID userId) {
         UsersEntity user = usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-=======
-    public List<TrendsModel> getTrends(UUID userId) {
-        UsersEntity user = usersRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
-
-
-        // แอดมินเห็นทั้งหมด, ผู้ใช้ทั่วไปเห็นของตัวเอง
-        List<ProjectsEntity> projects = isAdmin
-                ? projectsRepository.findAll()
-                : projectsRepository.findByUser_UserId(userId);
-//        if (projects.isEmpty()) {
-//            throw new ProjectsNotFoundForUserException();
-//        }
->>>>>>> Stashed changes
 
         final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
 

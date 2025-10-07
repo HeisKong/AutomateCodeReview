@@ -2,25 +2,12 @@ package com.automate.CodeReview.Service;
 
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
-<<<<<<< Updated upstream
 import com.automate.CodeReview.entity.*;
 import com.automate.CodeReview.exception.IssueNotFoundException;
 import com.automate.CodeReview.exception.NoIssuesFoundException;
 import com.automate.CodeReview.exception.UserNotFoundException;
 import com.automate.CodeReview.repository.*;
 import jakarta.validation.constraints.Null;
-=======
-import com.automate.CodeReview.entity.CommentsEntity;
-import com.automate.CodeReview.entity.IssuesEntity;
-import com.automate.CodeReview.entity.ProjectsEntity;
-import com.automate.CodeReview.entity.UsersEntity;
-import com.automate.CodeReview.exception.IssueNotFoundException;
-import com.automate.CodeReview.exception.NoIssuesFoundException;
-import com.automate.CodeReview.exception.UserNotFoundException;
-import com.automate.CodeReview.repository.CommentsRepository;
-import com.automate.CodeReview.repository.IssuesRepository;
-import com.automate.CodeReview.repository.UsersRepository;
->>>>>>> Stashed changes
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,7 +40,6 @@ public class IssueService {
 
         List<IssuesEntity> issues = isAdmin
                 ? issuesRepository.findAll()
-<<<<<<< Updated upstream
                 : issuesRepository.findByScan_Project_User_UserId(userId);
 
         List<IssueModel> issueList = new ArrayList<>();
@@ -83,28 +69,6 @@ public class IssueService {
 
             issueList.add(model);
 
-=======
-                : issuesRepository.findIssuesEntity_ByAssignedTo(user);
-
-        if (issues.isEmpty()) {
-            throw new NoIssuesFoundException();
-        }
-
-        List<IssueModel> result = new ArrayList<>(issues.size());
-        for (IssuesEntity issue : issues) {
-            result.add(new IssueModel(
-                    issue.getIssuesId(),
-                    issue.getScan() != null ? issue.getScan().getScanId() : null,
-                    issue.getIssueKey(),
-                    issue.getType(),
-                    issue.getSeverity(),
-                    issue.getComponent(),
-                    issue.getMessage(),
-                    issue.getAssignedTo() != null ? String.valueOf(issue.getAssignedTo().getUserId()) : null,
-                    issue.getStatus(),
-                    issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null
-            ));
->>>>>>> Stashed changes
         }
         return issueList;
     }
