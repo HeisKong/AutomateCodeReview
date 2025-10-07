@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,16 +61,6 @@ public class AuthService {
         return new LoginResponse(token, toModel(u));
     }
 
-    public void register(RegisterRequest req) {
-        // ❌ ไม่เช็คซ้ำ/ไม่โยนที่นี่แล้ว (ให้ Controller ทำก่อนเรียกเมธอดนี้)
-        UsersEntity u = new UsersEntity();
-        u.setUsername(req.username().trim());
-        u.setEmail(req.email().trim());
-        u.setPassword(encoder.encode(req.password()));
-        u.setPhoneNumber(req.phoneNumber().trim());
-        u.setRole(normalizeRole("user"));
-        usersRepository.save(u);
-    }
 
     /** ให้ Controller เรียกใช้เพื่อเช็คว่าฟิลด์ไหนซ้ำบ้าง */
     public List<String> checkDuplicates(RegisterRequest req) {
@@ -92,22 +83,12 @@ public class AuthService {
     }
 
     public void register(RegisterRequest req) {
-        if (usersRepository.existsByUsername(req.username())) {
-            throw new DuplicateKeyException("Username already exists");
-        }
-        if (usersRepository.existsByEmail(req.email())) {
-            throw new DuplicateKeyException("Email already exists");
-        }
-        if (usersRepository.existsByPhoneNumber(req.phoneNumber())) {
-            throw new DuplicateKeyException("Phone number already exists");
-        }
-
         UsersEntity u = new UsersEntity();
         u.setUsername(req.username());
         u.setEmail(req.email());
         u.setPassword(encoder.encode(req.password())); // BCrypt
         u.setPhoneNumber(req.phoneNumber());
-        u.setRole(normalizeRole(req.role()));
+        u.setRole(normalizeRole("USER"));
 
         usersRepository.save(u);
     }
