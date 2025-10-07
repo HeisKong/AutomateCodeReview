@@ -72,10 +72,14 @@ CREATE INDEX IF NOT EXISTS idx_comments_issue_id       ON public.comments(issue_
 CREATE INDEX IF NOT EXISTS idx_comments_user_id        ON public.comments(user_id);@@
 CREATE INDEX IF NOT EXISTS idx_gate_history_scan_id    ON public.gate_history(scan_id);@@
 
+<<<<<<< Updated upstream
 -- (แนะนำครั้งเดียว) ใช้ uuid ฟังก์ชันถ้ายังไม่ได้เปิด
 -- CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 1) ฟังก์ชันทริกเกอร์: บันทึก 4 gates + quality_gate + created_at
+=======
+-- Trigger function (INSERT + UPDATE)
+>>>>>>> Stashed changes
 CREATE OR REPLACE FUNCTION public.trg_scans_gate_history_cols()
     RETURNS trigger
     LANGUAGE plpgsql
