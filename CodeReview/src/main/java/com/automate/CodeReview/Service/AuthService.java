@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -91,26 +92,6 @@ public class AuthService {
         return m;
     }
 
-    public void register(RegisterRequest req) {
-        if (usersRepository.existsByUsername(req.username())) {
-            throw new DuplicateKeyException("Username already exists");
-        }
-        if (usersRepository.existsByEmail(req.email())) {
-            throw new DuplicateKeyException("Email already exists");
-        }
-        if (usersRepository.existsByPhoneNumber(req.phoneNumber())) {
-            throw new DuplicateKeyException("Phone number already exists");
-        }
-
-        UsersEntity u = new UsersEntity();
-        u.setUsername(req.username());
-        u.setEmail(req.email());
-        u.setPassword(encoder.encode(req.password())); // BCrypt
-        u.setPhoneNumber(req.phoneNumber());
-        u.setRole(normalizeRole(req.role()));
-
-        usersRepository.save(u);
-    }
     @Transactional
     public UserModel updateUser(UpdateUserRequest req) {
         if (req.getId() == null) {
