@@ -72,21 +72,29 @@ CREATE INDEX IF NOT EXISTS idx_comments_issue_id       ON public.comments(issue_
 CREATE INDEX IF NOT EXISTS idx_comments_user_id        ON public.comments(user_id);@@
 CREATE INDEX IF NOT EXISTS idx_gate_history_scan_id    ON public.gate_history(scan_id);@@
 
--- Trigger function (INSERT + UPDATE)
+-- (แนะนำครั้งเดียว) ใช้ uuid ฟังก์ชันถ้ายังไม่ได้เปิด
+-- CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- 1) ฟังก์ชันทริกเกอร์: บันทึก 4 gates + quality_gate + created_at
 CREATE OR REPLACE FUNCTION public.trg_scans_gate_history_cols()
     RETURNS trigger
+    LANGUAGE plpgsql
 AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         IF NEW.reliability_gate IS NOT NULL
             OR NEW.security_gate IS NOT NULL
             OR NEW.maintainability_gate IS NOT NULL
-            OR NEW.security_review_gate IS NOT NULL THEN
+            OR NEW.security_review_gate IS NOT NULL
+            OR NEW.quality_gate IS NOT NULL
+        THEN
             INSERT INTO public.gate_history (
-                gate_id, scan_id, reliability_gate, security_gate, maintainability_gate, security_review_gate
+                gate_id, scan_id, reliability_gate, security_gate,
+                maintainability_gate, security_review_gate, created_at, quality_gate
             ) VALUES (
                          gen_random_uuid(), NEW.scan_id, NEW.reliability_gate, NEW.security_gate,
-                         NEW.maintainability_gate, NEW.security_review_gate
+                         NEW.maintainability_gate, NEW.security_review_gate,
+                         COALESCE(NEW.created_at, NEW.started_at, NOW()), NEW.quality_gate
                      );
         END IF;
         RETURN NEW;
@@ -95,12 +103,16 @@ BEGIN
         IF (OLD.reliability_gate     IS DISTINCT FROM NEW.reliability_gate)
             OR (OLD.security_gate        IS DISTINCT FROM NEW.security_gate)
             OR (OLD.maintainability_gate IS DISTINCT FROM NEW.maintainability_gate)
-            OR (OLD.security_review_gate IS DISTINCT FROM NEW.security_review_gate) THEN
+            OR (OLD.security_review_gate IS DISTINCT FROM NEW.security_review_gate)
+            OR (OLD.quality_gate         IS DISTINCT FROM NEW.quality_gate)
+        THEN
             INSERT INTO public.gate_history (
-                gate_id, scan_id, reliability_gate, security_gate, maintainability_gate, security_review_gate
+                gate_id, scan_id, reliability_gate, security_gate,
+                maintainability_gate, security_review_gate, created_at, quality_gate
             ) VALUES (
                          gen_random_uuid(), NEW.scan_id, NEW.reliability_gate, NEW.security_gate,
-                         NEW.maintainability_gate, NEW.security_review_gate
+                         NEW.maintainability_gate, NEW.security_review_gate,
+                         COALESCE(NEW.created_at, NEW.started_at, NOW()), NEW.quality_gate
                      );
         END IF;
         RETURN NEW;
@@ -108,19 +120,21 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;@@
+$$;
 
--- Triggers
-DROP TRIGGER IF EXISTS trg_scans_gate_history_ai ON public.scans;@@
-DROP TRIGGER IF EXISTS trg_scans_gate_history_au ON public.scans;@@
+-- 2) ลบทริกเกอร์เก่าทิ้ง
+DROP TRIGGER IF EXISTS trg_scans_gate_history_ai ON public.scans;
+DROP TRIGGER IF EXISTS trg_scans_gate_history_au ON public.scans;
 
+-- 3) สร้างทริกเกอร์ใหม่
 CREATE TRIGGER trg_scans_gate_history_ai
     AFTER INSERT ON public.scans
     FOR EACH ROW
-EXECUTE FUNCTION public.trg_scans_gate_history_cols();@@
+EXECUTE FUNCTION public.trg_scans_gate_history_cols();
 
 CREATE TRIGGER trg_scans_gate_history_au
-    AFTER UPDATE OF reliability_gate, security_gate, maintainability_gate, security_review_gate
+    AFTER UPDATE OF reliability_gate, security_gate, maintainability_gate, security_review_gate, quality_gate
     ON public.scans
     FOR EACH ROW
-EXECUTE FUNCTION public.trg_scans_gate_history_cols();@@
+EXECUTE FUNCTION public.trg_scans_gate_history_cols();
+
