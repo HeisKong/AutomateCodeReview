@@ -2,8 +2,6 @@ package com.automate.CodeReview.Controller;
 
 
 import com.automate.CodeReview.Models.DashboardModel;
-import com.automate.CodeReview.Models.HistoryModel;
-import com.automate.CodeReview.Models.TrendsModel;
 import com.automate.CodeReview.Service.DashboardService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,17 +23,18 @@ public class DashboardController {
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<List<DashboardModel>> getOverview(@PathVariable UUID userId){
-        return ResponseEntity.ok(dashboardService.getOverview(userId));
+    public List<DashboardModel.DashboardDTO> getOverview(@PathVariable UUID userId) {
+        return dashboardService.getOverview(userId);
     }
 
+
     @GetMapping("/{userId}/history")
-    public ResponseEntity<List<HistoryModel>> getHistory(@PathVariable UUID userId){
+    public ResponseEntity<List<DashboardModel.HistoryDTO>> getHistory(@PathVariable UUID userId){
         return ResponseEntity.ok(dashboardService.getHistory(userId));
     }
 
     @GetMapping("/{userId}/trends")
-    public ResponseEntity<List<TrendsModel>> getTrends(@PathVariable UUID userId){
+    public ResponseEntity<List<DashboardModel.TrendsDTO>> getTrends(@PathVariable UUID userId){
         return ResponseEntity.ok(dashboardService.getTrends(userId));
     }
 }

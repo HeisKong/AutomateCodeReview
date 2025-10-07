@@ -22,7 +22,7 @@ public class IssueController {
         this.issueService = issueService;
     }
 
-    @GetMapping("/{userId}")
+    @GetMapping("/user/{userId}")
     public List<IssueModel> getAllIssue(@PathVariable UUID userId) {
         return issueService.getAllIssue(userId);
     }
@@ -32,9 +32,8 @@ public class IssueController {
         IssueModel issue = issueService.getIssueById(issueId);
         if(issue != null){
             return ResponseEntity.ok(issue);
-        }else {
-            return ResponseEntity.notFound().build();
         }
+        return null;
     }
 
     @PutMapping("/{id}/assign")

@@ -14,4 +14,5 @@ public interface IssuesRepository extends JpaRepository<IssuesEntity, UUID> {
     List<IssuesEntity> findIssuesEntity_ByAssignedTo(UsersEntity assignedTo);
     Optional<IssuesEntity> findByScan_ScanIdAndIssueKey(UUID scanId, String issueKey);
 
+
 }

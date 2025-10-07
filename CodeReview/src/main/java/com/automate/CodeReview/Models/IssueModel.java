@@ -12,6 +12,7 @@ import java.util.UUID;
 public class IssueModel {
     private UUID issueId;
     private UUID scanId;
+    private UUID projectId;
     private String issueKey;
     private String type;
     private String component;
