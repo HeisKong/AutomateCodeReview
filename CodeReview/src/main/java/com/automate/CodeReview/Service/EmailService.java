@@ -1,4 +1,4 @@
-package com.automate.CodeReview.service;
+package com.automate.CodeReview.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mail.MailException;
