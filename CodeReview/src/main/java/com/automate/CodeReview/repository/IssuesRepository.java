@@ -11,6 +11,7 @@ import java.util.UUID;
 @Repository
 public interface IssuesRepository extends JpaRepository<IssuesEntity, UUID> {
     List<IssuesEntity> findByScan_Project_User_UserId(UUID userId);
+    List<IssuesEntity> findByScan_Project_ProjectId(UUID projectId);
     List<IssuesEntity> findIssuesEntity_ByAssignedTo(UsersEntity assignedTo);
     Optional<IssuesEntity> findByScan_ScanIdAndIssueKey(UUID scanId, String issueKey);
 

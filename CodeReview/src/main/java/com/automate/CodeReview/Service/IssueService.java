@@ -4,10 +4,8 @@ import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.entity.*;
 import com.automate.CodeReview.exception.IssueNotFoundException;
-import com.automate.CodeReview.exception.NoIssuesFoundException;
 import com.automate.CodeReview.exception.UserNotFoundException;
 import com.automate.CodeReview.repository.*;
-import jakarta.validation.constraints.Null;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,12 +21,14 @@ public class IssueService {
     private final IssuesRepository issuesRepository;
     private final UsersRepository usersRepository;
     private final CommentsRepository commentsRepository;
+    private final ProjectsRepository projectsRepository;
 
 
-    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository, ProjectsRepository projectsRepository, ScansRepository scansRepository) {
+    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository, ProjectsRepository projectsRepository) {
         this.issuesRepository = issuesRepository;
         this.usersRepository = usersRepository;
         this.commentsRepository = commentsRepository;
+        this.projectsRepository = projectsRepository;
     }
 
     @Transactional(readOnly = true)
@@ -47,11 +47,9 @@ public class IssueService {
             IssueModel model  = new IssueModel();
             model.setIssueId(issue.getIssuesId());
 
-            // scanId (กัน NPE)
             UUID scanId = (issue.getScan() != null) ? issue.getScan().getScanId() : null;
             model.setScanId(scanId);
 
-            // projectId: issue -> scan -> project -> projectId (กัน NPE)
             UUID projectId = null;
             if (issue.getScan() != null && issue.getScan().getProject() != null) {
                 projectId = issue.getScan().getProject().getProjectId();
@@ -72,6 +70,42 @@ public class IssueService {
         }
         return issueList;
     }
+
+
+    @Transactional(readOnly = true)
+    public List<IssueModel> getIssueByProject(UUID projectId) {
+
+
+        List<IssuesEntity> issues = issuesRepository.findByScan_Project_ProjectId(projectId);
+
+        List<IssueModel> issueList = new ArrayList<>();
+        for (IssuesEntity issue : issues) {
+            IssueModel model  = new IssueModel();
+            model.setIssueId(issue.getIssuesId());
+
+            UUID scanId = (issue.getScan() != null) ? issue.getScan().getScanId() : null;
+            model.setScanId(scanId);
+
+            if (issue.getScan() != null && issue.getScan().getProject() != null) {
+                projectId = issue.getScan().getProject().getProjectId();
+            }
+            model.setProjectId(projectId);
+            model.setScanId(issue.getScan().getScanId());
+            model.setIssueKey(issue.getIssueKey());
+            model.setType(issue.getType());
+            model.setComponent(issue.getComponent());
+            model.setMessage(issue.getMessage());
+            model.setSeverity(issue.getSeverity());
+            model.setAssignedTo(String.valueOf(issue.getAssignedTo()));
+            model.setStatus(issue.getStatus());
+            model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
+
+            issueList.add(model);
+
+        }
+        return issueList;
+    }
+
 
 
     @Transactional
