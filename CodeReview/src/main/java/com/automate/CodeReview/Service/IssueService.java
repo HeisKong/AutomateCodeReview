@@ -22,12 +22,14 @@ public class IssueService {
     private final IssuesRepository issuesRepository;
     private final UsersRepository usersRepository;
     private final CommentsRepository commentsRepository;
+    private final AssignHistoryRepository assignHistoryRepository;
 
 
-    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository) {
+    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository,  AssignHistoryRepository assignHistoryRepository) {
         this.issuesRepository = issuesRepository;
         this.usersRepository = usersRepository;
         this.commentsRepository = commentsRepository;
+        this.assignHistoryRepository = assignHistoryRepository;
     }
 
     @Transactional(readOnly = true)
@@ -111,16 +113,25 @@ public class IssueService {
 
 
     @Transactional
-    public IssueModel assign(UUID issueId, String assignToUserId) {
+    public IssueModel assign(UUID issueId, UUID assignToUserId) {
         IssuesEntity issue = issuesRepository.findById(issueId)
                 .orElseThrow(IssueNotFoundException::new);
 
-        UUID assigneeUuid = UUID.fromString(assignToUserId);
-        UsersEntity user = usersRepository.findById(assigneeUuid)
+        UsersEntity user = usersRepository.findById(assignToUserId)
                 .orElseThrow(UserNotFoundException::new);
+        
+
 
         issue.setAssignedTo(user);
         issuesRepository.save(issue);
+
+        AssignHistoryEntity assign = new AssignHistoryEntity();
+        assign.setIssues(issue);
+        assign.setAssignedTo(assignToUserId);
+        assign.setStatus("IN PROGRESS");
+        assign.setMessage(issue.getMessage());
+        assignHistoryRepository.save(assign);
+
         return getIssueById(issue.getIssuesId());
     }
 
@@ -129,7 +140,6 @@ public class IssueService {
                 .orElseThrow(IssueNotFoundException::new);
 
         IssueModel model = new IssueModel();
-        AssignModel.setAssign assign = new AssignModel.setAssign();
 
 
         UUID projectId =null;
@@ -156,6 +166,8 @@ public class IssueService {
         model.setAssignedTo(assignedTo);
         model.setStatus(issue.getStatus());
         model.setCreatedAt(issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null);
+
+
 
         return model;
     }

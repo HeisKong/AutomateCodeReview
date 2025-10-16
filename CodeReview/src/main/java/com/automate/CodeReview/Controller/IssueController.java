@@ -43,9 +43,9 @@ public class IssueController {
         return null;
     }
 
-    @PutMapping("/{id}/assign")
-    public ResponseEntity<IssueModel> assign(@PathVariable UUID id,@RequestParam String assignTo){
-        return ResponseEntity.ok(issueService.assign(id, assignTo));
+    @PutMapping("/assign/{issueId}")
+    public ResponseEntity<IssueModel> assign(@PathVariable UUID issueId,@RequestParam UUID assignTo){
+        return ResponseEntity.ok(issueService.assign(issueId, assignTo));
     }
 
 

@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface AssignHistoryRepository extends JpaRepository<AssignHistoryEntity, UUID> {
     List<AssignHistoryEntity> findByAssignedTo(UUID userId);
+
+    boolean existsByIssues_IssuesIdAndAssignedTo(UUID issuesIssuesId, UUID assignedTo);
 }
