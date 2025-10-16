@@ -89,6 +89,7 @@ public class AuthService {
         u.setPhoneNumber(req.phoneNumber());
         u.setRole(normalizeRole("USER"));
         usersRepository.save(u);
+        emailService.sendRegistrationSuccess(u.getEmail(), u.getUsername());
     }
 
     @Transactional

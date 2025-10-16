@@ -11,7 +11,8 @@ import java.util.Arrays;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/auth/password-reset")
+@CrossOrigin(origins = "http://localhost:4200")
+@RequestMapping("/api/auth/password-reset")
 @RequiredArgsConstructor
 public class PasswordResetController {
 

@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -30,7 +32,7 @@ public class PasswordResetService {
     private final EmailService emailService; // คุณต้องมี service ส่งเมลเอง
     private final Environment env;
 
-    @Value("${app.frontend.reset-password-url:https://your-frontend/reset-password}")
+    @Value("${app.frontend.reset-password-url}")
     private String resetPasswordPage;
 
     @Value("${app.security.reset-token-ttl-minutes:30}")
@@ -88,27 +90,27 @@ public class PasswordResetService {
 
         var user = userOpt.get();
 
-        tokenRepository.findAll().stream()
-                .filter(t -> t.getUser().getUserId().equals(user.getUserId()) && t.getUsedAt() == null && !t.isRevoked())
-                .forEach(t -> { t.setRevoked(true); tokenRepository.save(t); });
+        // 💡 ลบเฉพาะ token เก่าของ user ที่ยัง unused
+        tokenRepository.deleteUnusedTokensByUserId(user.getUserId());
 
-        String rawToken = java.util.UUID.randomUUID().toString();
+        String rawToken = UUID.randomUUID().toString();
         String tokenHash = TokenHashUtils.sha256(rawToken);
 
         var token = PasswordResetToken.builder()
                 .user(user)
                 .tokenHash(tokenHash)
-                .expiresAt(java.time.Instant.now().plus(java.time.Duration.ofMinutes(tokenTtlMinutes)))
+                .expiresAt(Instant.now().plus(Duration.ofMinutes(tokenTtlMinutes)))
                 .revoked(false)
                 .build();
+
         tokenRepository.save(token);
 
-        String encoded = java.net.URLEncoder.encode(rawToken, java.nio.charset.StandardCharsets.UTF_8);
+        String encoded = URLEncoder.encode(rawToken, StandardCharsets.UTF_8);
         String link = resetPasswordPage + "?token=" + encoded;
 
         try {
             emailService.sendResetPasswordLink(user.getEmail(), link, (int) tokenTtlMinutes);
-        } catch (Exception ignore) { /* log.warn(...) */ }
+        } catch (Exception ignore) {}
 
         boolean isDevOrLocal = env.acceptsProfiles(Profiles.of("dev", "local"));
         boolean shouldExpose = isDevOrLocal || exposeResetToken;
@@ -150,9 +152,10 @@ public class PasswordResetService {
 
         // mark token นี้ว่าใช้แล้ว
         token.setUsedAt(java.time.Instant.now());
+        token.setRevoked(true);
         tokenRepository.save(token);
 
-        // (แนะนำ) revoke token reset อื่นๆ ของ user นี้ที่ยังไม่ใช้
+        // revoke token reset อื่นๆ ของ user นี้ที่ยังไม่ใช้
         tokenRepository.findAll().stream()
                 .filter(t -> t.getUser().getUserId().equals(user.getUserId())
                         && t.getUsedAt() == null
