@@ -19,6 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.*;
+import org.springframework.web.filter.CommonsRequestLoggingFilter;
 
 import java.time.Instant;
 import java.util.List;
@@ -35,9 +36,6 @@ public class SecurityConfig {
         this.jwtFilter = jwtFilter;
     }
 
-    public SecurityConfig(JwtFilter jwtFilter) {
-        this.jwtFilter = jwtFilter;
-    }
 
     /* ===== CORS: อนุญาต origin ของ frontend และส่งคุกกี้ข้ามโดเมนได้ (แก้ไข) ===== */
     @Bean
@@ -46,12 +44,7 @@ public class SecurityConfig {
 
         // 🚨 การแก้ไข: เพิ่ม Angular App Origin (http://localhost:4200) ที่คุณใช้
         config.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "http://127.0.0.1:3000",
-                // 🛑 เพิ่ม Angular Origin ของคุณ
-                "http://localhost:4200",
-                "http://127.0.0.1:4200"
-                // "https://your-frontend.example.com"
+                "http://localhost:4200"
         ));
 
         // Allowed Methods ต้องรวม OPTIONS เพื่อให้ Preflight Request ผ่าน
@@ -138,18 +131,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(12);
     }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:4200")); // Angular dev
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
 
     @Bean
     public CommonsRequestLoggingFilter requestLoggingFilter() {
