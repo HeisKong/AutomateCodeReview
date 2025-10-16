@@ -20,7 +20,7 @@ import java.util.UUID;
 public class UsersEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
 
     @Column(name = "username",  nullable = false)

@@ -140,32 +140,6 @@ public class AuthService {
     }
 
     @Transactional
-    public ResponseEntity<Map<String, Object>> adminResetPassword(String email) {
-        UsersEntity user = usersRepository.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        String tempPassword = com.automate.CodeReview.SecureRandom.PasswordUtils.generateTempPassword(12);
-
-        user.setPassword(encoder.encode(tempPassword));
-        user.setForcePasswordChange(true);
-        usersRepository.save(user);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("email", user.getEmail());
-
-        try {
-            emailService.sendResetPassword(user.getEmail(), tempPassword);
-            response.put("status", "SUCCESS");
-            response.put("tempPassword", tempPassword);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("status", "FAILED");
-            response.put("message", "Failed to send reset password email");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
-    @Transactional
     public void changePassword(String principal, ChangePasswordRequest req) {
         Optional<UsersEntity> maybeUser = usersRepository.findByUsername(principal);
         if (maybeUser.isEmpty()) {

@@ -41,28 +41,22 @@ public class UserController {
                 "userId", id.toString()
         ));
     }
-    @PostMapping("/{email}/reset-password")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> resetPassword(@PathVariable("email") String email) {
-        authService.adminResetPassword(email);
-        return ResponseEntity.ok(Map.of("message", "Temporary password sent to user's email"));
-    }
 
-    @PostMapping("/change-password")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String,String>> changePassword(
-            @RequestBody ChangePasswordRequest req,
-            Authentication authentication) {
-
-        String principal = (authentication != null) ? authentication.getName() : null;
-        System.out.println("[DEBUG] Authentication object: " + authentication);
-        System.out.println("[DEBUG] principal: '" + principal + "'");
-
-        if (principal == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated");
-
-        authService.changePassword(principal, req);
-        return ResponseEntity.ok(Map.of("message","Password changed successfully"));
-    }
+//    @PostMapping("/change-password")
+//    @PreAuthorize("isAuthenticated()")
+//    public ResponseEntity<Map<String,String>> changePassword(
+//            @RequestBody ChangePasswordRequest req,
+//            Authentication authentication) {
+//
+//        String principal = (authentication != null) ? authentication.getName() : null;
+//        System.out.println("[DEBUG] Authentication object: " + authentication);
+//        System.out.println("[DEBUG] principal: '" + principal + "'");
+//
+//        if (principal == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated");
+//
+//        authService.changePassword(principal, req);
+//        return ResponseEntity.ok(Map.of("message","Password changed successfully"));
+//    }
 
 }
 
