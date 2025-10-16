@@ -13,12 +13,13 @@ public class IssueModel {
     private UUID issueId;
     private UUID scanId;
     private UUID projectId;
+    private String projectName;
     private String issueKey;
     private String type;
     private String component;
     private String message;
     private String severity;
-    private String assignedTo;
+    private UUID assignedTo;
     private String status;
     private String createdAt;
 

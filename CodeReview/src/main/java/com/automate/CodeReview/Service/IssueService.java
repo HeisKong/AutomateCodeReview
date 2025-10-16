@@ -1,5 +1,6 @@
 package com.automate.CodeReview.Service;
 
+import com.automate.CodeReview.Models.AssignModel;
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.entity.*;
@@ -21,14 +22,12 @@ public class IssueService {
     private final IssuesRepository issuesRepository;
     private final UsersRepository usersRepository;
     private final CommentsRepository commentsRepository;
-    private final ProjectsRepository projectsRepository;
 
 
-    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository, ProjectsRepository projectsRepository) {
+    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository) {
         this.issuesRepository = issuesRepository;
         this.usersRepository = usersRepository;
         this.commentsRepository = commentsRepository;
-        this.projectsRepository = projectsRepository;
     }
 
     @Transactional(readOnly = true)
@@ -51,17 +50,20 @@ public class IssueService {
             model.setScanId(scanId);
 
             UUID projectId = null;
+            String projectName = null;
             if (issue.getScan() != null && issue.getScan().getProject() != null) {
                 projectId = issue.getScan().getProject().getProjectId();
+                projectName = issue.getScan().getProject().getName();
             }
             model.setProjectId(projectId);
+            model.setProjectName(projectName);
             model.setScanId(issue.getScan().getScanId());
             model.setIssueKey(issue.getIssueKey());
             model.setType(issue.getType());
             model.setComponent(issue.getComponent());
             model.setMessage(issue.getMessage());
             model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(String.valueOf(issue.getAssignedTo()));
+            model.setAssignedTo(issue.getAssignedTo().getUserId());
             model.setStatus(issue.getStatus());
             model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
 
@@ -96,7 +98,7 @@ public class IssueService {
             model.setComponent(issue.getComponent());
             model.setMessage(issue.getMessage());
             model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(String.valueOf(issue.getAssignedTo()));
+            model.setAssignedTo(issue.getAssignedTo().getUserId());
             model.setStatus(issue.getStatus());
             model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
 
@@ -127,14 +129,24 @@ public class IssueService {
                 .orElseThrow(IssueNotFoundException::new);
 
         IssueModel model = new IssueModel();
+        AssignModel.setAssign assign = new AssignModel.setAssign();
 
-        // assignedTo -> ส่งเป็น userId (string) หรือเปลี่ยน type ใน IssueModel เป็น UUID ก็ได้
-        String assignedTo = (issue.getAssignedTo() != null)
-                ? issue.getAssignedTo().getUserId().toString()
+
+        UUID projectId =null;
+        String projectName = null;
+        if (issue.getScan() != null && issue.getScan().getProject() != null) {
+            projectId = issue.getScan().getProject().getProjectId();
+            projectName = issue.getScan().getProject().getName();
+        }
+
+        UUID assignedTo = (issue.getAssignedTo() != null)
+                ? issue.getAssignedTo().getUserId()
                 : null;
 
         model.setIssueId(issue.getIssuesId());
-        // ไม่ set projectId
+        model.setProjectId(projectId);
+        model.setProjectName(projectName);
+        model.setScanId(issue.getScan().getScanId());
         model.setScanId(issue.getScan().getScanId());
         model.setIssueKey(issue.getIssueKey());
         model.setType(issue.getType());
