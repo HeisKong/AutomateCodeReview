@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -48,10 +49,16 @@ public class IssuesEntity {
     @Column(name = "status",  nullable = false)
     private String status;
 
+    @Column(name = "due_date")
+    private Date dueDate;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "issues" ,fetch = FetchType.LAZY)
     private List<CommentsEntity> comments;
+
+    @OneToMany(mappedBy = "issues", fetch = FetchType.LAZY)
+    private List<AssignHistoryEntity> assignHistory;
 }
