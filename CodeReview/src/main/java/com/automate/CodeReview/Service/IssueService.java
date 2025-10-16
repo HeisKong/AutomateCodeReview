@@ -1,5 +1,6 @@
 package com.automate.CodeReview.Service;
 
+import com.automate.CodeReview.Models.AssignModel;
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.entity.*;
@@ -62,7 +63,7 @@ public class IssueService {
             model.setComponent(issue.getComponent());
             model.setMessage(issue.getMessage());
             model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(String.valueOf(issue.getAssignedTo()));
+            model.setAssignedTo(issue.getAssignedTo().getUserId());
             model.setStatus(issue.getStatus());
             model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
 
@@ -97,7 +98,7 @@ public class IssueService {
             model.setComponent(issue.getComponent());
             model.setMessage(issue.getMessage());
             model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(String.valueOf(issue.getAssignedTo()));
+            model.setAssignedTo(issue.getAssignedTo().getUserId());
             model.setStatus(issue.getStatus());
             model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
 
@@ -128,6 +129,8 @@ public class IssueService {
                 .orElseThrow(IssueNotFoundException::new);
 
         IssueModel model = new IssueModel();
+        AssignModel.setAssign assign = new AssignModel.setAssign();
+
 
         UUID projectId =null;
         String projectName = null;
@@ -136,8 +139,8 @@ public class IssueService {
             projectName = issue.getScan().getProject().getName();
         }
 
-        String assignedTo = (issue.getAssignedTo() != null)
-                ? issue.getAssignedTo().getUserId().toString()
+        UUID assignedTo = (issue.getAssignedTo() != null)
+                ? issue.getAssignedTo().getUserId()
                 : null;
 
         model.setIssueId(issue.getIssuesId());

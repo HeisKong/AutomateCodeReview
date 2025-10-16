@@ -18,10 +18,10 @@ public class AssignHistoryController {
         this.assignHistoryService = assignHistoryService;
     }
 
-//    @GetMapping{"/userId"}
-//    public List<AssignModel.getAssign> getAssignHistory(@PathVariable UUID userId){
-//        return assignHistoryService.getAssignHistory
-//    }
+    @GetMapping("/{userId}")
+    public List<AssignModel.getAssign> getAssignHistory(@PathVariable UUID userId){
+        return assignHistoryService.getAssignHistory(userId);
+    }
 
     @PutMapping("/update/{userId}")
     public List<AssignModel.setAssign> setAssignHistory(@PathVariable UUID userId, @RequestBody String status, @RequestBody String annotation) {
