@@ -23,19 +23,24 @@ public class IssueController {
         this.issueService = issueService;
     }
 
-    @GetMapping("/{userId}")
+    @GetMapping("/user/{userId}")
     public List<IssueModel> getAllIssue(@PathVariable UUID userId) {
         return issueService.getAllIssue(userId);
     }
+
+    @GetMapping("/project/{projectId}")
+    public List<IssueModel> getIssueByProject(@PathVariable UUID projectId) {
+        return issueService.getIssueByProject(projectId);
+    }
+
 
     @GetMapping("/{issueId}")
     public ResponseEntity<IssueModel> getIssueById(@PathVariable UUID issueId){
         IssueModel issue = issueService.getIssueById(issueId);
         if(issue != null){
             return ResponseEntity.ok(issue);
-        }else {
-            return ResponseEntity.notFound().build();
         }
+        return null;
     }
 
     @PutMapping("/{id}/assign")

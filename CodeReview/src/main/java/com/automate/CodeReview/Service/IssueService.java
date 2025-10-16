@@ -2,16 +2,10 @@ package com.automate.CodeReview.Service;
 
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
-import com.automate.CodeReview.entity.CommentsEntity;
-import com.automate.CodeReview.entity.IssuesEntity;
-import com.automate.CodeReview.entity.ProjectsEntity;
-import com.automate.CodeReview.entity.UsersEntity;
+import com.automate.CodeReview.entity.*;
 import com.automate.CodeReview.exception.IssueNotFoundException;
-import com.automate.CodeReview.exception.NoIssuesFoundException;
 import com.automate.CodeReview.exception.UserNotFoundException;
-import com.automate.CodeReview.repository.CommentsRepository;
-import com.automate.CodeReview.repository.IssuesRepository;
-import com.automate.CodeReview.repository.UsersRepository;
+import com.automate.CodeReview.repository.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,11 +21,14 @@ public class IssueService {
     private final IssuesRepository issuesRepository;
     private final UsersRepository usersRepository;
     private final CommentsRepository commentsRepository;
+    private final ProjectsRepository projectsRepository;
 
-    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository) {
+
+    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository, ProjectsRepository projectsRepository) {
         this.issuesRepository = issuesRepository;
         this.usersRepository = usersRepository;
         this.commentsRepository = commentsRepository;
+        this.projectsRepository = projectsRepository;
     }
 
     @Transactional(readOnly = true)
@@ -43,29 +40,72 @@ public class IssueService {
 
         List<IssuesEntity> issues = isAdmin
                 ? issuesRepository.findAll()
-                : issuesRepository.findIssuesEntity_ByAssignedTo(user);
+                : issuesRepository.findByScan_Project_User_UserId(userId);
 
-        if (issues.isEmpty()) {
-            throw new NoIssuesFoundException();
-        }
-
-        List<IssueModel> result = new ArrayList<>(issues.size());
+        List<IssueModel> issueList = new ArrayList<>();
         for (IssuesEntity issue : issues) {
-            result.add(new IssueModel(
-                    issue.getIssuesId(),
-                    issue.getScan() != null ? issue.getScan().getScanId() : null,
-                    issue.getIssueKey(),
-                    issue.getType(),
-                    issue.getSeverity(),
-                    issue.getComponent(),
-                    issue.getMessage(),
-                    issue.getAssignedTo() != null ? String.valueOf(issue.getAssignedTo().getUserId()) : null,
-                    issue.getStatus(),
-                    issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null
-            ));
+            IssueModel model  = new IssueModel();
+            model.setIssueId(issue.getIssuesId());
+
+            UUID scanId = (issue.getScan() != null) ? issue.getScan().getScanId() : null;
+            model.setScanId(scanId);
+
+            UUID projectId = null;
+            if (issue.getScan() != null && issue.getScan().getProject() != null) {
+                projectId = issue.getScan().getProject().getProjectId();
+            }
+            model.setProjectId(projectId);
+            model.setScanId(issue.getScan().getScanId());
+            model.setIssueKey(issue.getIssueKey());
+            model.setType(issue.getType());
+            model.setComponent(issue.getComponent());
+            model.setMessage(issue.getMessage());
+            model.setSeverity(issue.getSeverity());
+            model.setAssignedTo(String.valueOf(issue.getAssignedTo()));
+            model.setStatus(issue.getStatus());
+            model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
+
+            issueList.add(model);
+
         }
-        return result;
+        return issueList;
     }
+
+
+    @Transactional(readOnly = true)
+    public List<IssueModel> getIssueByProject(UUID projectId) {
+
+
+        List<IssuesEntity> issues = issuesRepository.findByScan_Project_ProjectId(projectId);
+
+        List<IssueModel> issueList = new ArrayList<>();
+        for (IssuesEntity issue : issues) {
+            IssueModel model  = new IssueModel();
+            model.setIssueId(issue.getIssuesId());
+
+            UUID scanId = (issue.getScan() != null) ? issue.getScan().getScanId() : null;
+            model.setScanId(scanId);
+
+            if (issue.getScan() != null && issue.getScan().getProject() != null) {
+                projectId = issue.getScan().getProject().getProjectId();
+            }
+            model.setProjectId(projectId);
+            model.setScanId(issue.getScan().getScanId());
+            model.setIssueKey(issue.getIssueKey());
+            model.setType(issue.getType());
+            model.setComponent(issue.getComponent());
+            model.setMessage(issue.getMessage());
+            model.setSeverity(issue.getSeverity());
+            model.setAssignedTo(String.valueOf(issue.getAssignedTo()));
+            model.setStatus(issue.getStatus());
+            model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
+
+            issueList.add(model);
+
+        }
+        return issueList;
+    }
+
 
 
     @Transactional
@@ -86,18 +126,26 @@ public class IssueService {
         IssuesEntity issue = issuesRepository.findById(issueId)
                 .orElseThrow(IssueNotFoundException::new);
 
-        return new IssueModel(
-                issue.getIssuesId(),
-                issue.getScan().getScanId(),
-                issue.getIssueKey(),
-                issue.getType(),
-                issue.getSeverity(),
-                issue.getComponent(),
-                issue.getMessage(),
-                issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId().toString() : null,
-                issue.getStatus(),
-                issue.getCreatedAt().toString()
-        );
+        IssueModel model = new IssueModel();
+
+        // assignedTo -> ส่งเป็น userId (string) หรือเปลี่ยน type ใน IssueModel เป็น UUID ก็ได้
+        String assignedTo = (issue.getAssignedTo() != null)
+                ? issue.getAssignedTo().getUserId().toString()
+                : null;
+
+        model.setIssueId(issue.getIssuesId());
+        // ไม่ set projectId
+        model.setScanId(issue.getScan().getScanId());
+        model.setIssueKey(issue.getIssueKey());
+        model.setType(issue.getType());
+        model.setComponent(issue.getComponent());
+        model.setMessage(issue.getMessage());
+        model.setSeverity(issue.getSeverity());
+        model.setAssignedTo(assignedTo);
+        model.setStatus(issue.getStatus());
+        model.setCreatedAt(issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null);
+
+        return model;
     }
 
     @Transactional

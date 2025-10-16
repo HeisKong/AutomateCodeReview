@@ -21,4 +21,5 @@ public interface UsersRepository extends JpaRepository<UsersEntity, UUID> {
     void deleteById(UUID id);
     boolean existsById(UUID id);
 
+    Optional<UsersEntity> findByUsername(String username);
 }

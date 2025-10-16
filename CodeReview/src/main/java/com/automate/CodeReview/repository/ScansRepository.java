@@ -1,5 +1,6 @@
 package com.automate.CodeReview.repository;
 
+import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.ScansEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -14,7 +15,6 @@ public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
     @Query("SELECT s FROM ScansEntity s WHERE s.id = :id")
     Optional<ScansEntity> getByIdScan(@Param("id") UUID id);
     List<ScansEntity> findByProject_ProjectId(UUID projectId);
-
     @Query(
             value = "SELECT metrics FROM scans WHERE scans_id = :scanId",
             nativeQuery = true
@@ -24,4 +24,5 @@ public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
     Optional<ScansEntity> findFirstByProject_ProjectIdOrderByStartedAtDesc(UUID projectId);
     Optional<ScansEntity> findByAnalysisId(String analysisId);
     Optional<ScansEntity> findByDeliveryId(String deliveryId);
+
 }

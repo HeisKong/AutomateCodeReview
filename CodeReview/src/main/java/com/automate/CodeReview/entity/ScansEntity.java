@@ -68,7 +68,7 @@ public class ScansEntity {
     
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metrics", columnDefinition = "jsonb")
-    private Map<String, Object> metrics;
+    private JsonNode metrics;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload_json", columnDefinition = "jsonb")
