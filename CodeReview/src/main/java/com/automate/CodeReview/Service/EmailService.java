@@ -1,33 +1,60 @@
-package com.automate.CodeReview.service;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+package com.automate.CodeReview.Service;
+
 import org.springframework.stereotype.Service;
+import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 
 @Service
+@RequiredArgsConstructor
 public class EmailService {
     private final JavaMailSender mailSender;
-    private final Logger log = LoggerFactory.getLogger(EmailService.class);
 
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
+    //  Reset Password
+    public void sendResetPasswordLink(String to, String link, int ttlMinutes) {
+        String subject = "Password Reset Request";
+        String html = """
+          <div style="font-family:Arial,sans-serif;max-width:520px">
+            <h2>Password reset request</h2>
+            <p>เราได้รับคำขอรีเซ็ตรหัสผ่าน</p>
+            <p><a href="%s">คลิกที่นี่เพื่อรีเซ็ต</a></p>
+            <p>ลิงก์นี้จะหมดอายุใน %d นาที</p>
+          </div>
+        """.formatted(link, ttlMinutes);
+
+        sendHtml(to, subject, html);
     }
 
-    public void sendResetPassword(String toEmail, String tempPassword) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(toEmail);
-        message.setSubject("Password Reset Request");
-        message.setText("Your temporary password is: " + tempPassword + "\nPlease change after login.");
+    //  register
+    public void sendRegistrationSuccess(String to, String username) {
+        String subject = "ยืนยันการสมัครสมาชิก";
+        String html = """
+          <div style="font-family:Arial,sans-serif;max-width:520px">
+            <h2>สมัครสมาชิกสำเร็จ 🎉</h2>
+            <p>สวัสดีคุณ <b>%s</b>,</p>
+            <p>บัญชีของคุณถูกสร้างเรียบร้อยแล้วในระบบของเรา</p>
+            <p>หากคุณไม่ได้เป็นคนสมัคร กรุณาติดต่อทีมงานโดยด่วน</p>
+            <hr/>
+            <small>ขอบคุณที่ใช้บริการ</small>
+          </div>
+        """.formatted(username != null ? username : "");
+
+        sendHtml(to, subject, html);
+    }
+
+    //  utility
+    private void sendHtml(String to, String subject, String html) {
         try {
-            mailSender.send(message);
-            log.info("Reset password email sent to {}", toEmail);
-        } catch (MailException e) {
-            log.error("Failed to send reset email to {}: {}", toEmail, e.getMessage(), e);
-            throw e; // let caller decide how to handle
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, "UTF-8");
+            helper.setTo(to);
+            helper.setFrom("automatecodereviewpcc@gmail.com", "Automate CodeReview");
+            helper.setSubject(subject);
+            helper.setText(html, true); // true = HTML
+            mailSender.send(msg);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send email", e);
         }
     }
 }
-
-

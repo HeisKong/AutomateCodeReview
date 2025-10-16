@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping("/api/users")
 public class UserController {
 
@@ -45,12 +46,6 @@ public class UserController {
                 "message", "User deleted successfully",
                 "userId", id.toString()
         ));
-    }
-    @PostMapping("/{email}/reset-password")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> resetPassword(@PathVariable("email") String email) {
-        authService.adminResetPassword(email);
-        return ResponseEntity.ok(Map.of("message", "Temporary password sent to user's email"));
     }
 
     @PostMapping("/change-password")

@@ -1,7 +1,7 @@
 package com.automate.CodeReview.Service;
 
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -9,35 +9,94 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Date;
-
-
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class JwtService {
 
     private final Key key;
+    private final JwtParser parser;
 
-    public JwtService(@Value("${jwt.secret}") String secret) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    private final long accessMs;
+    private final long refreshMs;
+
+    public JwtService(
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.access-ms:900000}") long accessMs,
+            @Value("${jwt.refresh-ms:2592000000}") long refreshMs // default 30 วัน
+    ) {
+        this.key = buildKey(secret);
+        this.parser = Jwts.parserBuilder().setSigningKey(this.key).build();
+        this.accessMs = accessMs;
+        this.refreshMs = refreshMs;
     }
 
-    public String generateToken(String username) {
+    private Key buildKey(String secret) {
+        if (secret.startsWith("base64:")) {
+            byte[] bytes = Decoders.BASE64.decode(secret.substring(7));
+            return Keys.hmacShaKeyFor(bytes);
+        }
+        // กรณีไม่ใช้ base64 ให้แน่ใจว่ายาว >= 32 ไบต์
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /* ============ Access Token ============ */
+    public String generateAccessToken(String subject) {
         return Jwts.builder()
-                .setSubject(username)
+                .setSubject(subject)
                 .setIssuedAt(new Date())
-                .setExpiration(Date.from(Instant.now().plus(1, ChronoUnit.DAYS)))
+                .setExpiration(new Date(Instant.now().toEpochMilli() + accessMs))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public String validateTokenAndGetUsername(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+    /* ============ Refresh Token ============ */
+    public String generateRefreshToken(String subject, UUID jti) {
+        return Jwts.builder()
+                .setSubject(subject)
+                .addClaims(Map.of("token_type", "refresh", "jti", jti.toString()))
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(Instant.now().toEpochMilli() + refreshMs))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
     }
+
+    /* ============ Validation / Parsing ============ */
+    public Claims parseAllClaims(String token) {
+        return parser.parseClaimsJws(token).getBody();
+    }
+
+    public String validateTokenAndGetUsername(String token) {
+        return parseAllClaims(token).getSubject();
+    }
+
+    public boolean isRefreshToken(String token) {
+        Object t = parseAllClaims(token).get("token_type");
+        return "refresh".equals(String.valueOf(t));
+    }
+
+    public String getJti(String token) {
+        Object j = parseAllClaims(token).get("jti");
+        return j == null ? null : j.toString();
+    }
+
+    /** ใช้ตอน logout-all: อ่าน subject ได้แม้หมดอายุ */
+    public String getSubjectEvenIfExpired(String token) {
+        try { return validateTokenAndGetUsername(token); }
+        catch (ExpiredJwtException e) { return e.getClaims().getSubject(); }
+    }
+
+    /** ออก token เป็นคู่ */
+    public TokenPair issueTokens(String subject) {
+        UUID jti = UUID.randomUUID();
+        return new TokenPair(
+                generateAccessToken(subject),
+                generateRefreshToken(subject, jti),
+                jti
+        );
+    }
+
+    public record TokenPair(String accessToken, String refreshToken, UUID jti) {}
 }

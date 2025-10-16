@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,10 +18,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.filter.CommonsRequestLoggingFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.cors.*;
 
 import java.time.Instant;
 import java.util.List;
@@ -37,39 +35,71 @@ public class SecurityConfig {
         this.jwtFilter = jwtFilter;
     }
 
+    public SecurityConfig(JwtFilter jwtFilter) {
+        this.jwtFilter = jwtFilter;
+    }
+
+    /* ===== CORS: อนุญาต origin ของ frontend และส่งคุกกี้ข้ามโดเมนได้ (แก้ไข) ===== */
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+
+        // 🚨 การแก้ไข: เพิ่ม Angular App Origin (http://localhost:4200) ที่คุณใช้
+        config.setAllowedOrigins(List.of(
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                // 🛑 เพิ่ม Angular Origin ของคุณ
+                "http://localhost:4200",
+                "http://127.0.0.1:4200"
+                // "https://your-frontend.example.com"
+        ));
+
+        // Allowed Methods ต้องรวม OPTIONS เพื่อให้ Preflight Request ผ่าน
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization"));
+        config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           AuthenticationEntryPoint unauthorizedEntryPoint,
+                                           AccessDeniedHandler accessDeniedHandler) throws Exception {
+
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                // 💡 การใช้ .cors(Customizer.withDefaults()) ในที่นี้ ถูกต้องแล้ว
+                .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(unauthorizedEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
+                        // 💡 อนุญาต OPTIONS method สำหรับทุกเส้นทาง (จำเป็นสำหรับ CORS Preflight)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers("/api/test/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/sonar/webhook").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/sonar/**").permitAll()
+                        // 💡 เส้นทางรีเซ็ตรหัสผ่านต้องเปิด permitAll
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/api/auth/password-reset/**",
+                                "/api/auth/login",
+                                "/api/auth/register"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(unauthorizedEntryPoint())
-                        .accessDeniedHandler(accessDeniedHandler())
-                )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-                http.headers(headers -> headers
-                .frameOptions(frame -> frame.sameOrigin()) // ใช้ได้
-                .contentSecurityPolicy(csp ->
-                        csp.policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline'")
-                )
-        );
-
 
         return http.build();
     }
 
+    /* ===== 401/403 JSON responses (ไม่มีการเปลี่ยนแปลง) ===== */
     @Bean
     public AuthenticationEntryPoint unauthorizedEntryPoint() {
         return (request, response, ex) -> {

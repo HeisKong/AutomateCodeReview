@@ -1,4 +1,4 @@
-package com.automate.CodeReview.service;
+package com.automate.CodeReview.Service;
 
 import com.automate.CodeReview.Config.SonarProperties;
 import com.automate.CodeReview.dto.SonarSummary;
