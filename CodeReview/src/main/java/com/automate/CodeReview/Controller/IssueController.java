@@ -48,11 +48,6 @@ public class IssueController {
     }
 
 
-    @PutMapping("/{issueId}/status")
-    public ResponseEntity<IssueModel> updateStatus(@PathVariable UUID issueId, @RequestParam String status){
-        return ResponseEntity.ok(issueService.updateStatus(issueId, status));
-    }
-
     @PostMapping("/{issueId}/comments")
     public ResponseEntity<CommentModel> addComment(@PathVariable UUID issueId, @RequestBody CommentDTO message, @RequestParam UUID userId){
         return ResponseEntity.ok(issueService.addComment(issueId, message.getComment(), userId));
@@ -63,5 +58,10 @@ public class IssueController {
         return ResponseEntity.ok(issueService.getCommentsByIssue(issueId));
     }
 
+
+    @PutMapping("/{issueId}/status")
+    public ResponseEntity<IssueModel> updateStatus(@PathVariable UUID issueId, @RequestParam String status){
+        return ResponseEntity.ok(issueService.updateStatus(issueId, status));
+    }
 
 }

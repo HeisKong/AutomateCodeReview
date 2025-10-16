@@ -51,10 +51,13 @@ public class IssueService {
             model.setScanId(scanId);
 
             UUID projectId = null;
+            String projectName = null;
             if (issue.getScan() != null && issue.getScan().getProject() != null) {
                 projectId = issue.getScan().getProject().getProjectId();
+                projectName = issue.getScan().getProject().getName();
             }
             model.setProjectId(projectId);
+            model.setProjectName(projectName);
             model.setScanId(issue.getScan().getScanId());
             model.setIssueKey(issue.getIssueKey());
             model.setType(issue.getType());
@@ -128,13 +131,21 @@ public class IssueService {
 
         IssueModel model = new IssueModel();
 
-        // assignedTo -> ส่งเป็น userId (string) หรือเปลี่ยน type ใน IssueModel เป็น UUID ก็ได้
+        UUID projectId =null;
+        String projectName = null;
+        if (issue.getScan() != null && issue.getScan().getProject() != null) {
+            projectId = issue.getScan().getProject().getProjectId();
+            projectName = issue.getScan().getProject().getName();
+        }
+
         String assignedTo = (issue.getAssignedTo() != null)
                 ? issue.getAssignedTo().getUserId().toString()
                 : null;
 
         model.setIssueId(issue.getIssuesId());
-        // ไม่ set projectId
+        model.setProjectId(projectId);
+        model.setProjectName(projectName);
+        model.setScanId(issue.getScan().getScanId());
         model.setScanId(issue.getScan().getScanId());
         model.setIssueKey(issue.getIssueKey());
         model.setType(issue.getType());
