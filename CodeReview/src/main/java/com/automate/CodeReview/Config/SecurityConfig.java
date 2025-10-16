@@ -44,12 +44,7 @@ public class SecurityConfig {
 
         // 🚨 การแก้ไข: เพิ่ม Angular App Origin (http://localhost:4200) ที่คุณใช้
         config.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "http://127.0.0.1:3000",
-                // 🛑 เพิ่ม Angular Origin ของคุณ
-                "http://localhost:4200",
-                "http://127.0.0.1:4200"
-                // "https://your-frontend.example.com"
+                "http://localhost:4200"
         ));
 
         // Allowed Methods ต้องรวม OPTIONS เพื่อให้ Preflight Request ผ่าน
@@ -135,7 +130,6 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
     }
-
 
 
     @Bean
