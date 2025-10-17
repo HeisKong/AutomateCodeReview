@@ -1,4 +1,3 @@
-// com/automate/CodeReview/jobs/RefreshTokenCleanupJob.java
 package com.automate.CodeReview.jobs;
 
 import com.automate.CodeReview.Service.RefreshTokenService;

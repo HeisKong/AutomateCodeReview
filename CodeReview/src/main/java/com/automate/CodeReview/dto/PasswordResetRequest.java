@@ -1,4 +1,4 @@
-// dto/PasswordResetRequest.java
+
 package com.automate.CodeReview.dto;
 
 import jakarta.validation.constraints.Email;

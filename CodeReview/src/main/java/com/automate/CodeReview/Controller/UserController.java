@@ -4,7 +4,6 @@ import com.automate.CodeReview.dto.ChangePasswordRequest;
 import com.automate.CodeReview.dto.UpdateUserRequest;
 import com.automate.CodeReview.Models.UserModel;
 import com.automate.CodeReview.Service.AuthService;
-
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.UsersRepository;
 import org.springframework.http.HttpStatus;
@@ -13,7 +12,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;

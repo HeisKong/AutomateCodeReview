@@ -5,7 +5,6 @@ import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.RefreshTokenRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
 import java.util.Date;
 import java.util.Optional;

@@ -4,7 +4,6 @@ import lombok.*;
 
 @Data
 public class IssueDTO {
-
     private int bugs;
     private int vulnerabilities;
     private int codeSmells;

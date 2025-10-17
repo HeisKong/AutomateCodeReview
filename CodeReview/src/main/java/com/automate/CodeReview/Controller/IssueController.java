@@ -1,15 +1,12 @@
 package com.automate.CodeReview.Controller;
 
-
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.Service.IssueService;
 import com.automate.CodeReview.dto.CommentDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
