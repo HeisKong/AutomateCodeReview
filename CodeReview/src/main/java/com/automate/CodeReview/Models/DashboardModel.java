@@ -1,6 +1,5 @@
 package com.automate.CodeReview.Models;
 
-import com.automate.CodeReview.dto.IssueDTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

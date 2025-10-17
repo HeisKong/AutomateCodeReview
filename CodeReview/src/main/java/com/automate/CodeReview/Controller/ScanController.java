@@ -1,6 +1,5 @@
 package com.automate.CodeReview.Controller;
 
-
 import com.automate.CodeReview.Models.ScanLogModel;
 import com.automate.CodeReview.Models.ScanModel;
 import com.automate.CodeReview.Models.ScanRequest;
@@ -9,7 +8,6 @@ import com.automate.CodeReview.entity.ScansEntity;
 import com.automate.CodeReview.repository.ScansRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

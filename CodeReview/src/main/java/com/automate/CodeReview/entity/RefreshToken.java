@@ -1,10 +1,15 @@
 package com.automate.CodeReview.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
+@Getter
+@Setter
 @Table(name = "refresh_tokens")
 public class RefreshToken {
 
@@ -30,12 +35,4 @@ public class RefreshToken {
         this.user = user;
     }
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
-    public String getToken() { return token; }
-    public void setToken(String token) { this.token = token; }
-    public Instant getExpiryDate() { return expiryDate; }
-    public void setExpiryDate(Instant expiryDate) { this.expiryDate = expiryDate; }
-    public UsersEntity getUser() { return user; }
-    public void setUser(UsersEntity user) { this.user = user; }
 }
