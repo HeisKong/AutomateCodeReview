@@ -64,93 +64,21 @@ CREATE TABLE IF NOT EXISTS public.gate_history (
                                                    created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );@@
 
+CREATE TABLE if not exists public.assign_history (
+                                       assign_id UUID PRIMARY KEY,
+                                       issues_id UUID NOT NULL REFERENCES public.issues(issues_id) ON DELETE CASCADE,
+                                       assigned_to UUID NOT NULL,
+                                       status VARCHAR(10),
+                                       due_date date,
+                                       annotation TEXT
+);@@
+
+
+
 -- Helpful indexes for FKs
-CREATE INDEX IF NOT EXISTS idx_projects_user_id        ON public.projects(user_id);@@
-CREATE INDEX IF NOT EXISTS idx_scans_project_id        ON public.scans(project_id);@@
-CREATE INDEX IF NOT EXISTS idx_issues_scan_id          ON public.issues(scan_id);@@
-CREATE INDEX IF NOT EXISTS idx_comments_issue_id       ON public.comments(issue_id);@@
-CREATE INDEX IF NOT EXISTS idx_comments_user_id        ON public.comments(user_id);@@
-CREATE INDEX IF NOT EXISTS idx_gate_history_scan_id    ON public.gate_history(scan_id);@@
-
--- (แนะนำครั้งเดียว) ใช้ uuid ฟังก์ชันถ้ายังไม่ได้เปิด
--- CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- 1) ฟังก์ชันทริกเกอร์: บันทึก 4 gates + quality_gate + created_at
-CREATE OR REPLACE FUNCTION public.trg_scans_gate_history_cols()
-    RETURNS trigger
-    LANGUAGE plpgsql
-AS $$
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        IF NEW.reliability_gate IS NOT NULL
-            OR NEW.security_gate IS NOT NULL
-            OR NEW.maintainability_gate IS NOT NULL
-            OR NEW.security_review_gate IS NOT NULL
-            OR NEW.quality_gate IS NOT NULL
-        THEN
-            INSERT INTO public.gate_history (
-                gate_id, scan_id, reliability_gate, security_gate,
-                maintainability_gate, security_review_gate, created_at, quality_gate
-            ) VALUES (
-                         gen_random_uuid(), NEW.scan_id, NEW.reliability_gate, NEW.security_gate,
-                         NEW.maintainability_gate, NEW.security_review_gate,
-                         COALESCE(NEW.created_at, NEW.started_at, NOW()), NEW.quality_gate
-                     );
-        END IF;
-        RETURN NEW;
-
-    ELSIF TG_OP = 'UPDATE' THEN
-        IF (OLD.reliability_gate     IS DISTINCT FROM NEW.reliability_gate)
-            OR (OLD.security_gate        IS DISTINCT FROM NEW.security_gate)
-            OR (OLD.maintainability_gate IS DISTINCT FROM NEW.maintainability_gate)
-            OR (OLD.security_review_gate IS DISTINCT FROM NEW.security_review_gate)
-            OR (OLD.quality_gate         IS DISTINCT FROM NEW.quality_gate)
-        THEN
-            INSERT INTO public.gate_history (
-                gate_id, scan_id, reliability_gate, security_gate,
-                maintainability_gate, security_review_gate, created_at, quality_gate
-            ) VALUES (
-                         gen_random_uuid(), NEW.scan_id, NEW.reliability_gate, NEW.security_gate,
-                         NEW.maintainability_gate, NEW.security_review_gate,
-                         COALESCE(NEW.created_at, NEW.started_at, NOW()), NEW.quality_gate
-                     );
-        END IF;
-        RETURN NEW;
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
--- 2) ลบทริกเกอร์เก่าทิ้ง
-DROP TRIGGER IF EXISTS trg_scans_gate_history_ai ON public.scans;
-DROP TRIGGER IF EXISTS trg_scans_gate_history_au ON public.scans;
-
--- 3) สร้างทริกเกอร์ใหม่
-CREATE TRIGGER trg_scans_gate_history_ai
-    AFTER INSERT ON public.scans
-    FOR EACH ROW
-EXECUTE FUNCTION public.trg_scans_gate_history_cols();
-
-CREATE TRIGGER trg_scans_gate_history_au
-    AFTER UPDATE OF reliability_gate, security_gate, maintainability_gate, security_review_gate, quality_gate
-    ON public.scans
-    FOR EACH ROW
-EXECUTE FUNCTION public.trg_scans_gate_history_cols();
-
-@@
--- Ensure must_change_password column exists and is sane
-ALTER TABLE public.users
-    ADD COLUMN IF NOT EXISTS must_change_password boolean;
-
-UPDATE public.users
-SET must_change_password = COALESCE(must_change_password, false)
-WHERE must_change_password IS NULL;
-
-ALTER TABLE public.users
-    ALTER COLUMN must_change_password SET NOT NULL;
-
-ALTER TABLE public.users
-    ALTER COLUMN must_change_password SET DEFAULT false;
-
-
+-- CREATE INDEX IF NOT EXISTS` idx_projects_user_id        ON public.projects(user_id);@@
+-- CREATE INDEX IF NOT EXISTS idx_scans_project_id        ON public.scans(project_id);@@
+-- CREATE INDEX IF NOT EXISTS idx_issues_scan_id          ON public.issues(scan_id);@@
+-- CREATE INDEX IF NOT EXISTS idx_comments_issue_id       ON public.comments(issue_id);@@
+-- CREATE INDEX IF NOT EXISTS idx_comments_user_id        ON public.comments(user_id);@@
+-- CREATE INDEX IF NOT EXISTS idx_assign_history_issues_id    ON public.assign_history(issues_id);@@

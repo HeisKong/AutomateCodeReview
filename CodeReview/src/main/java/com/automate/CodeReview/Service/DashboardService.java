@@ -1,12 +1,9 @@
 package com.automate.CodeReview.Service;
 
 import com.automate.CodeReview.Models.DashboardModel;
-import com.automate.CodeReview.dto.IssueDTO;
-import com.automate.CodeReview.entity.GradeEntity;
 import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.ScansEntity;
 import com.automate.CodeReview.entity.UsersEntity;
-import com.automate.CodeReview.repository.GradeRepository;
 import com.automate.CodeReview.repository.ProjectsRepository;
 import com.automate.CodeReview.repository.ScansRepository;
 import com.automate.CodeReview.repository.UsersRepository;
@@ -23,17 +20,14 @@ public class DashboardService {
 
     private final ScansRepository scansRepository;
     private final ProjectsRepository projectsRepository;
-    private final GradeRepository gradeRepository;
     private final UsersRepository usersRepository;
     private final ObjectMapper objectMapper;
     public DashboardService(ProjectsRepository projectsRepository,
                             ScansRepository scansRepository,
-                            GradeRepository gradeRepository,
                             UsersRepository usersRepository,
                             ObjectMapper objectMapper) {
         this.projectsRepository = projectsRepository;
         this.scansRepository = scansRepository;
-        this.gradeRepository = gradeRepository;
         this.usersRepository = usersRepository;
         this.objectMapper = objectMapper;
     }
@@ -142,24 +136,18 @@ public class DashboardService {
         for (ProjectsEntity project : projects) {
             List<ScansEntity> scans = scansRepository.findByProject_ProjectId(project.getProjectId());
             for (ScansEntity scan : scans) {
-                List<GradeEntity> gateHistories = gradeRepository.findByScan_ScanId(scan.getScanId());
-                for (GradeEntity gate : gateHistories) {
+
                     DashboardModel.TrendsDTO t = new DashboardModel.TrendsDTO();
                     t.setId(scan.getScanId());
                     t.setStartTime(scan.getStartedAt());
-
-
-                    t.setQualityGate(gate.getQualityGate());
-
-                    t.setReliabilityGate(gate.getReliabilityGate());
-                    t.setSecurityGate(gate.getSecurityGate());
-                    t.setMaintainabilityGate(gate.getMaintainabilityGate());
-                    t.setSecurityReviewGate(gate.getSecurityReviewGate());
-
+                    t.setQualityGate(scan.getQualityGate());
+                    t.setReliabilityGate(scan.getReliabilityGate());
+                    t.setSecurityGate(scan.getSecurityGate());
+                    t.setMaintainabilityGate(scan.getMaintainabilityGate());
+                    t.setSecurityReviewGate(scan.getSecurityReviewGate());
                     trendsList.add(t);
                 }
             }
-        }
         return trendsList;
     }
 }

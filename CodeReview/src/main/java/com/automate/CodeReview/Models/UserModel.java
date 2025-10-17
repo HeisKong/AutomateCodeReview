@@ -1,30 +1,27 @@
 package com.automate.CodeReview.Models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
-
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class UserModel {
     private UUID id;
     private String username;
+    @JsonIgnore
     private String email;
+    @JsonIgnore
     private String phoneNumber;
+    @JsonIgnore
     private String role;
+    @JsonIgnore
     private String password;
+    @JsonIgnore
     private LocalDateTime createdAt;
 
-    // getters/setters
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getPhoneNumber() { return phoneNumber; }
-    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }
