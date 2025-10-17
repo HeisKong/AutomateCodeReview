@@ -1,6 +1,5 @@
 package com.automate.CodeReview.Service;
 
-import com.automate.CodeReview.Models.AssignModel;
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.entity.*;
@@ -63,7 +62,9 @@ public class IssueService {
             model.setComponent(issue.getComponent());
             model.setMessage(issue.getMessage());
             model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(issue.getAssignedTo().getUserId());
+            model.setAssignedTo(
+                    issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null
+            );
             model.setStatus(issue.getStatus());
             model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
 
@@ -147,12 +148,16 @@ public class IssueService {
 
     @Transactional
     public IssueModel assign(UUID issueId, UUID assignTo) {
+
         IssuesEntity issue = issuesRepository.findById(issueId)
                 .orElseThrow(IssueNotFoundException::new);
 
         UsersEntity user = usersRepository.findById(assignTo)
                 .orElseThrow(UserNotFoundException::new);
 
+        if ("DONE".equalsIgnoreCase(String.valueOf(issue.getStatus()))) {
+            throw new IllegalStateException("This issue is DONE and cannot be reassigned.");
+        }
         boolean alreadyRecorded = assignHistoryRepository
                 .existsByIssues_IssuesIdAndAssignedTo(issueId, assignTo);
         if (alreadyRecorded) {
@@ -174,8 +179,6 @@ public class IssueService {
             }
         }
 
-
-
         return getIssueById(issue.getIssuesId());
     }
 
@@ -196,15 +199,10 @@ public class IssueService {
 
             hist.setIssues(issue);
             hist.setStatus("REJECT");
-            hist.setAssignedTo(issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null);
+            hist.setAssignedTo(issue.getAssignedTo().getUserId());
 
             assignHistoryRepository.save(hist);
 
-        } else {
-            if (!statusUpper.equalsIgnoreCase(issue.getStatus())) {
-                issue.setStatus(statusUpper);
-                issuesRepository.save(issue);
-            }
         }
         if ("DONE".equals(statusUpper)) {
             issue.setStatus(statusUpper);
@@ -216,14 +214,9 @@ public class IssueService {
 
             hist.setIssues(issue);
             hist.setStatus(statusUpper);
-            hist.setAssignedTo(issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null);
+            hist.setAssignedTo(issue.getAssignedTo().getUserId());
 
             assignHistoryRepository.save(hist);
-        } else {
-            if (!statusUpper.equalsIgnoreCase(issue.getStatus())) {
-                issue.setStatus(statusUpper);
-                issuesRepository.save(issue);
-            }
         }
 
         return getIssueById(issue.getIssuesId());
@@ -266,3 +259,7 @@ public class IssueService {
         }).toList();
     }
 }
+
+
+
+
