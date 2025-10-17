@@ -24,7 +24,7 @@ public class JwtService {
 
     public JwtService(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-ms:900000}") long accessMs,
+            @Value("${jwt.access-ms:90000000}") long accessMs,
             @Value("${jwt.refresh-ms:2592000000}") long refreshMs // default 30 วัน
     ) {
         this.key = buildKey(secret);
