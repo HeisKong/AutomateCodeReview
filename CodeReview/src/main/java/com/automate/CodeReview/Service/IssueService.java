@@ -162,27 +162,33 @@ public class IssueService {
         }
         boolean alreadyRecorded = assignHistoryRepository
                 .existsByIssues_IssuesIdAndAssignedTo(issueId, assignTo);
-        if (alreadyRecorded) {
+        if (alreadyRecorded || issue.getStatus().equals("REJECT")) {
             issue.setAssignedTo(user);
-            issuesRepository.save(issue);
+            saveAssign(assignTo, issue);
             return getIssueById(issue.getIssuesId());
         }
 
         if (!issue.getStatus().equals("DONE") || issue.getAssignedTo().equals(user) ){
             issue.setAssignedTo(user);
-            issuesRepository.save(issue);
-            AssignHistoryEntity assign = new AssignHistoryEntity();
-            if(!Objects.equals(assign.getMessage(), issue.getMessage())) {
-                assign.setIssues(issue);
-                assign.setAssignedTo(assignTo);
-                assign.setStatus("IN PROGRESS");
-                assign.setMessage(issue.getMessage());
-                assignHistoryRepository.save(assign);
-            }
+            issue.setStatus("IN PROGRESS");
+            saveAssign(assignTo, issue);
         }
 
         return getIssueById(issue.getIssuesId());
     }
+
+    private void saveAssign(UUID assignTo, IssuesEntity issue) {
+        issuesRepository.save(issue);
+        AssignHistoryEntity assign = new AssignHistoryEntity();
+        if(!Objects.equals(assign.getMessage(), issue.getMessage())) {
+            assign.setIssues(issue);
+            assign.setAssignedTo(assignTo);
+            assign.setStatus("IN PROGRESS");
+            assign.setMessage(issue.getMessage());
+            assignHistoryRepository.save(assign);
+        }
+    }
+
 
     @Transactional
     public IssueModel updateStatus(UUID issueId, String rawStatus) {
@@ -190,6 +196,7 @@ public class IssueService {
                 .orElseThrow(IssueNotFoundException::new);
 
         String statusUpper = rawStatus == null ? "" : rawStatus.trim().toUpperCase();
+
 
         if ("REJECT".equals(statusUpper) && !issue.getStatus().equals("DONE")) {
             issue.setStatus("OPEN");
