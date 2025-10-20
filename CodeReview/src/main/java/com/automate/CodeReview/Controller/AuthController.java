@@ -41,8 +41,9 @@ public class AuthController {
         // เซ็ต refresh token เป็น HttpOnly cookie
         cookieUtil.setRtCookie(res, r.refreshToken());
 
-        // คืน LoginResponse (accessToken + user)
-        return ResponseEntity.ok(new LoginResponse(r.accessToken(), r.user()));
+        // คืนแค่ accessToken
+        return ResponseEntity.ok(new LoginResponse(r.accessToken()));
+        // หรือถ้าอยากส่ง user ก็ยังได้ แต่ไม่จำเป็น
     }
 
     /* ===================== REFRESH ===================== */

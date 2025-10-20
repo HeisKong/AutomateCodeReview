@@ -47,17 +47,6 @@ public class AuthService {
     }
 
 
-    public LoginResponse login(LoginRequest req) {
-        authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.email(), req.password())
-        );
-        UsersEntity u = usersRepository.findByEmail(req.email())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-        // เมธอดเดิม: คืนเฉพาะ access token (คงพฤติกรรมเดิม)
-        String token = jwtService.generateAccessToken(u.getEmail());
-        return new LoginResponse(token, toModel(u));
-    }
 
     /** (เดิม) เช็คฟิลด์ซ้ำ */
     public List<String> checkDuplicates(RegisterRequest req) {
@@ -181,7 +170,7 @@ public class AuthService {
 
 
     /** โครงผลลัพธ์สำหรับงาน login/refresh ที่ต้องคืน access+refresh */
-    public record TokensResult(String accessToken, String refreshToken, UserModel user) {}
+    public record TokensResult(String accessToken, String refreshToken) {}
 
     /**
      * Login + ออกคู่ token (access+refresh) และบันทึก refresh ใน DB
@@ -196,13 +185,17 @@ public class AuthService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         UUID jti = UUID.randomUUID();
-        String access = jwtService.generateAccessToken(u.getEmail());
+        String access = jwtService.generateAccessToken(
+                u.getEmail(),                // ส่ง email เป็นพารามิเตอร์แรก
+                u.getUsername(),             // ส่ง username เป็นพารามิเตอร์ที่สอง
+                List.of(u.getRole())         // แปลง String เป็น Collection<String>
+        );
         String refresh = jwtService.generateRefreshToken(u.getEmail(), jti);
 
         // บันทึก refresh token ใน DB (expiry อ้างอิงจาก exp ใน JWT)
         refreshTokenService.create(u, refresh);
 
-        return new TokensResult(access, refresh, toModel(u));
+        return new TokensResult(access, refresh);
     }
 
     /**
@@ -224,17 +217,21 @@ public class AuthService {
 
         // หา user จาก subject ใน JWT
         String email = jwtService.validateTokenAndGetUsername(refreshToken);
-        UsersEntity user = usersRepository.findByEmail(email)
+        UsersEntity u = usersRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
         // ออกคู่ใหม่ + rotate
         UUID newJti = UUID.randomUUID();
-        String newAccess = jwtService.generateAccessToken(email);
+        String newAccess = jwtService.generateAccessToken(
+                u.getEmail(),                // ส่ง email เป็นพารามิเตอร์แรก
+                u.getUsername(),             // ส่ง username เป็นพารามิเตอร์ที่สอง
+                List.of(u.getRole())         // แปลง String เป็น Collection<String>
+        );
         String newRefresh = jwtService.generateRefreshToken(email, newJti);
 
-        refreshTokenService.rotate(user, refreshToken, newRefresh);
+        refreshTokenService.rotate(u, refreshToken, newRefresh);
 
-        return new TokensResult(newAccess, newRefresh, toModel(user));
+        return new TokensResult(newAccess, newRefresh);
     }
 
     /**
