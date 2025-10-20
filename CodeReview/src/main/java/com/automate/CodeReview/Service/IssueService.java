@@ -6,6 +6,7 @@ import com.automate.CodeReview.entity.*;
 import com.automate.CodeReview.exception.IssueNotFoundException;
 import com.automate.CodeReview.exception.UserNotFoundException;
 import com.automate.CodeReview.repository.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 
+@Slf4j
 @Service
 public class IssueService {
 
@@ -166,7 +168,7 @@ public class IssueService {
             return getIssueById(issue.getIssuesId());
         }
 
-        if (!issue.getStatus().equals("DONE")){
+        if (!issue.getStatus().equals("DONE") || issue.getAssignedTo().equals(user) ){
             issue.setAssignedTo(user);
             issuesRepository.save(issue);
             AssignHistoryEntity assign = new AssignHistoryEntity();
@@ -189,7 +191,7 @@ public class IssueService {
 
         String statusUpper = rawStatus == null ? "" : rawStatus.trim().toUpperCase();
 
-        if ("REJECT".equals(statusUpper)) {
+        if ("REJECT".equals(statusUpper) && !issue.getStatus().equals("DONE")) {
             issue.setStatus("OPEN");
             issuesRepository.save(issue);
 
@@ -205,7 +207,7 @@ public class IssueService {
 
         }
         if ("DONE".equals(statusUpper)) {
-            issue.setStatus(statusUpper);
+            issue.setStatus("DONE");
             issuesRepository.save(issue);
 
             AssignHistoryEntity hist = assignHistoryRepository
