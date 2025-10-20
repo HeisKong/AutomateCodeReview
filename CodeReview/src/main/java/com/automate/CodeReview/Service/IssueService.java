@@ -188,48 +188,6 @@ public class IssueService {
             assignHistoryRepository.save(assign);
         }
     }
-
-
-    @Transactional
-    public IssueModel updateStatus(UUID issueId, String rawStatus) {
-        IssuesEntity issue = issuesRepository.findById(issueId)
-                .orElseThrow(IssueNotFoundException::new);
-
-        String statusUpper = rawStatus == null ? "" : rawStatus.trim().toUpperCase();
-
-
-        if ("REJECT".equals(statusUpper) && !issue.getStatus().equals("DONE")) {
-            issue.setStatus("OPEN");
-            issuesRepository.save(issue);
-
-            AssignHistoryEntity hist = assignHistoryRepository
-                    .findByIssues_IssuesIdAndStatus(issueId, "IN PROGRESS")
-                    .orElseGet(AssignHistoryEntity::new);
-
-            hist.setIssues(issue);
-            hist.setStatus("REJECT");
-            hist.setAssignedTo(issue.getAssignedTo().getUserId());
-
-            assignHistoryRepository.save(hist);
-
-        }
-        if ("DONE".equals(statusUpper)) {
-            issue.setStatus("DONE");
-            issuesRepository.save(issue);
-
-            AssignHistoryEntity hist = assignHistoryRepository
-                    .findByIssues_IssuesIdAndStatus(issueId, "IN PROGRESS")
-                    .orElseGet(AssignHistoryEntity::new);
-
-            hist.setIssues(issue);
-            hist.setStatus(statusUpper);
-            hist.setAssignedTo(issue.getAssignedTo().getUserId());
-
-            assignHistoryRepository.save(hist);
-        }
-
-        return getIssueById(issue.getIssuesId());
-    }
     @Transactional
     public CommentModel addComment(UUID issueId, String comment, UUID userId) {
         IssuesEntity issue = issuesRepository.findById(issueId)
