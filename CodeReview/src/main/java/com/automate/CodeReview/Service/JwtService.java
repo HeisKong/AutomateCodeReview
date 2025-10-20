@@ -8,9 +8,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Instant;
-import java.util.Date;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class JwtService {
@@ -41,10 +39,15 @@ public class JwtService {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    /* ============ Access Token ============ */
-    public String generateAccessToken(String subject) {
+    public String generateAccessToken(String subjectEmail, String username, Collection<String> roles) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("email", subjectEmail);         // << เพิ่ม email
+        claims.put("username", username);          // << เพิ่ม username
+        claims.put("roles", roles);                // ["USER","ADMIN"] เป็นต้น
+
         return Jwts.builder()
-                .setSubject(subject)
+                .setClaims(claims)
+                .setSubject(subjectEmail) // หรือจะใช้ userId เป็น subject ก็ได้ (แนะนำในระบบใหญ่)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(Instant.now().toEpochMilli() + accessMs))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -87,15 +90,6 @@ public class JwtService {
         catch (ExpiredJwtException e) { return e.getClaims().getSubject(); }
     }
 
-    /** ออก token เป็นคู่ */
-    public TokenPair issueTokens(String subject) {
-        UUID jti = UUID.randomUUID();
-        return new TokenPair(
-                generateAccessToken(subject),
-                generateRefreshToken(subject, jti),
-                jti
-        );
-    }
 
     public record TokenPair(String accessToken, String refreshToken, UUID jti) {}
 }
