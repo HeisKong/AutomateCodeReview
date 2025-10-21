@@ -23,6 +23,10 @@ public class RepositoryModel {
 
     private String repositoryUrl;
 
+    private String username; // one-time
+
+    private String password; // one-time
+
     private String projectType;
 
     private String sonarProjectKey;
