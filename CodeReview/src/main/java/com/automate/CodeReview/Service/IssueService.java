@@ -102,7 +102,7 @@ public class IssueService {
             model.setComponent(issue.getComponent());
             model.setMessage(issue.getMessage());
             model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(issue.getAssignedTo().getUserId());
+            model.setAssignedTo(issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null);
             model.setStatus(issue.getStatus());
             model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
 
@@ -160,6 +160,9 @@ public class IssueService {
 
         if ("DONE".equalsIgnoreCase(String.valueOf(issue.getStatus()))) {
             throw new IllegalStateException("This issue is DONE and cannot be reassigned.");
+        }
+        if ("IN PROGRESS".equalsIgnoreCase(String.valueOf(issue.getStatus()))) {
+            throw new IllegalStateException("This issue is reassigned.");
         }
         boolean alreadyRecorded = assignHistoryRepository
                 .existsByIssues_IssuesIdAndAssignedTo(issueId, assignTo);

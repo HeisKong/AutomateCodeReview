@@ -25,7 +25,7 @@ public class JwtService {
     public JwtService(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-ms:90000000}") long accessMs,
-            @Value("${jwt.refresh-ms:2592000000}") long refreshMs // default 30 วัน
+            @Value("${jwt.refresh-ms:2592000000}") long refreshMs
     ) {
         this.key = buildKey(secret);
         this.parser = Jwts.parserBuilder().setSigningKey(this.key).build();
@@ -34,11 +34,13 @@ public class JwtService {
     }
 
     private Key buildKey(String secret) {
-        if (secret.startsWith("base64:")) {
+        // รองรับรูปแบบ base64:<KEY>
+        if (secret != null && secret.startsWith("base64:")) {
             byte[] bytes = Decoders.BASE64.decode(secret.substring(7));
+            // ต้องได้ >= 32 bytes (256-bit) ไม่งั้น JJWT จะโยน WeakKeyException
             return Keys.hmacShaKeyFor(bytes);
         }
-        // กรณีไม่ใช้ base64 ให้แน่ใจว่ายาว >= 32 ไบต์
+        // ไม่ใช้ base64: ใช้สตริงตรง ๆ ต้องยาว >= 32 ไบต์
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
