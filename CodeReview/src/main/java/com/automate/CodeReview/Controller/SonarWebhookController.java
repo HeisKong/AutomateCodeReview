@@ -1,6 +1,5 @@
 package com.automate.CodeReview.Controller;
 
-
 import com.automate.CodeReview.Service.SonarWehookService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;

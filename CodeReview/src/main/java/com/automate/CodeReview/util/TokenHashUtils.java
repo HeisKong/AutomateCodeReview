@@ -2,7 +2,6 @@ package com.automate.CodeReview.util;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-
 public class TokenHashUtils {
 
     public static String sha256(String raw) {

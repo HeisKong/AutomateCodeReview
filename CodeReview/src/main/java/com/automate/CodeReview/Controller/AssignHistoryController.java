@@ -2,7 +2,6 @@ package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Models.AssignModel;
 import com.automate.CodeReview.Service.AssignHistoryService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;

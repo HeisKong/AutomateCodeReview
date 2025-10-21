@@ -1,4 +1,3 @@
-// com/automate/CodeReview/jobs/RefreshTokenCleanupJob.java
 package com.automate.CodeReview.jobs;
 
 import com.automate.CodeReview.Service.RefreshTokenService;
@@ -15,7 +14,12 @@ public class RefreshTokenCleanupJob {
     public RefreshTokenCleanupJob(RefreshTokenService refreshTokenService) {
         this.refreshTokenService = refreshTokenService;
     }
-
+    /** 🔹 รันทันทีหลังจาก Spring สตาร์ท */
+    @jakarta.annotation.PostConstruct
+    public void purgeExpiredOnStartup() {
+        long deleted = refreshTokenService.purgeExpired();
+        log.info("Purged {} expired refresh tokens (on startup)", deleted);
+    }
     /** รันทุกวันเวลา 02:00 (Asia/Bangkok) */
     @Scheduled(cron = "0 0 2 * * *", zone = "Asia/Bangkok")
     public void purgeExpiredDaily() {

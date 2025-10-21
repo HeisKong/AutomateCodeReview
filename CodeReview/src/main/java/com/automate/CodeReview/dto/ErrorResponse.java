@@ -2,6 +2,7 @@ package com.automate.CodeReview.dto;
 
 import java.time.LocalDateTime;
 
+
 public class ErrorResponse {
     private final LocalDateTime timestamp;
     private final int status;

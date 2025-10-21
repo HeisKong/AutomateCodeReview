@@ -20,7 +20,6 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.*;
 import org.springframework.web.filter.CommonsRequestLoggingFilter;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +41,6 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // 🚨 การแก้ไข: เพิ่ม Angular App Origin (http://localhost:4200) ที่คุณใช้
         config.setAllowedOrigins(List.of(
                 "http://localhost:4200"
         ));

@@ -5,13 +5,10 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Instant;
-import java.util.Date;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class JwtService {
@@ -34,18 +31,37 @@ public class JwtService {
     }
 
     private Key buildKey(String secret) {
-        if (secret.startsWith("base64:")) {
-            byte[] bytes = Decoders.BASE64.decode(secret.substring(7));
-            return Keys.hmacShaKeyFor(bytes);
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalArgumentException("JWT secret must not be null or empty");
+        }
+
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < 32) {
+            throw new IllegalArgumentException("JWT secret must be at least 256 bits (32 bytes)");
         }
         // กรณีไม่ใช้ base64 ให้แน่ใจว่ายาว >= 32 ไบต์
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        return Keys.hmacShaKeyFor(bytes);
     }
 
-    /* ============ Access Token ============ */
-    public String generateAccessToken(String subject) {
+    public String generateAccessToken(String Email, String username, Collection<String> roles) {
+        if(Email == null || Email.isBlank()) {
+            throw new IllegalArgumentException("Email must not be null or empty");
+        }
+        if(username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username must not be null or empty");
+        }
+        if(roles == null || roles.isEmpty()) {
+            throw new IllegalArgumentException("Roles must not be null or empty");
+        }
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("email", Email);         // << เพิ่ม email
+        claims.put("username", username);          // << เพิ่ม username
+        claims.put("roles", roles);                // ["USER","ADMIN"] เป็นต้น
+
         return Jwts.builder()
-                .setSubject(subject)
+                .setClaims(claims)
+                .setSubject(Email) // หรือจะใช้ userId เป็น subject ก็ได้ (แนะนำในระบบใหญ่)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(Instant.now().toEpochMilli() + accessMs))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -54,6 +70,12 @@ public class JwtService {
 
     /* ============ Refresh Token ============ */
     public String generateRefreshToken(String subject, UUID jti) {
+        if (subject == null || subject.isBlank()) {
+            throw new IllegalArgumentException("Subject must not be null");
+        }
+        if (jti == null) {
+            throw new IllegalArgumentException("JTI must not be null");
+        }
         return Jwts.builder()
                 .setSubject(subject)
                 .addClaims(Map.of("token_type", "refresh", "jti", jti.toString()))
@@ -65,7 +87,22 @@ public class JwtService {
 
     /* ============ Validation / Parsing ============ */
     public Claims parseAllClaims(String token) {
-        return parser.parseClaimsJws(token).getBody();
+        if (token == null || token.isBlank()) {
+            throw new IllegalArgumentException("Token must not be null or empty");
+        }
+        try {
+            return parser.parseClaimsJws(token).getBody();
+        } catch (ExpiredJwtException e) {
+            throw new JwtException("Token has expired", e);
+        } catch (UnsupportedJwtException e) {
+            throw new JwtException("Unsupported JWT token", e);
+        } catch (MalformedJwtException e) {
+            throw new JwtException("Invalid JWT token", e);
+        } catch (SignatureException e) {
+            throw new JwtException("Invalid JWT signature", e);
+        } catch (IllegalArgumentException e) {
+            throw new JwtException("JWT claims string is empty", e);
+        }
     }
 
     public String validateTokenAndGetUsername(String token) {
@@ -73,30 +110,29 @@ public class JwtService {
     }
 
     public boolean isRefreshToken(String token) {
-        Object t = parseAllClaims(token).get("token_type");
-        return "refresh".equals(String.valueOf(t));
+        if (token == null || token.isBlank()) {
+            return  false;
+        }
+        try {
+            Object t = parseAllClaims(token).get("token_type");
+            return "refresh".equals(String.valueOf(t));
+        }catch (Exception e) {
+            return false;
+        }
     }
 
-    public String getJti(String token) {
-        Object j = parseAllClaims(token).get("jti");
-        return j == null ? null : j.toString();
-    }
-
-    /** ใช้ตอน logout-all: อ่าน subject ได้แม้หมดอายุ */
     public String getSubjectEvenIfExpired(String token) {
-        try { return validateTokenAndGetUsername(token); }
-        catch (ExpiredJwtException e) { return e.getClaims().getSubject(); }
+        if (token == null || token.isBlank()) {
+            throw new IllegalArgumentException("Token must not be null or empty");
+        }
+
+        try {
+            return validateTokenAndGetUsername(token);
+        } catch (ExpiredJwtException e) {
+            return e.getClaims().getSubject();
+        } catch (Exception e) {
+            throw new JwtException("Cannot extract subject from token", e);
+        }
     }
 
-    /** ออก token เป็นคู่ */
-    public TokenPair issueTokens(String subject) {
-        UUID jti = UUID.randomUUID();
-        return new TokenPair(
-                generateAccessToken(subject),
-                generateRefreshToken(subject, jti),
-                jti
-        );
-    }
-
-    public record TokenPair(String accessToken, String refreshToken, UUID jti) {}
 }

@@ -1,12 +1,12 @@
 package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Service.PasswordResetService;
+import com.automate.CodeReview.dto.PasswordResetConfirm;
 import com.automate.CodeReview.dto.PasswordResetRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Arrays;
 import java.util.Map;
 
@@ -73,9 +73,9 @@ public class PasswordResetController {
      * Body: { "token": "...", "newPassword": "MyNewPass123" }
      */
     @PostMapping("/confirm")
-    public ResponseEntity<Map<String, Object>> confirmReset(@RequestBody Map<String, String> body) {
-        String token = body.get("token");
-        String newPassword = body.get("newPassword");
+    public ResponseEntity<Map<String, Object>> confirmReset(@RequestBody PasswordResetConfirm req) {
+        String token = req.token();
+        String newPassword = req.newPassword();
 
         if (token == null || token.isBlank() || newPassword == null || newPassword.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -83,9 +83,7 @@ public class PasswordResetController {
                     "message", "Token and newPassword are required"
             ));
         }
-
         passwordResetService.confirmReset(token.trim(), newPassword.trim());
-
         return ResponseEntity.ok(Map.of(
                 "status", "SUCCESS",
                 "message", "Password has been reset"

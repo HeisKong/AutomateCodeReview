@@ -1,6 +1,5 @@
 package com.automate.CodeReview.Service;
 
-
 import com.automate.CodeReview.Models.ScanLogModel;
 import com.automate.CodeReview.Models.ScanModel;
 import com.automate.CodeReview.Models.ScanRequest;
@@ -11,14 +10,12 @@ import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
