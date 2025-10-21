@@ -3,11 +3,12 @@ package com.automate.CodeReview.Service;
 import com.automate.CodeReview.Models.LoginRequest;
 import com.automate.CodeReview.Models.RegisterRequest;
 import com.automate.CodeReview.Models.UserModel;
-import com.automate.CodeReview.Response.LoginResponse;
 import com.automate.CodeReview.dto.ChangePasswordRequest;
 import com.automate.CodeReview.dto.UpdateUserRequest;
 import com.automate.CodeReview.entity.UsersEntity;
+import com.automate.CodeReview.exception.DuplicateFieldsException;
 import com.automate.CodeReview.repository.UsersRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
+@Slf4j
 @Service
 public class AuthService {
 
@@ -29,6 +32,8 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
     private final RefreshTokenService refreshTokenService;
+    private static final Pattern EMAIL_REGEX =
+            Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
     public AuthService(
             AuthenticationManager authManager,
@@ -45,7 +50,6 @@ public class AuthService {
         this.emailService = emailService;
         this.refreshTokenService = refreshTokenService;
     }
-
 
 
     /** (เดิม) เช็คฟิลด์ซ้ำ */
@@ -68,15 +72,38 @@ public class AuthService {
         return m;
     }
 
+    @Transactional(readOnly = true)
+    public List<UserModel> listAllUsers() {
+        return usersRepository.findAll()
+                .stream()
+                .map(this::toModel)
+                .toList();
+    }
+
+
+    @Transactional
     public void register(RegisterRequest req) {
+        validateRegistrationRequest(req);
+
+        List<String> duplicates = checkDuplicates(req);
+        if (!duplicates.isEmpty()) {
+            throw new DuplicateFieldsException(duplicates);
+        }
+
         UsersEntity u = new UsersEntity();
-        u.setUsername(req.username());
-        u.setEmail(req.email());
-        u.setPassword(encoder.encode(req.password())); // BCrypt
+        u.setUsername(req.username().trim());
+        u.setEmail(req.email().trim().toLowerCase());
+        u.setPassword(encoder.encode(req.password()));
         u.setPhoneNumber(req.phoneNumber());
         u.setRole(normalizeRole("USER"));
         usersRepository.save(u);
-        emailService.sendRegistrationSuccess(u.getEmail(), u.getUsername());
+
+        try {
+            emailService.sendRegistrationSuccess(u.getEmail(), u.getUsername());
+            log.info("Registration successful for user: {}", u.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send registration email to {}: {}", u.getEmail(), e.getMessage());
+        }
     }
 
     @Transactional
@@ -112,7 +139,6 @@ public class AuthService {
 
         UserModel model = toModel(saved);
         model.setCreatedAt(saved.getCreatedAt());
-        model.setPassword(null);
         return model;
     }
 
@@ -178,22 +204,29 @@ public class AuthService {
      */
     @Transactional
     public TokensResult loginIssueTokens(LoginRequest req) {
-        authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.email(), req.password())
-        );
-        UsersEntity u = usersRepository.findByEmail(req.email())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        // 🔹 ตรวจว่ามีผู้ใช้นี้อยู่ไหม
+        UsersEntity user = usersRepository.findByEmail(req.email())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED, "ไม่พบผู้ใช้งานในระบบ"));
+
+        // 🔹 ตรวจสอบรหัสผ่าน
+        if (!encoder.matches(req.password(), user.getPassword())) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "รหัสผ่านไม่ถูกต้อง");
+        }
+
+        // 🔹 หากผ่านทุกอย่าง -> ออก token
+        log.info("User logged in: {}", user.getEmail());
 
         UUID jti = UUID.randomUUID();
         String access = jwtService.generateAccessToken(
-                u.getEmail(),                // ส่ง email เป็นพารามิเตอร์แรก
-                u.getUsername(),             // ส่ง username เป็นพารามิเตอร์ที่สอง
-                List.of(u.getRole())         // แปลง String เป็น Collection<String>
+                user.getEmail(),
+                user.getUsername(),
+                List.of(user.getRole())
         );
-        String refresh = jwtService.generateRefreshToken(u.getEmail(), jti);
+        String refresh = jwtService.generateRefreshToken(user.getEmail(), jti);
 
-        // บันทึก refresh token ใน DB (expiry อ้างอิงจาก exp ใน JWT)
-        refreshTokenService.create(u, refresh);
+        refreshTokenService.create(user, refresh);
 
         return new TokensResult(access, refresh);
     }
@@ -254,6 +287,30 @@ public class AuthService {
         UsersEntity user = usersRepository.findByEmail(subject).orElse(null);
         if (user != null) {
             refreshTokenService.revokeAll(user);
+        }
+    }
+    private void validateRegistrationRequest(RegisterRequest req) {
+        if (req == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request must not be null");
+        }
+
+        if (req.username() == null || req.username().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username is required");
+        }
+
+        if (req.email() == null || req.email().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required");
+        }
+        if (!EMAIL_REGEX.matcher(req.email().trim()).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email format");
+        }
+
+        if (req.password() == null || req.password().length() < 6) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at least 6 characters");
+        }
+
+        if (req.phoneNumber() == null || req.phoneNumber().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone number is required");
         }
     }
 }

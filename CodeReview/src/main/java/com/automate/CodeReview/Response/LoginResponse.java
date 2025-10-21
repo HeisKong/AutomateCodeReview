@@ -1,6 +1,4 @@
 package com.automate.CodeReview.Response;
-
-import com.automate.CodeReview.Models.UserModel;
 import lombok.Getter;
 import lombok.Setter;
 

@@ -13,15 +13,9 @@ import java.util.UUID;
 public class UserModel {
     private UUID id;
     private String username;
-    @JsonIgnore
     private String email;
-    @JsonIgnore
     private String phoneNumber;
-    @JsonIgnore
     private String role;
-    @JsonIgnore
-    private String password;
-    @JsonIgnore
     private LocalDateTime createdAt;
 
 }

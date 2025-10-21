@@ -41,9 +41,7 @@ public class AuthController {
         // เซ็ต refresh token เป็น HttpOnly cookie
         cookieUtil.setRtCookie(res, r.refreshToken());
 
-        // คืนแค่ accessToken
         return ResponseEntity.ok(new LoginResponse(r.accessToken()));
-        // หรือถ้าอยากส่ง user ก็ยังได้ แต่ไม่จำเป็น
     }
 
     /* ===================== REFRESH ===================== */
@@ -75,19 +73,12 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Logged out from all devices"));
     }
 
-    /* ===================== REGISTER (เดิม) ===================== */
     record ApiMessage(String message) {}
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody @Valid RegisterRequest req) {
-        List<String> dups = authService.checkDuplicates(req);
-        if (!dups.isEmpty()) {
-            Map<String, Object> body = new HashMap<>();
-            body.put("message", "Duplicate fields");
-            body.put("fields", dups);
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
-        }
         authService.register(req);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiMessage("Registered"));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiMessage("Registered successfully"));
     }
 
 

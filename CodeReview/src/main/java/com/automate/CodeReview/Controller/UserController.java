@@ -64,21 +64,7 @@ public class UserController {
 
     @GetMapping("/users")
     public ResponseEntity<List<UserModel>> getAllUsers() {
-        List<UserModel> users = usersRepository.findAll()
-                .stream()
-                .map(this::toModel)   // <- เขียนเมธอด map เองด้านล่าง
-                .toList();
-
-        return ResponseEntity.ok(users);
-    }
-
-    private UserModel toModel(UsersEntity e) {
-        UserModel m = new UserModel();
-        m.setId(e.getUserId());
-        m.setUsername(e.getUsername());
-        m.setEmail(e.getEmail());
-        // map field อื่น ๆ ที่ต้องการ
-        return m;
+        return ResponseEntity.ok(authService.listAllUsers());
     }
 
 

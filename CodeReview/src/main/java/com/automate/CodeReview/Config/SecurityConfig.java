@@ -41,7 +41,6 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // 🚨 การแก้ไข: เพิ่ม Angular App Origin (http://localhost:4200) ที่คุณใช้
         config.setAllowedOrigins(List.of(
                 "http://localhost:4200"
         ));
