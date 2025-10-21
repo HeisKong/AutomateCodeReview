@@ -52,7 +52,7 @@ public class AssignHistoryService {
             dto.setAssignedTo(a.getAssignedTo());
             dto.setStatus(a.getStatus());
             dto.setAnnotation(a.getAnnotation());
-
+            dto.setDueDate(a.getDueDate());
             result.add(dto);
         }
         return result;
@@ -97,6 +97,7 @@ public class AssignHistoryService {
             hist.setStatus("DONE");
             hist.setAssignedTo(assignedTo);
             hist.setAnnotation(annotation);
+            hist.setDueDate(issue.getDueDate());
             assignHistoryRepository.save(hist);
         }
 
@@ -107,6 +108,7 @@ public class AssignHistoryService {
         dto.setMessage(issue.getMessage());
         dto.setStatus(issue.getStatus());
         dto.setAnnotation(annotation);
+        dto.setDueDate(issue.getDueDate());
         return dto;
     }
 
