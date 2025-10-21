@@ -32,7 +32,7 @@ public class ScanController {
         return ResponseEntity.ok(scan);
     }
 
-    @GetMapping
+    @GetMapping("/getProject")
     public List<ScanModel> getAllScan() {
         return scanService.getAllScan();
     }

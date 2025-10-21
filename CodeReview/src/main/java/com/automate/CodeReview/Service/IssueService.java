@@ -1,32 +1,35 @@
 package com.automate.CodeReview.Service;
 
-import com.automate.CodeReview.Models.AssignModel;
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.entity.*;
 import com.automate.CodeReview.exception.IssueNotFoundException;
 import com.automate.CodeReview.exception.UserNotFoundException;
 import com.automate.CodeReview.repository.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 
+import java.time.LocalDate;
+import java.util.*;
+
+@Slf4j
 @Service
 public class IssueService {
 
     private final IssuesRepository issuesRepository;
     private final UsersRepository usersRepository;
     private final CommentsRepository commentsRepository;
+    private final AssignHistoryRepository assignHistoryRepository;
 
 
-    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository) {
+    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository,  AssignHistoryRepository assignHistoryRepository) {
         this.issuesRepository = issuesRepository;
         this.usersRepository = usersRepository;
         this.commentsRepository = commentsRepository;
+        this.assignHistoryRepository = assignHistoryRepository;
     }
 
     @Transactional(readOnly = true)
@@ -62,7 +65,9 @@ public class IssueService {
             model.setComponent(issue.getComponent());
             model.setMessage(issue.getMessage());
             model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(issue.getAssignedTo().getUserId());
+            model.setAssignedTo(
+                    issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null
+            );
             model.setStatus(issue.getStatus());
             model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
 
@@ -97,7 +102,7 @@ public class IssueService {
             model.setComponent(issue.getComponent());
             model.setMessage(issue.getMessage());
             model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(issue.getAssignedTo().getUserId());
+            model.setAssignedTo(issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null);
             model.setStatus(issue.getStatus());
             model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
 
@@ -107,28 +112,11 @@ public class IssueService {
         return issueList;
     }
 
-
-
-    @Transactional
-    public IssueModel assign(UUID issueId, String assignToUserId) {
-        IssuesEntity issue = issuesRepository.findById(issueId)
-                .orElseThrow(IssueNotFoundException::new);
-
-        UUID assigneeUuid = UUID.fromString(assignToUserId);
-        UsersEntity user = usersRepository.findById(assigneeUuid)
-                .orElseThrow(UserNotFoundException::new);
-
-        issue.setAssignedTo(user);
-        issuesRepository.save(issue);
-        return getIssueById(issue.getIssuesId());
-    }
-
     public IssueModel getIssueById(UUID issueId) {
         IssuesEntity issue = issuesRepository.findById(issueId)
                 .orElseThrow(IssueNotFoundException::new);
 
         IssueModel model = new IssueModel();
-        AssignModel.setAssign assign = new AssignModel.setAssign();
 
 
         UUID projectId =null;
@@ -156,19 +144,56 @@ public class IssueService {
         model.setStatus(issue.getStatus());
         model.setCreatedAt(issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null);
 
+
+
         return model;
     }
 
     @Transactional
-    public IssueModel updateStatus(UUID issueId, String status) {
+    public IssueModel assign(UUID issueId, UUID assignTo, LocalDate dueDate) {
+
         IssuesEntity issue = issuesRepository.findById(issueId)
                 .orElseThrow(IssueNotFoundException::new);
 
-        issue.setStatus(status);
-        issuesRepository.save(issue);
+        UsersEntity user = usersRepository.findById(assignTo)
+                .orElseThrow(UserNotFoundException::new);
+
+        if ("DONE".equalsIgnoreCase(String.valueOf(issue.getStatus()))) {
+            throw new IllegalStateException("This issue is DONE and cannot be reassigned.");
+        }
+        if ("IN PROGRESS".equalsIgnoreCase(String.valueOf(issue.getStatus()))) {
+            throw new IllegalStateException("This issue is reassigned.");
+        }
+        boolean alreadyRecorded = assignHistoryRepository
+                .existsByIssues_IssuesIdAndAssignedTo(issueId, assignTo);
+        if (alreadyRecorded || issue.getStatus().equals("REJECT")) {
+            issue.setAssignedTo(user);
+            saveAssign(assignTo, issue, dueDate);
+            return getIssueById(issue.getIssuesId());
+        }
+
+        if (!issue.getStatus().equals("DONE") || issue.getAssignedTo().equals(user) ){
+            issue.setAssignedTo(user);
+            issue.setStatus("IN PROGRESS");
+            issue.setDueDate(dueDate);
+            saveAssign(assignTo, issue, dueDate);
+        }
+
         return getIssueById(issue.getIssuesId());
     }
 
+    private void saveAssign(UUID assignTo, IssuesEntity issue, LocalDate dueDate) {
+        issuesRepository.save(issue);
+        AssignHistoryEntity assign = new AssignHistoryEntity();
+        if(!Objects.equals(assign.getMessage(), issue.getMessage())) {
+            assign.setIssues(issue);
+            assign.setAssignedTo(assignTo);
+            assign.setStatus("IN PROGRESS");
+            assign.setMessage(issue.getMessage());
+            assign.setDueDate(dueDate);
+            assignHistoryRepository.save(assign);
+        }
+    }
     @Transactional
     public CommentModel addComment(UUID issueId, String comment, UUID userId) {
         IssuesEntity issue = issuesRepository.findById(issueId)
@@ -207,3 +232,7 @@ public class IssueService {
         }).toList();
     }
 }
+
+
+
+

@@ -54,16 +54,6 @@ CREATE TABLE IF NOT EXISTS public.comments (
                                                created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );@@
 
-CREATE TABLE IF NOT EXISTS public.gate_history (
-                                                   gate_id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                                                   scan_id               UUID NOT NULL REFERENCES public.scans(scan_id) ON DELETE CASCADE,
-                                                   reliability_gate      VARCHAR(1),
-                                                   security_gate         VARCHAR(1),
-                                                   maintainability_gate  VARCHAR(1),
-                                                   security_review_gate  VARCHAR(1),
-                                                   created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
-);@@
-
 CREATE TABLE if not exists public.assign_history (
                                        assign_id UUID PRIMARY KEY,
                                        issues_id UUID NOT NULL REFERENCES public.issues(issues_id) ON DELETE CASCADE,

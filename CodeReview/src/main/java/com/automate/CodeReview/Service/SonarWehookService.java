@@ -382,7 +382,7 @@ public class SonarWehookService {
         scan.setReliabilityGate(nvl(reliabLetter, "N/A"));
         scan.setSecurityGate(nvl(secLetter, "N/A"));
         scan.setSecurityReviewGate(nvl(secReviewLetter, "N/A"));
-        scan.setMetrics((JsonNode) metrics);
+        scan.setMetrics(metrics);
         scan.setStartedAt(LocalDateTime.now());     // หรือ parse จาก p.getAnalysedAt()
         scan.setCompletedAt(LocalDateTime.now());
         scan.setLogFilePath("-(webhook)");

@@ -5,10 +5,13 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Instant;
-import java.util.*;
+import java.util.Date;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -21,8 +24,8 @@ public class JwtService {
 
     public JwtService(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-ms:900000}") long accessMs,
-            @Value("${jwt.refresh-ms:2592000000}") long refreshMs // default 30 วัน
+            @Value("${jwt.access-ms:90000000}") long accessMs,
+            @Value("${jwt.refresh-ms:2592000000}") long refreshMs
     ) {
         this.key = buildKey(secret);
         this.parser = Jwts.parserBuilder().setSigningKey(this.key).build();
@@ -60,8 +63,7 @@ public class JwtService {
         claims.put("roles", roles);                // ["USER","ADMIN"] เป็นต้น
 
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(Email) // หรือจะใช้ userId เป็น subject ก็ได้ (แนะนำในระบบใหญ่)
+                .setSubject(subject)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(Instant.now().toEpochMilli() + accessMs))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -135,4 +137,5 @@ public class JwtService {
         }
     }
 
+    public record TokenPair(String accessToken, String refreshToken, UUID jti) {}
 }
