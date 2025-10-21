@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
+import java.util.Date;
 import java.util.UUID;
 
 @Getter
@@ -36,4 +38,7 @@ public class AssignHistoryEntity {
 
     @Column(name = "annotation")
     private String annotation;
+
+    @Column(name = "due_date")
+    private LocalDate dueDate;
 }
