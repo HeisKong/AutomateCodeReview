@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.13.0.final using JasperReports Library version 6.13.0-46ada4d1be8f3c5985fd0b6146f3ed44caed6f05  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="IssueBreakdownReport" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="b77285b7-026b-4360-8476-981398f32528">
+    <property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+    <parameter name="project_id" class="java.lang.String"/>
+    <parameter name="created_at" class="java.util.Date"/>
+    <parameter name="dateNow" class="java.util.Date"/>
+    <parameter name="DATE_FROM_TS" class="java.sql.Timestamp"/>
+    <parameter name="DATE_TO_TS_EXCL" class="java.sql.Timestamp"/>
+    <parameter name="DATE_FROM_DISPLAY" class="java.util.Date"/>
+    <parameter name="DATE_TO_DISPLAY" class="java.util.Date"/>
+    <queryString>
+        <![CDATA[]]>
+    </queryString>
+    <field name="project_id" class="java.util.UUID"/>
+    <field name="project_name" class="java.lang.String"/>
+    <field name="created_at" class="java.util.Date"/>
+    <field name="severity" class="java.lang.String"/>
+    <field name="type" class="java.lang.String"/>
+    <field name="component" class="java.lang.String"/>
+    <field name="message" class="java.lang.String"/>
+    <field name="status" class="java.lang.String"/>
+    <field name="assign_to" class="java.lang.String"/>
+    <background>
+        <band splitType="Stretch"/>
+    </background>
+    <title>
+        <band height="99" splitType="Stretch">
+            <image>
+                <reportElement x="-6" y="0" width="40" height="40" uuid="74aa6138-77db-4472-9e04-8dbacc1e2464"/>
+                <imageExpression><![CDATA[net.sf.jasperreports.engine.util.JRImageLoader.getInstance(new
+SimpleJasperReportsContext()).loadAwtImageFromBytes(Base64.getDecoder().decode("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"))]]></imageExpression>
+            </image>
+            <staticText>
+                <reportElement x="34" y="9" width="50" height="24" uuid="7e741030-3c4e-4efd-b8fc-1f33308a2884"/>
+                <textElement verticalAlignment="Justified">
+                    <font fontName="TH SarabunPSK" size="8" isBold="true"/>
+                    <paragraph lineSpacing="Fixed" lineSpacingSize="1.5"/>
+                </textElement>
+                <text><![CDATA[PROFESSIONAL
+COMPUTER]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="34" y="22" width="50" height="10" uuid="8d1009d9-db74-493b-bb0f-7593847470d0"/>
+                <textElement verticalAlignment="Top">
+                    <font fontName="TH SarabunPSK" size="6"/>
+                </textElement>
+                <text><![CDATA[Company Limited]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="260" y="73" width="250" height="26" uuid="e7892183-c5ce-45f8-927c-f28eb9535cbd"/>
+                <textElement textAlignment="Center">
+                    <font fontName="TH SarabunPSK" size="20" isBold="false"/>
+                </textElement>
+                <text><![CDATA[Issue Breakdown]]></text>
+            </staticText>
+        </band>
+    </title>
+    <pageHeader>
+        <band height="35" splitType="Stretch">
+            <staticText>
+                <reportElement x="0" y="0" width="80" height="21" uuid="da621d9b-9cf6-413f-99b2-929f08eaeb9f"/>
+                <textElement>
+                    <font fontName="TH SarabunPSK" size="16" isBold="false"/>
+                </textElement>
+                <text><![CDATA[เริ่มจากวันที่ ]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="220" y="0" width="20" height="21" uuid="7a485626-6165-4fff-82e5-c7ae1dc6d787"/>
+                <textElement>
+                    <font fontName="TH SarabunPSK" size="16" isBold="false"/>
+                </textElement>
+                <text><![CDATA[ถึง]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="80" y="0" width="140" height="21" uuid="7d7ce8f7-fe97-4c6f-ae30-d3292a67d0ab"/>
+                <textElement>
+                    <font fontName="TH SarabunPSK" size="16" isBold="false"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new SimpleDateFormat("dd MMMM yyyy", new Locale("TH","th")).format($P{DATE_FROM_DISPLAY})]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="240" y="0" width="140" height="21" uuid="45d41f5e-767a-4f3a-8ee0-b4360c7f0004"/>
+                <textElement>
+                    <font fontName="TH SarabunPSK" size="16" isBold="false"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new SimpleDateFormat("dd MMMM yyyy", new Locale("TH","th")).format($P{DATE_TO_DISPLAY})]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageHeader>
+    <columnHeader>
+        <band height="30" splitType="Stretch">
+            <staticText>
+                <reportElement mode="Opaque" x="20" y="0" width="80" height="30" backcolor="#6AACF7" uuid="8fdfb8a1-c8c4-4efc-82fe-86ca9833cb4d">
+                    <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="5d07a475-5f7b-48d8-bdfe-6d031f5384ac"/>
+                </reportElement>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textElement textAlignment="Center">
+                    <font fontName="TH SarabunPSK" size="12" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Project Name]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="100" y="0" width="80" height="30" backcolor="#6AACF7" uuid="423b4d23-42fb-45d6-922e-3176578d9acb">
+                    <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="552d5241-fd31-4178-9095-ac37804e4bcc"/>
+                </reportElement>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textElement textAlignment="Center">
+                    <font fontName="TH SarabunPSK" size="12" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Create At]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="180" y="0" width="70" height="30" backcolor="#6AACF7" uuid="9d2eaf74-fcb0-48a7-b903-2b4e3a0a85a2">
+                    <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="7af66f5d-83ad-4011-bb09-46c3fbb47260"/>
+                </reportElement>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textElement textAlignment="Center">
+                    <font fontName="TH SarabunPSK" size="12" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Severity]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="320" y="0" width="140" height="30" backcolor="#6AACF7" uuid="c918fbec-c0ac-4fac-843b-b804ea73fb1a">
+                    <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="bea0ee16-f377-4885-bd73-c202efbefad5"/>
+                </reportElement>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textElement textAlignment="Center">
+                    <font fontName="TH SarabunPSK" size="12" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Component]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="460" y="0" width="140" height="30" backcolor="#6AACF7" uuid="2ae3306f-13cc-46db-b612-b43924c9b602">
+                    <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="94a20070-013c-4c22-b400-56f4541f3902"/>
+                </reportElement>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textElement textAlignment="Center">
+                    <font fontName="TH SarabunPSK" size="12" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Message]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="600" y="0" width="70" height="30" backcolor="#6AACF7" uuid="151e486d-9b2a-4797-9ee3-2c816930d864">
+                    <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="173af0cb-a692-442d-9f8d-5009cd7afe5d"/>
+                </reportElement>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textElement textAlignment="Center">
+                    <font fontName="TH SarabunPSK" size="12" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Status]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="670" y="0" width="100" height="30" backcolor="#6AACF7" uuid="5326e0cd-23c2-46aa-950e-3c94789d7432">
+                    <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="64bae2f3-b2dd-4f05-9bc2-0ea3293c240a"/>
+                </reportElement>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textElement textAlignment="Center">
+                    <font fontName="TH SarabunPSK" size="12" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Assign To]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="250" y="0" width="70" height="30" backcolor="#6AACF7" uuid="db3b048b-d966-4369-bdaf-226df22ddfea">
+                    <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="e6f664fc-f74d-4d38-8a0c-35c30471bd14"/>
+                </reportElement>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textElement textAlignment="Center">
+                    <font fontName="TH SarabunPSK" size="12" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Type]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="125" splitType="Stretch">
+            <textField>
+                <reportElement x="20" y="0" width="80" height="30" uuid="900d7797-9878-4595-96b9-d3b15d90b9b6">
+                    <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="5d07a475-5f7b-48d8-bdfe-6d031f5384ac"/>
+                    <property name="com.jaspersoft.studio.unit.rightIndent" value="px"/>
+                </reportElement>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textElement textAlignment="Center" markup="html">
+                    <font fontName="TH SarabunPSK" size="10" isBold="true"/>
+                    <paragraph rightIndent="5"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{project_name}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="100" y="0" width="80" height="30" uuid="c6fa34a9-d805-457f-a144-0bc6bf7e6b28"/>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textFieldExpression><![CDATA[$F{created_at}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="180" y="0" width="70" height="30" uuid="7f2e2eb7-c772-4f83-9b8f-bb190c86d02d"/>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textFieldExpression><![CDATA[$F{severity}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="250" y="0" width="70" height="30" uuid="f193c077-a0b1-4c3d-8b91-59ba8919660b"/>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textFieldExpression><![CDATA[$F{type}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="320" y="0" width="140" height="30" uuid="9a5a5873-db50-4e8d-b096-48416aa4142c"/>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textFieldExpression><![CDATA[$F{component}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="460" y="0" width="140" height="30" uuid="9323a97a-a264-4521-af79-0c91336ac2f0"/>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textFieldExpression><![CDATA[$F{message}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="600" y="0" width="70" height="30" uuid="9f644d47-6cd0-4ef8-847e-77a41103fab7"/>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="670" y="0" width="100" height="30" uuid="c5da096b-c985-4b9a-aeb5-b5a7caddea72"/>
+                <box>
+                    <topPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                    <rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+                </box>
+                <textFieldExpression><![CDATA[$F{assign_to}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+    <columnFooter>
+        <band height="45" splitType="Stretch"/>
+    </columnFooter>
+    <pageFooter>
+        <band height="56" splitType="Stretch">
+            <staticText>
+                <reportElement x="600" y="35" width="50" height="21" uuid="6d353e66-dff1-4791-a490-cc1695c3d1b3"/>
+                <textElement>
+                    <font fontName="TH SarabunPSK" size="16" isBold="true"/>
+                </textElement>
+                <text><![CDATA[วันที่พิมพ์]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="660" y="35" width="150" height="21" uuid="5722abf1-502a-4d5f-a65e-2e7497ff18f6"/>
+                <textElement>
+                    <font fontName="TH SarabunPSK" size="14" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new SimpleDateFormat("dd MMMM yyyy", new Locale("TH","th")).format($P{dateNow})]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+    <summary>
+        <band height="42" splitType="Stretch"/>
+    </summary>
+</jasperReport>
