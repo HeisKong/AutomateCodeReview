@@ -60,9 +60,4 @@ public class IssueController {
     }
 
 
-    @PutMapping("/{issueId}/status")
-    public ResponseEntity<IssueModel> updateStatus(@PathVariable UUID issueId, @RequestParam String status){
-        return ResponseEntity.ok(issueService.updateStatus(issueId, status));
-    }
-
 }

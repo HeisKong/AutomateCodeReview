@@ -6,6 +6,7 @@ import com.automate.CodeReview.entity.*;
 import com.automate.CodeReview.exception.IssueNotFoundException;
 import com.automate.CodeReview.exception.UserNotFoundException;
 import com.automate.CodeReview.repository.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 
+@Slf4j
 @Service
 public class IssueService {
 
@@ -160,66 +162,31 @@ public class IssueService {
         }
         boolean alreadyRecorded = assignHistoryRepository
                 .existsByIssues_IssuesIdAndAssignedTo(issueId, assignTo);
-        if (alreadyRecorded) {
+        if (alreadyRecorded || issue.getStatus().equals("REJECT")) {
             issue.setAssignedTo(user);
-            issuesRepository.save(issue);
+            saveAssign(assignTo, issue);
             return getIssueById(issue.getIssuesId());
         }
 
-        if (!issue.getStatus().equals("DONE")){
+        if (!issue.getStatus().equals("DONE") || issue.getAssignedTo().equals(user) ){
             issue.setAssignedTo(user);
-            issuesRepository.save(issue);
-            AssignHistoryEntity assign = new AssignHistoryEntity();
-            if(!Objects.equals(assign.getMessage(), issue.getMessage())) {
-                assign.setIssues(issue);
-                assign.setAssignedTo(assignTo);
-                assign.setStatus("IN PROGRESS");
-                assign.setMessage(issue.getMessage());
-                assignHistoryRepository.save(assign);
-            }
+            issue.setStatus("IN PROGRESS");
+            saveAssign(assignTo, issue);
         }
 
         return getIssueById(issue.getIssuesId());
     }
 
-    @Transactional
-    public IssueModel updateStatus(UUID issueId, String rawStatus) {
-        IssuesEntity issue = issuesRepository.findById(issueId)
-                .orElseThrow(IssueNotFoundException::new);
-
-        String statusUpper = rawStatus == null ? "" : rawStatus.trim().toUpperCase();
-
-        if ("REJECT".equals(statusUpper)) {
-            issue.setStatus("OPEN");
-            issuesRepository.save(issue);
-
-            AssignHistoryEntity hist = assignHistoryRepository
-                    .findByIssues_IssuesIdAndStatus(issueId, "IN PROGRESS")
-                    .orElseGet(AssignHistoryEntity::new);
-
-            hist.setIssues(issue);
-            hist.setStatus("REJECT");
-            hist.setAssignedTo(issue.getAssignedTo().getUserId());
-
-            assignHistoryRepository.save(hist);
-
+    private void saveAssign(UUID assignTo, IssuesEntity issue) {
+        issuesRepository.save(issue);
+        AssignHistoryEntity assign = new AssignHistoryEntity();
+        if(!Objects.equals(assign.getMessage(), issue.getMessage())) {
+            assign.setIssues(issue);
+            assign.setAssignedTo(assignTo);
+            assign.setStatus("IN PROGRESS");
+            assign.setMessage(issue.getMessage());
+            assignHistoryRepository.save(assign);
         }
-        if ("DONE".equals(statusUpper)) {
-            issue.setStatus(statusUpper);
-            issuesRepository.save(issue);
-
-            AssignHistoryEntity hist = assignHistoryRepository
-                    .findByIssues_IssuesIdAndStatus(issueId, "IN PROGRESS")
-                    .orElseGet(AssignHistoryEntity::new);
-
-            hist.setIssues(issue);
-            hist.setStatus(statusUpper);
-            hist.setAssignedTo(issue.getAssignedTo().getUserId());
-
-            assignHistoryRepository.save(hist);
-        }
-
-        return getIssueById(issue.getIssuesId());
     }
     @Transactional
     public CommentModel addComment(UUID issueId, String comment, UUID userId) {

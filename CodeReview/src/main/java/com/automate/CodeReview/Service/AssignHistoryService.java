@@ -1,9 +1,11 @@
 package com.automate.CodeReview.Service;
 
 import com.automate.CodeReview.Models.AssignModel;
+import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.entity.AssignHistoryEntity;
 import com.automate.CodeReview.entity.IssuesEntity;
 import com.automate.CodeReview.entity.UsersEntity;
+import com.automate.CodeReview.exception.IssueNotFoundException;
 import com.automate.CodeReview.repository.AssignHistoryRepository;
 import com.automate.CodeReview.repository.IssuesRepository;
 import com.automate.CodeReview.repository.UsersRepository;
@@ -22,62 +24,90 @@ public class AssignHistoryService {
     private final UsersRepository usersRepository;
     private final AssignHistoryRepository assignHistoryRepository;
 
-    public AssignHistoryService(UsersRepository usersRepository, IssuesRepository issuesRepository,  AssignHistoryRepository assignHistoryRepository) {
+    public AssignHistoryService(UsersRepository usersRepository,
+                                AssignHistoryRepository assignHistoryRepository,
+                                IssuesRepository issuesRepository
+                                ) {
         this.usersRepository = usersRepository;
-        this.issuesRepository = issuesRepository;
         this.assignHistoryRepository = assignHistoryRepository;
+        this.issuesRepository = issuesRepository;
     }
 
-    public List<AssignModel.getAssign>  getAssignHistory(UUID userId) {
+    public List<AssignModel.getAssign> getAssignHistory(UUID userId) {
         UsersEntity user = usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        List<IssuesEntity> issue = issuesRepository.findIssuesEntity_ByAssignedTo(user);
+        List<AssignHistoryEntity> assignHist = assignHistoryRepository.findByAssignedTo(user.getUserId());
+        List<AssignModel.getAssign> result = new ArrayList<>();
 
-        List<AssignModel.getAssign> assignModels = new ArrayList<>();
+        for (AssignHistoryEntity a : assignHist) {
+            AssignModel.getAssign dto = new AssignModel.getAssign();
 
+            IssuesEntity issue = a.getIssues();
+            dto.setIssueId(issue != null ? issue.getIssuesId() : null);
+            dto.setSeverity(issue != null ? issue.getSeverity() : null);
 
+            dto.setMessage(a.getMessage());
 
-        for(IssuesEntity issueEntity : issue){
-            List<AssignHistoryEntity> assignHistory = assignHistoryRepository.findByAssignedTo(userId);
-            String annotation = null;
-            if(!assignHistory.isEmpty()){
-                annotation = assignHistory.getFirst().getStatus();
-            }
-            AssignModel.getAssign assignModel = new AssignModel.getAssign();
-            assignModel.setAssignedTo(userId);
-            assignModel.setIssueId(issueEntity.getIssuesId());
-            assignModel.setMessage(issueEntity.getMessage());
-            assignModel.setSeverity(issueEntity.getSeverity());
-            assignModel.setStatus(issueEntity.getStatus());
-            assignModel.setAnnotation(annotation);
-            assignModel.setDueDate(issueEntity.getDueDate());
+            dto.setAssignedTo(a.getAssignedTo());
+            dto.setStatus(a.getStatus());
+            dto.setAnnotation(a.getAnnotation());
 
-            assignModels.add(assignModel);
+            result.add(dto);
         }
-        return assignModels;
+        return result;
     }
 
 
-    public List<AssignModel.setAssign> setAssignHistory(UUID userId, String status, String annotation) {
+    public AssignModel.setAssign updateStatus(UUID userId, UUID issueId, String rawStatus, String annotation) {
         UsersEntity user = usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        List<IssuesEntity> issue = issuesRepository.findIssuesEntity_ByAssignedTo(user);
-        List<AssignModel.setAssign> assignModels = new ArrayList<>();
+        IssuesEntity issue = issuesRepository.findById(issueId)
+                .orElseThrow(IssueNotFoundException::new);
 
-        for(IssuesEntity issueEntity : issue){
-            AssignModel.setAssign assignModel = new AssignModel.setAssign();
-            assignModel.setAssignedTo(userId);
-            assignModel.setIssueId(issueEntity.getIssuesId());
-            assignModel.setMessage(issueEntity.getMessage());
-            assignModel.setSeverity(issueEntity.getSeverity());
-            assignModel.setStatus(status);
-            assignModel.setAnnotation(annotation);
-            assignModel.setDueDate(issueEntity.getDueDate());
+        String statusUpper = rawStatus == null ? "" : rawStatus.trim().toUpperCase();
 
-            assignModels.add(assignModel);
+        UUID assignedTo = (issue.getAssignedTo() != null) ? issue.getAssignedTo().getUserId() : null;
+
+        if ("REJECT".equals(statusUpper) && !"DONE".equals(issue.getStatus())) {
+            issue.setStatus("OPEN");
+            issuesRepository.save(issue);
+
+            AssignHistoryEntity hist = assignHistoryRepository
+                    .findByIssues_IssuesIdAndStatus(issueId, "IN PROGRESS")
+                    .orElseGet(AssignHistoryEntity::new);
+
+            hist.setIssues(issue);
+            hist.setStatus("REJECT");
+            hist.setAssignedTo(assignedTo);
+            hist.setAnnotation(annotation);
+            assignHistoryRepository.save(hist);
         }
-        return assignModels;
+
+        if ("DONE".equals(statusUpper)) {
+            issue.setStatus("DONE");
+            issuesRepository.save(issue);
+
+            AssignHistoryEntity hist = assignHistoryRepository
+                    .findByIssues_IssuesIdAndStatus(issueId, "IN PROGRESS")
+                    .orElseGet(AssignHistoryEntity::new);
+
+            hist.setIssues(issue);
+            hist.setStatus("DONE");
+            hist.setAssignedTo(assignedTo);
+            hist.setAnnotation(annotation);
+            assignHistoryRepository.save(hist);
+        }
+
+        AssignModel.setAssign dto = new AssignModel.setAssign();
+        dto.setAssignedTo(assignedTo);
+        dto.setIssueId(issue.getIssuesId());
+        dto.setSeverity(issue.getSeverity());
+        dto.setMessage(issue.getMessage());
+        dto.setStatus(issue.getStatus());
+        dto.setAnnotation(annotation);
+        return dto;
     }
+
 }
