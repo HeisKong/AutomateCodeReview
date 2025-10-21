@@ -9,9 +9,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Instant;
-import java.util.Date;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class JwtService {
@@ -63,7 +61,7 @@ public class JwtService {
         claims.put("roles", roles);                // ["USER","ADMIN"] เป็นต้น
 
         return Jwts.builder()
-                .setSubject(subject)
+                .setSubject(Email)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(Instant.now().toEpochMilli() + accessMs))
                 .signWith(key, SignatureAlgorithm.HS256)

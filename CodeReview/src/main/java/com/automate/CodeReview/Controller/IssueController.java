@@ -4,6 +4,7 @@ package com.automate.CodeReview.Controller;
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.Service.IssueService;
+import com.automate.CodeReview.dto.AssignRequest;
 import com.automate.CodeReview.dto.CommentDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -46,9 +47,13 @@ public class IssueController {
     }
 
     @PutMapping("/assign/{issueId}")
-    public ResponseEntity<IssueModel> assign(@PathVariable UUID issueId, @RequestParam UUID assignTo, @RequestBody LocalDate dueDate){
-        return ResponseEntity.ok(issueService.assign(issueId, assignTo, dueDate));
+    public ResponseEntity<IssueModel> assign(
+            @PathVariable UUID issueId,
+            @RequestBody AssignRequest req
+    ) {
+        return ResponseEntity.ok(issueService.assign(issueId, req.getAssignTo(), req.getDueDate()));
     }
+
 
 
     @PostMapping("/{issueId}/comments")
