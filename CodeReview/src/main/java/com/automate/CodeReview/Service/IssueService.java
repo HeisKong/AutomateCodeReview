@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.*;
 
 @Slf4j
@@ -149,7 +150,7 @@ public class IssueService {
     }
 
     @Transactional
-    public IssueModel assign(UUID issueId, UUID assignTo) {
+    public IssueModel assign(UUID issueId, UUID assignTo, LocalDate dueDate) {
 
         IssuesEntity issue = issuesRepository.findById(issueId)
                 .orElseThrow(IssueNotFoundException::new);
@@ -164,20 +165,21 @@ public class IssueService {
                 .existsByIssues_IssuesIdAndAssignedTo(issueId, assignTo);
         if (alreadyRecorded || issue.getStatus().equals("REJECT")) {
             issue.setAssignedTo(user);
-            saveAssign(assignTo, issue);
+            saveAssign(assignTo, issue, dueDate);
             return getIssueById(issue.getIssuesId());
         }
 
         if (!issue.getStatus().equals("DONE") || issue.getAssignedTo().equals(user) ){
             issue.setAssignedTo(user);
             issue.setStatus("IN PROGRESS");
-            saveAssign(assignTo, issue);
+            issue.setDueDate(dueDate);
+            saveAssign(assignTo, issue, dueDate);
         }
 
         return getIssueById(issue.getIssuesId());
     }
 
-    private void saveAssign(UUID assignTo, IssuesEntity issue) {
+    private void saveAssign(UUID assignTo, IssuesEntity issue, LocalDate dueDate) {
         issuesRepository.save(issue);
         AssignHistoryEntity assign = new AssignHistoryEntity();
         if(!Objects.equals(assign.getMessage(), issue.getMessage())) {
@@ -185,6 +187,7 @@ public class IssueService {
             assign.setAssignedTo(assignTo);
             assign.setStatus("IN PROGRESS");
             assign.setMessage(issue.getMessage());
+            assign.setDueDate(dueDate);
             assignHistoryRepository.save(assign);
         }
     }
