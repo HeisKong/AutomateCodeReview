@@ -3,9 +3,7 @@ package com.automate.CodeReview.Models;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -22,6 +20,10 @@ public class RepositoryModel {
     private String name;
 
     private String repositoryUrl;
+
+    private String username; // one-time
+
+    private String password; // one-time
 
     private String projectType;
 

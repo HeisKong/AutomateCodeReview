@@ -6,9 +6,12 @@ import com.automate.CodeReview.repository.PasswordResetTokenRepository;
 import com.automate.CodeReview.repository.UsersRepository;
 import com.automate.CodeReview.util.TokenHashUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,8 +23,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.core.env.Environment;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PasswordResetService {
@@ -29,7 +32,7 @@ public class PasswordResetService {
     private final UsersRepository usersRepository;
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService; // คุณต้องมี service ส่งเมลเอง
+    private final EmailService emailService;
     private final Environment env;
 
     @Value("${app.frontend.reset-password-url}")
@@ -40,57 +43,30 @@ public class PasswordResetService {
 
     @Value("${app.debug.expose-reset-token:false}")
     private boolean exposeResetToken;
-    /**
-     * สร้าง reset token + ส่งลิงก์ทางอีเมล
-     */
-//    @Transactional
-//    public void requestReset(String email) {
-//        var userOpt = usersRepository.findByEmail(email);
-//        if (userOpt.isEmpty()) {
-//            // ป้องกัน user enumeration: ทำเงียบๆ แล้วจบ
-//            return;
-//        }
-//        var user = userOpt.get();
-//
-//        // ยกเลิก token เดิมที่ยังไม่ใช้
-//        tokenRepository.findAll().stream()
-//                .filter(t -> t.getUser().getUserId().equals(user.getUserId()) && t.getUsedAt() == null && !t.isRevoked())
-//                .forEach(t -> { t.setRevoked(true); tokenRepository.save(t); });
-//
-//        // สร้าง raw token + เก็บ hash
-//        String rawToken = java.util.UUID.randomUUID().toString();
-//        String tokenHash = TokenHashUtils.sha256(rawToken);
-//
-//        var token = PasswordResetToken.builder()
-//                .user(user)
-//                .tokenHash(tokenHash)
-//                .expiresAt(java.time.Instant.now().plus(java.time.Duration.ofMinutes(tokenTtlMinutes)))
-//                .revoked(false)
-//                .build();
-//        tokenRepository.save(token);
-//
-//        // ประกอบลิงก์ไปหน้า Frontend (encode ไว้เผื่อ)
-//        String encoded = java.net.URLEncoder.encode(rawToken, java.nio.charset.StandardCharsets.UTF_8);
-//        String link = resetPasswordPage + "?token=" + encoded;
-//
-//        // ส่งอีเมล (ล้มเหลวก็ไม่บอก client)
-//        try {
-//            emailService.sendResetPasswordLink(user.getEmail(), link, (int) tokenTtlMinutes);
-//        } catch (Exception ex) {
-//            // log เตือนพอ ไม่ throw ออกไป กันเปิดเผยว่ามีอีเมลจริง
-//            // log.warn("Failed to send reset email to {}", user.getEmail(), ex);
-//        }
-//
-//    }
 
+    @Value("${app.security.password-min-length:6}")
+    private int passwordMinLength;
+
+    /**
+     * ขอ reset password - สร้าง token และส่งอีเมล
+     * @return Optional ของ raw token (เฉพาะ dev/local environment)
+     */
     @Transactional
     public Optional<String> requestReset(String email) {
-        var userOpt = usersRepository.findByEmail(email);
-        if (userOpt.isEmpty()) return Optional.empty();
+        if (email == null || email.isBlank()) {
+            log.warn("Password reset requested with null/empty email");
+            return Optional.empty();
+        }
+
+        var userOpt = usersRepository.findByEmail(email.trim().toLowerCase());
+        if (userOpt.isEmpty()) {
+            log.info("Password reset requested for non-existent email: {}", email);
+            return Optional.empty();
+        }
 
         var user = userOpt.get();
 
-        // 💡 ลบเฉพาะ token เก่าของ user ที่ยัง unused
+        // ลบ token เก่าที่ยังไม่ได้ใช้
         tokenRepository.deleteUnusedTokensByUserId(user.getUserId());
 
         String rawToken = UUID.randomUUID().toString();
@@ -110,37 +86,65 @@ public class PasswordResetService {
 
         try {
             emailService.sendResetPasswordLink(user.getEmail(), link, (int) tokenTtlMinutes);
-        } catch (Exception ignore) {}
+            log.info("Password reset email sent to: {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to {}: {}",
+                    user.getEmail(), e.getMessage(), e);
+            // อาจพิจารณา throw exception หรือ return error ตาม business requirement
+        }
 
         boolean isDevOrLocal = env.acceptsProfiles(Profiles.of("dev", "local"));
         boolean shouldExpose = isDevOrLocal || exposeResetToken;
 
+        if (shouldExpose) {
+            log.debug("Exposing reset token for development: {}", rawToken);
+        }
+
         return shouldExpose ? Optional.of(rawToken) : Optional.empty();
     }
 
-
+    /**
+     * ยืนยันการ reset password - ตรวจสอบ token และเปลี่ยนรหัสผ่าน
+     */
     @Transactional
     public void confirmReset(String rawToken, String newPassword) {
-        if (rawToken == null || rawToken.isBlank() || newPassword == null || newPassword.isBlank()) {
+        // Validation
+        if (rawToken == null || rawToken.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token");
         }
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required");
+        }
 
-        // ป้องกันเคสบาง client เปลี่ยน '+' เป็น space โดยไม่ตั้งใจ
+        // Normalize token (ป้องกัน whitespace issues)
         String normalized = rawToken.trim();
 
-        // (ทางเลือก) ตรวจ policy รหัสผ่าน
-        // if (!PasswordPolicy.isValid(newPassword)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Weak password");
+        // ป้องกัน hash bombing
+        if (normalized.length() > 256) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid token format");
+        }
+
+        // Password policy
+        if (newPassword.length() < passwordMinLength) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    String.format("Password must be at least %d characters", passwordMinLength));
+        }
 
         String tokenHash = TokenHashUtils.sha256(normalized);
 
-        // ล็อกแถวกัน concurrent confirm
-        PasswordResetToken token = tokenRepository.findByTokenHash(tokenHash)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token"));
+        // ล็อกแถวเพื่อป้องกัน race condition
+        PasswordResetToken token = tokenRepository.findByTokenHashWithLock(tokenHash)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Invalid or expired token"));
 
-        // ตรวจสถานะใช้งานได้ + หมดอายุ
-        if (token.isRevoked()
-                || token.getUsedAt() != null
-                || java.time.Instant.now().isAfter(token.getExpiresAt())) {
+        // ตรวจสอบสถานะ token
+        if (token.isRevoked() || token.getUsedAt() != null) {
+            log.warn("Attempted to use revoked/used token: {}", tokenHash.substring(0, 8));
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token");
+        }
+
+        if (Instant.now().isAfter(token.getExpiresAt())) {
+            log.warn("Attempted to use expired token: {}", tokenHash.substring(0, 8));
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token");
         }
 
@@ -150,21 +154,29 @@ public class PasswordResetService {
         user.setForcePasswordChange(false);
         usersRepository.save(user);
 
-        // mark token นี้ว่าใช้แล้ว
-        token.setUsedAt(java.time.Instant.now());
+        // Mark token ว่าใช้แล้ว
+        token.setUsedAt(Instant.now());
         token.setRevoked(true);
         tokenRepository.save(token);
 
-        // revoke token reset อื่นๆ ของ user นี้ที่ยังไม่ใช้
-        tokenRepository.findAll().stream()
-                .filter(t -> t.getUser().getUserId().equals(user.getUserId())
-                        && t.getUsedAt() == null
-                        && !t.isRevoked()
-                        && !t.getTokenHash().equals(tokenHash))
-                .forEach(t -> { t.setRevoked(true); tokenRepository.save(t); });
+        // ✅ Revoke token อื่นๆ ที่ยังไม่ใช้ (1 query แทน N+1)
+        int revoked = tokenRepository.revokeOtherUnusedTokens(user.getUserId(), tokenHash);
 
-        // (ทางเลือก) Invalidate sessions/refresh tokens ของ user นี้ทั้งหมด
-        // refreshTokenService.revokeAllForUser(user.getId());
+        log.info("Password reset successful for user: {} (revoked {} other tokens)",
+                user.getEmail(), revoked);
+
+        // ทางเลือก: Invalidate refresh tokens ทั้งหมด (เพิ่ม security)
+        // refreshTokenService.revokeAll(user);
     }
 
+    /**
+     * ลบ token ที่หมดอายุแล้ว (ควรรัน daily via scheduler)
+     */
+    @Scheduled(cron = "${app.security.cleanup-cron:0 0 2 * * *}")
+    @Transactional
+    public void cleanupExpiredTokens() {
+        Instant cutoff = Instant.now().minus(Duration.ofDays(7));
+        int deleted = tokenRepository.deleteByExpiresAtBefore(cutoff);
+        log.info("Cleaned up {} expired password reset tokens", deleted);
+    }
 }

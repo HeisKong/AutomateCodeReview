@@ -5,7 +5,6 @@ import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.RefreshTokenRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
 import java.util.Date;
 import java.util.Optional;
@@ -28,12 +27,17 @@ public class RefreshTokenService {
      * - จะอ่านวันหมดอายุจาก exp ใน JWT เพื่อให้ตรงกับตัว token จริง
      */
     public RefreshToken create(UsersEntity user, String refreshJwt) {
+        if(user == null||refreshJwt == null||refreshJwt.isBlank()){
+            throw new IllegalArgumentException("User and refresh token must not be null");
+        }
         Date exp = jwtService.parseAllClaims(refreshJwt).getExpiration();
+        if(exp == null){
+            throw new IllegalArgumentException("Refresh token must have expiration date");
+        }
         RefreshToken rt = new RefreshToken();
         rt.setUser(user);
         rt.setToken(refreshJwt);
         rt.setExpiryDate(exp.toInstant());
-        // rt.setCreatedAt(Instant.now());
         return repo.save(rt);
     }
 
@@ -44,6 +48,7 @@ public class RefreshTokenService {
     }
 
     public boolean isExpired(RefreshToken rt) {
+        if(rt == null) return true;
         return rt.getExpiryDate() == null || rt.getExpiryDate().isBefore(Instant.now());
     }
 
@@ -62,6 +67,12 @@ public class RefreshTokenService {
      */
     @Transactional
     public RefreshToken rotate(UsersEntity user, String oldToken, String newToken) {
+        if (oldToken == null || oldToken.isBlank()) {
+            throw new IllegalArgumentException("Old token must not be null");
+        }
+        if (newToken == null || newToken.isBlank()) {
+            throw new IllegalArgumentException("New token must not be null");
+        }
         repo.deleteByToken(oldToken);
         return create(user, newToken);
     }
@@ -69,12 +80,14 @@ public class RefreshTokenService {
     /** เพิกถอน refresh token ปัจจุบัน (เช่นเวลา logout เครื่องนี้) */
     @Transactional
     public void revoke(String token) {
+        if(token == null||token.isBlank()) return;
         repo.deleteByToken(token);
     }
 
     /** เพิกถอน refresh token ทั้งหมดของผู้ใช้ (logout all devices) */
     @Transactional
     public long revokeAll(UsersEntity user) {
+        if (user == null) return 0;
         return repo.deleteByUser(user);
     }
 
@@ -89,15 +102,4 @@ public class RefreshTokenService {
         return repo.deleteByExpiryDateBefore(Instant.now());
     }
 
-    /* ========================= ยูทิล ========================= */
-
-    /** ดึง subject/email จาก refresh token แม้หมดอายุ (ใช้ตอน logout all) */
-    public String getSubjectEvenIfExpired(String refreshJwt) {
-        return jwtService.getSubjectEvenIfExpired(refreshJwt);
-    }
-
-    /** ดึง JTI (รองรับกรณีอนาคตเก็บ jti แทน token ทั้งเส้น) */
-    public String getJti(String refreshJwt) {
-        return jwtService.getJti(refreshJwt);
-    }
 }

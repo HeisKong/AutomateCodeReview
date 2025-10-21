@@ -2,11 +2,15 @@ package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Models.RepositoryModel;
 import com.automate.CodeReview.Service.RepositoryService;
+import com.automate.CodeReview.dto.RepositoryCreateRequest;
+import com.automate.CodeReview.dto.RepositoryResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -21,8 +25,16 @@ public class RepositoryController {
     }
 
     @PostMapping
-    public ResponseEntity<RepositoryModel> createRepository(@RequestBody RepositoryModel repo) {
-        return ResponseEntity.ok(repositoryService.createRepository(repo));
+    public ResponseEntity<RepositoryResponse> createRepository(@Valid @RequestBody RepositoryCreateRequest req,
+                                                               UriComponentsBuilder uriBuilder) {
+        RepositoryResponse created = repositoryService.createRepository(req);
+
+        URI location = uriBuilder
+                .path("/api/repositories/{id}")
+                .buildAndExpand(created.projectId())
+                .toUri();
+
+        return ResponseEntity.created(location).body(created);
     }
 
     @GetMapping

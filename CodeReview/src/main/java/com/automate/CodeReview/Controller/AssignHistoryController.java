@@ -33,6 +33,4 @@ public class AssignHistoryController {
                                               @RequestBody UpdateStatusRequest body) {
         return assignHistoryService.updateStatus(userId, issueId, body.getStatus(), body.getAnnotation());
     }
-
-
 }

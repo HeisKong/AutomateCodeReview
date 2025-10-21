@@ -4,7 +4,6 @@ import com.automate.CodeReview.dto.ChangePasswordRequest;
 import com.automate.CodeReview.dto.UpdateUserRequest;
 import com.automate.CodeReview.Models.UserModel;
 import com.automate.CodeReview.Service.AuthService;
-
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.UsersRepository;
 import org.springframework.http.HttpStatus;
@@ -13,7 +12,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -66,21 +64,7 @@ public class UserController {
 
     @GetMapping("/users")
     public ResponseEntity<List<UserModel>> getAllUsers() {
-        List<UserModel> users = usersRepository.findAll()
-                .stream()
-                .map(this::toModel)   // <- เขียนเมธอด map เองด้านล่าง
-                .toList();
-
-        return ResponseEntity.ok(users);
-    }
-
-    private UserModel toModel(UsersEntity e) {
-        UserModel m = new UserModel();
-        m.setId(e.getUserId());
-        m.setUsername(e.getUsername());
-        m.setEmail(e.getEmail());
-        // map field อื่น ๆ ที่ต้องการ
-        return m;
+        return ResponseEntity.ok(authService.listAllUsers());
     }
 
 

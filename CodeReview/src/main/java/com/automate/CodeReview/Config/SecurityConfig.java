@@ -21,6 +21,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.*;
 import org.springframework.web.filter.CommonsRequestLoggingFilter;
 
+import org.springframework.web.filter.CommonsRequestLoggingFilter;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -42,14 +43,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // 🚨 การแก้ไข: เพิ่ม Angular App Origin (http://localhost:4200) ที่คุณใช้
         config.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "http://127.0.0.1:3000",
-                // 🛑 เพิ่ม Angular Origin ของคุณ
-                "http://localhost:4200",
-                "http://127.0.0.1:4200"
-                // "https://your-frontend.example.com"
+                "http://localhost:4200"
         ));
 
         // Allowed Methods ต้องรวม OPTIONS เพื่อให้ Preflight Request ผ่าน
@@ -90,6 +85,7 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/register"
                         ).permitAll()
+                        .requestMatchers("/api/sonar/logfile").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

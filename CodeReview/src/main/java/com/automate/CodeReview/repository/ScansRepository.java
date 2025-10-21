@@ -1,6 +1,5 @@
 package com.automate.CodeReview.repository;
 
-import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.ScansEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -10,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 @Repository
 public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
     @Query("SELECT s FROM ScansEntity s WHERE s.id = :id")
@@ -24,5 +24,13 @@ public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
     Optional<ScansEntity> findFirstByProject_ProjectIdOrderByStartedAtDesc(UUID projectId);
     Optional<ScansEntity> findByAnalysisId(String analysisId);
     Optional<ScansEntity> findByDeliveryId(String deliveryId);
+    Optional<ScansEntity> findTopByProject_SonarProjectKeyOrderByStartedAtDesc(String projectKey);
+    Optional<ScansEntity> findTopByProject_SonarProjectKeyAndStatusInOrderByStartedAtDesc(
+            String projectKey,
+            List<String> statuses
+    );
+    Optional<ScansEntity> findTopByProject_ProjectIdOrderByStartedAtDesc(UUID projectId);
+    List<ScansEntity> findByProject_ProjectIdOrderByStartedAtDesc(UUID projectId);
+
 
 }

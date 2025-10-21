@@ -17,6 +17,8 @@ import org.springframework.web.reactive.function.client.WebClientRequestExceptio
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 @RestControllerAdvice
@@ -72,6 +74,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateKeyException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateKey(DuplicateKeyException ex,
                                                             HttpServletRequest req) {
+        log.warn("DuplicateKeyException at {}: {}", req.getRequestURI(), ex.getMessage());
         return build(HttpStatus.CONFLICT, ex.getMessage(), req);
     }
 
@@ -124,6 +127,15 @@ public class GlobalExceptionHandler {
         return s.length() <= max ? s : s.substring(0, max) + "...(truncated)";
     }
 
+    @ExceptionHandler(DuplicateFieldsException.class)
+    public ResponseEntity<?> handleDuplicateFields(DuplicateFieldsException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", "Duplicate fields");
+        body.put("fields", ex.getDuplicateFields());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+
     /** ✅ กันชนสุดท้าย */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex,
@@ -131,4 +143,5 @@ public class GlobalExceptionHandler {
         log.error("Unhandled exception at {}: {}", req.getRequestURI(), ex.toString(), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), req);
     }
+
 }
