@@ -21,13 +21,10 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
 @Service
 @Slf4j
@@ -551,7 +548,7 @@ public class SonarWebhookService {
         if (!projectKey.equals(issueProject)) return; // ข้ามถ้าไม่ตรง
 
         String key = i.path("key").asText();
-        IssuesEntity entity = (IssuesEntity) issuesRepository
+        IssuesEntity entity = issuesRepository
                 .findByScan_ScanIdAndIssueKey(scan.getScanId(), key)
                 .orElseGet(IssuesEntity::new);
 
