@@ -20,6 +20,8 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.*;
 import org.springframework.web.filter.CommonsRequestLoggingFilter;
+
+import org.springframework.web.filter.CommonsRequestLoggingFilter;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -83,6 +85,8 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/register"
                         ).permitAll()
+                        .requestMatchers("/api/scans/**").hasAnyRole("USER","ADMIN")
+                        .requestMatchers("/api/sonar/logfile").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -128,6 +132,7 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
     }
+
 
 
     @Bean

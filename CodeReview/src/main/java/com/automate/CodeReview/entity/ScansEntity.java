@@ -12,6 +12,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Getter
@@ -64,7 +65,7 @@ public class ScansEntity {
     
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metrics", columnDefinition = "jsonb")
-    private JsonNode metrics;
+    private Map<String, Object> metrics;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload_json", columnDefinition = "jsonb")
@@ -76,4 +77,6 @@ public class ScansEntity {
     @OneToMany(mappedBy = "scan",fetch = FetchType.LAZY)
     private List<IssuesEntity> issues;
 
+    @Column(name = "reference_id", length = 200)
+    private String referenceId;
 }
