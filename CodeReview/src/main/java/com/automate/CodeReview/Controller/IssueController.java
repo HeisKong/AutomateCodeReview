@@ -1,6 +1,7 @@
 package com.automate.CodeReview.Controller;
 
 
+import com.automate.CodeReview.Models.AssignModel;
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.Service.IssueService;
@@ -47,7 +48,7 @@ public class IssueController {
     }
 
     @PutMapping("/assign/{issueId}")
-    public ResponseEntity<IssueModel> assign(
+    public ResponseEntity<AssignModel.getAssign> assign(
             @PathVariable UUID issueId,
             @RequestBody AssignRequest req
     ) {

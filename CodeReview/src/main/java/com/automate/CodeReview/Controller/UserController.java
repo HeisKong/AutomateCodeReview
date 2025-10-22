@@ -36,9 +36,9 @@ public class UserController {
         return ResponseEntity.ok(updated);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{useId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, String>> deleteUser(@PathVariable("id") UUID id) {
+    public ResponseEntity<Map<String, String>> deleteUser(@PathVariable("useId") UUID id) {
         authService.deleteUser(id);
         return ResponseEntity.ok(Map.of(
                 "message", "User deleted successfully",

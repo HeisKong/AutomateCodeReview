@@ -75,7 +75,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/sonar/webhook").permitAll()
-                        .requestMatchers("/api/sonar/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/**").permitAll()
                         // 💡 เส้นทางรีเซ็ตรหัสผ่านต้องเปิด permitAll
                         .requestMatchers(
                                 "/api/auth/**",
