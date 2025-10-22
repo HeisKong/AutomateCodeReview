@@ -581,6 +581,17 @@ public class ScanService {
         return null;
     }
 
+    public ScanModel cancelScan(UUID scanId){
+        ScansEntity scan = scanRepository.findById(scanId)
+                .orElseThrow(() -> new RuntimeException("Scan not found"));
+
+        if (scan.getStatus().equals("RUNNING")) {
+            scan.setStatus("CANCELLED");
+            scan.setCompletedAt(LocalDateTime.now());
+            scanRepository.save(scan);
+        }
+        return toModel(scan);
+    }
 
     public ScanLogModel getScanLogById(UUID id) {
         return null;
