@@ -80,9 +80,6 @@ public class ScansEntity {
     @OneToMany(mappedBy = "scan",fetch = FetchType.LAZY)
     private List<IssuesEntity> issues;
 
-    @OneToMany(mappedBy = "scan",fetch = FetchType.LAZY)
-    private List<GradeEntity> grades;
-
     @Column(name = "reference_id", length = 200)
     private String referenceId;
 }
