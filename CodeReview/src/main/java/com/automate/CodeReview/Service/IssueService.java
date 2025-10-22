@@ -45,36 +45,45 @@ public class IssueService {
 
         List<IssueModel> issueList = new ArrayList<>();
         for (IssuesEntity issue : issues) {
-            IssueModel model  = new IssueModel();
-            model.setIssueId(issue.getIssuesId());
-
-            UUID scanId = (issue.getScan() != null) ? issue.getScan().getScanId() : null;
-            model.setScanId(scanId);
-
-            UUID projectId = null;
-            String projectName = null;
-            if (issue.getScan() != null && issue.getScan().getProject() != null) {
-                projectId = issue.getScan().getProject().getProjectId();
-                projectName = issue.getScan().getProject().getName();
-            }
-            model.setProjectId(projectId);
-            model.setProjectName(projectName);
-            model.setScanId(issue.getScan().getScanId());
-            model.setIssueKey(issue.getIssueKey());
-            model.setType(issue.getType());
-            model.setComponent(issue.getComponent());
-            model.setMessage(issue.getMessage());
-            model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(
-                    issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null
-            );
-            model.setStatus(issue.getStatus());
-            model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
-
-            issueList.add(model);
+            IssueModel model = getIssueModel(issue);
+            saveIssue(issueList, issue, model);
 
         }
         return issueList;
+    }
+
+    private static IssueModel getIssueModel(IssuesEntity issue) {
+        IssueModel model  = new IssueModel();
+        model.setIssueId(issue.getIssuesId());
+
+        UUID scanId = (issue.getScan() != null) ? issue.getScan().getScanId() : null;
+        model.setScanId(scanId);
+
+        UUID projectId = null;
+        String projectName = null;
+        if (issue.getScan() != null && issue.getScan().getProject() != null) {
+            projectId = issue.getScan().getProject().getProjectId();
+            projectName = issue.getScan().getProject().getName();
+        }
+        model.setProjectId(projectId);
+        model.setProjectName(projectName);
+        model.setScanId(issue.getScan().getScanId());
+        return model;
+    }
+
+    private void saveIssue(List<IssueModel> issueList, IssuesEntity issue, IssueModel model) {
+        model.setIssueKey(issue.getIssueKey());
+        model.setType(issue.getType());
+        model.setComponent(issue.getComponent());
+        model.setMessage(issue.getMessage());
+        model.setSeverity(issue.getSeverity());
+        model.setAssignedTo(
+                issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null
+        );
+        model.setStatus(issue.getStatus());
+        model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
+
+        issueList.add(model);
     }
 
 
@@ -97,16 +106,7 @@ public class IssueService {
             }
             model.setProjectId(projectId);
             model.setScanId(issue.getScan().getScanId());
-            model.setIssueKey(issue.getIssueKey());
-            model.setType(issue.getType());
-            model.setComponent(issue.getComponent());
-            model.setMessage(issue.getMessage());
-            model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null);
-            model.setStatus(issue.getStatus());
-            model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
-
-            issueList.add(model);
+            saveIssue(issueList, issue, model);
 
         }
         return issueList;

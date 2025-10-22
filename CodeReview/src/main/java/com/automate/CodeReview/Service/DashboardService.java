@@ -7,7 +7,6 @@ import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.ProjectsRepository;
 import com.automate.CodeReview.repository.ScansRepository;
 import com.automate.CodeReview.repository.UsersRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,15 +20,12 @@ public class DashboardService {
     private final ScansRepository scansRepository;
     private final ProjectsRepository projectsRepository;
     private final UsersRepository usersRepository;
-    private final ObjectMapper objectMapper;
     public DashboardService(ProjectsRepository projectsRepository,
                             ScansRepository scansRepository,
-                            UsersRepository usersRepository,
-                            ObjectMapper objectMapper) {
+                            UsersRepository usersRepository) {
         this.projectsRepository = projectsRepository;
         this.scansRepository = scansRepository;
         this.usersRepository = usersRepository;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -137,17 +133,22 @@ public class DashboardService {
             List<ScansEntity> scans = scansRepository.findByProject_ProjectId(project.getProjectId());
             for (ScansEntity scan : scans) {
 
-                    DashboardModel.TrendsDTO t = new DashboardModel.TrendsDTO();
-                    t.setId(scan.getScanId());
-                    t.setStartTime(scan.getStartedAt());
-                    t.setQualityGate(scan.getQualityGate());
-                    t.setReliabilityGate(scan.getReliabilityGate());
-                    t.setSecurityGate(scan.getSecurityGate());
-                    t.setMaintainabilityGate(scan.getMaintainabilityGate());
-                    t.setSecurityReviewGate(scan.getSecurityReviewGate());
-                    trendsList.add(t);
+                DashboardModel.TrendsDTO t = getTrendsDTO(scan);
+                trendsList.add(t);
                 }
             }
         return trendsList;
+    }
+
+    private static DashboardModel.TrendsDTO getTrendsDTO(ScansEntity scan) {
+        DashboardModel.TrendsDTO t = new DashboardModel.TrendsDTO();
+        t.setId(scan.getScanId());
+        t.setStartTime(scan.getStartedAt());
+        t.setQualityGate(scan.getQualityGate());
+        t.setReliabilityGate(scan.getReliabilityGate());
+        t.setSecurityGate(scan.getSecurityGate());
+        t.setMaintainabilityGate(scan.getMaintainabilityGate());
+        t.setSecurityReviewGate(scan.getSecurityReviewGate());
+        return t;
     }
 }
