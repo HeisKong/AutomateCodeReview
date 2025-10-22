@@ -16,6 +16,7 @@ public class AssignModel {
     @NoArgsConstructor
     public static class getAssign {
         private UUID assignedTo;
+        private String assignedToName;
         private UUID issueId;
         private String severity;
         private String message;

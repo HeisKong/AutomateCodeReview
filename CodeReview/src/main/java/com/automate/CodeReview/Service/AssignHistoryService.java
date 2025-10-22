@@ -50,6 +50,7 @@ public class AssignHistoryService {
             dto.setMessage(a.getMessage());
 
             dto.setAssignedTo(a.getAssignedTo());
+            dto.setAssignedToName(user.getUsername());
             dto.setStatus(a.getStatus());
             dto.setAnnotation(a.getAnnotation());
             dto.setDueDate(a.getDueDate());
