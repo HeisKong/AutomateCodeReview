@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
+import java.util.Date;
 import java.util.UUID;
 
 @Getter
@@ -18,7 +20,7 @@ import java.util.UUID;
 public class AssignHistoryEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID assignId;
 
     @ManyToOne
@@ -31,6 +33,12 @@ public class AssignHistoryEntity {
     @Column(name = "status")
     private String status;
 
+    @Column(name =  "message")
+    private String message;
+
     @Column(name = "annotation")
     private String annotation;
+
+    @Column(name = "due_date")
+    private LocalDate dueDate;
 }

@@ -20,6 +20,8 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.*;
 import org.springframework.web.filter.CommonsRequestLoggingFilter;
+
+import org.springframework.web.filter.CommonsRequestLoggingFilter;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -130,6 +132,7 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
     }
+
 
 
     @Bean
