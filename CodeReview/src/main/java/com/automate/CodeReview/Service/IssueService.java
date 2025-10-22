@@ -1,5 +1,6 @@
 package com.automate.CodeReview.Service;
 
+import com.automate.CodeReview.Models.AssignModel;
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.entity.*;
@@ -150,7 +151,7 @@ public class IssueService {
     }
 
     @Transactional
-    public IssueModel assign(UUID issueId, UUID assignTo, LocalDate dueDate) {
+    public AssignModel.getAssign assign(UUID issueId, UUID assignTo, LocalDate dueDate) {
 
         IssuesEntity issue = issuesRepository.findById(issueId)
                 .orElseThrow(IssueNotFoundException::new);
@@ -168,23 +169,24 @@ public class IssueService {
                 .existsByIssues_IssuesIdAndAssignedTo(issueId, assignTo);
         if (alreadyRecorded || issue.getStatus().equals("REJECT")) {
             issue.setAssignedTo(user);
-            saveAssign(assignTo, issue, dueDate);
-            return getIssueById(issue.getIssuesId());
+            return saveAssign(assignTo, issue, dueDate, user);
         }
 
         if (!issue.getStatus().equals("DONE") || issue.getAssignedTo().equals(user) ){
             issue.setAssignedTo(user);
             issue.setStatus("IN PROGRESS");
             issue.setDueDate(dueDate);
-            saveAssign(assignTo, issue, dueDate);
+            saveAssign(assignTo, issue, dueDate, user);
         }
 
-        return getIssueById(issue.getIssuesId());
+        return saveAssign(assignTo, issue, dueDate, user);
+
     }
 
-    private void saveAssign(UUID assignTo, IssuesEntity issue, LocalDate dueDate) {
+    private AssignModel.getAssign saveAssign(UUID assignTo, IssuesEntity issue, LocalDate dueDate,  UsersEntity user) {
         issuesRepository.save(issue);
         AssignHistoryEntity assign = new AssignHistoryEntity();
+        AssignModel.getAssign model =  new AssignModel.getAssign();
         if(!Objects.equals(assign.getMessage(), issue.getMessage())) {
             assign.setIssues(issue);
             assign.setAssignedTo(assignTo);
@@ -192,7 +194,18 @@ public class IssueService {
             assign.setMessage(issue.getMessage());
             assign.setDueDate(dueDate);
             assignHistoryRepository.save(assign);
+
+            model.setIssueId(issue.getIssuesId());
+            model.setAssignedTo(assignTo);
+            model.setSeverity(issue.getSeverity());
+            model.setAssignedToName(user.getUsername());
+            model.setStatus(issue.getStatus());
+            model.setMessage(issue.getMessage());
+            model.setDueDate(dueDate);
+
+
         }
+        return model;
     }
     @Transactional
     public CommentModel addComment(UUID issueId, String comment, UUID userId) {
