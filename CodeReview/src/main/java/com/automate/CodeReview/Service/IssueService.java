@@ -174,13 +174,12 @@ public class IssueService {
 
         if (!issue.getStatus().equals("DONE") || issue.getAssignedTo().equals(user) ){
             issue.setAssignedTo(user);
-            issue.setStatus("IN PROGRESS");
+            issue.setStatus("PENDING");
             issue.setDueDate(dueDate);
-            saveAssign(assignTo, issue, dueDate, user);
+            return saveAssign(assignTo, issue, dueDate, user);
         }
 
-        return saveAssign(assignTo, issue, dueDate, user);
-
+        return null;
     }
 
     private AssignModel.getAssign saveAssign(UUID assignTo, IssuesEntity issue, LocalDate dueDate,  UsersEntity user) {
@@ -190,7 +189,7 @@ public class IssueService {
         if(!Objects.equals(assign.getMessage(), issue.getMessage())) {
             assign.setIssues(issue);
             assign.setAssignedTo(assignTo);
-            assign.setStatus("IN PROGRESS");
+            assign.setStatus("PENDING");
             assign.setMessage(issue.getMessage());
             assign.setDueDate(dueDate);
             assignHistoryRepository.save(assign);

@@ -44,7 +44,7 @@ public class JwtService {
         return Keys.hmacShaKeyFor(bytes);
     }
 
-    public String generateAccessToken(String Email, String username, Collection<String> roles) {
+    public String generateAccessToken(UUID userId,String Email, String username, Collection<String> roles) {
         if(Email == null || Email.isBlank()) {
             throw new IllegalArgumentException("Email must not be null or empty");
         }
@@ -56,6 +56,7 @@ public class JwtService {
         }
 
         Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
         claims.put("email", Email);         // << เพิ่ม email
         claims.put("username", username);          // << เพิ่ม username
         claims.put("roles", roles);                // ["USER","ADMIN"] เป็นต้น
