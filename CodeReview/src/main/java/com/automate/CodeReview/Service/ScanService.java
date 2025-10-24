@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -51,12 +52,14 @@ public class ScanService {
     private static final String BASE_DIR = "C:\\gitpools";
     private static final String SCRIPT_FILENAME = "run_sonar.bat";
     private static final String LOG_BASE = "C:\\scan-logs";
+    private final JdbcTemplate jdbcTemplate;
 
-    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient) {
+    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate) {
         this.scanRepository = scanRepository;
         this.projectRepository = projectRepository;
         this.repositoryService = repositoryService;
         this.sonarWebClient = sonarWebClient;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     // ส่วนของ startScan
@@ -649,6 +652,18 @@ public class ScanService {
                     .filter(path -> path.getFileName().toString().equals(logFileName))
                     .findFirst()
                     .orElse(null);
+        }
+    }
+
+    public void deleteScan(UUID scanId){
+        String[] queries = {
+                "DELETE FROM noti where scan_id = ?",
+                "DELETE FROM issues where scan_id =?",
+                "DELETE FROM scans where scan_id = ?",
+        };
+
+        for (String query : queries) {
+            jdbcTemplate.update(query, scanId);
         }
     }
 
