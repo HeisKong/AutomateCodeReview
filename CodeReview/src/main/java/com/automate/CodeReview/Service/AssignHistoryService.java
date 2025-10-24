@@ -80,7 +80,7 @@ public class AssignHistoryService {
             issuesRepository.save(issue);
 
             AssignHistoryEntity hist = assignHistoryRepository
-                    .findByIssues_IssuesIdAndStatus(issueId, "IN PROGRESS")
+                    .findByIssues_IssuesIdAndStatus(issueId, "PENDING")
                     .orElseGet(AssignHistoryEntity::new);
 
             hist.setIssues(issue);
@@ -91,7 +91,7 @@ public class AssignHistoryService {
         }
 
         if ("DONE".equals(statusUpper)) {
-            issue.setStatus("DONE");
+            issue.setStatus(statusUpper);
             issuesRepository.save(issue);
 
             AssignHistoryEntity hist = assignHistoryRepository
@@ -100,6 +100,22 @@ public class AssignHistoryService {
 
             hist.setIssues(issue);
             hist.setStatus("DONE");
+            hist.setAssignedTo(assignedTo);
+            hist.setAnnotation(annotation);
+            hist.setDueDate(issue.getDueDate());
+            assignHistoryRepository.save(hist);
+        }
+
+        if ("ACCEPT".equals(statusUpper)) {
+            issue.setStatus(statusUpper);
+            issuesRepository.save(issue);
+
+            AssignHistoryEntity hist = assignHistoryRepository
+                    .findByIssues_IssuesIdAndStatus(issueId, "PENDING")
+                    .orElseGet(AssignHistoryEntity::new);
+
+            hist.setIssues(issue);
+            hist.setStatus("IN PROGRESS");
             hist.setAssignedTo(assignedTo);
             hist.setAnnotation(annotation);
             hist.setDueDate(issue.getDueDate());

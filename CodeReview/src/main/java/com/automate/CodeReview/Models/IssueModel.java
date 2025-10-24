@@ -20,6 +20,7 @@ public class IssueModel {
     private String message;
     private String severity;
     private UUID assignedTo;
+    private String assignedToName;
     private String status;
     private String createdAt;
 
