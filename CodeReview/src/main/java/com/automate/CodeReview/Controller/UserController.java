@@ -4,8 +4,6 @@ import com.automate.CodeReview.dto.ChangePasswordRequest;
 import com.automate.CodeReview.dto.UpdateUserRequest;
 import com.automate.CodeReview.Models.UserModel;
 import com.automate.CodeReview.Service.AuthService;
-import com.automate.CodeReview.entity.UsersEntity;
-import com.automate.CodeReview.repository.UsersRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,10 +20,8 @@ import java.util.UUID;
 public class UserController {
 
     private final AuthService authService;
-    private final UsersRepository usersRepository;
 
-    public UserController(AuthService authService, UsersRepository usersRepository) {
-        this.usersRepository = usersRepository;
+    public UserController(AuthService authService) {
         this.authService = authService;
     }
 
@@ -63,6 +59,7 @@ public class UserController {
     }
 
     @GetMapping("/users")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<List<UserModel>> getAllUsers() {
         return ResponseEntity.ok(authService.listAllUsers());
     }

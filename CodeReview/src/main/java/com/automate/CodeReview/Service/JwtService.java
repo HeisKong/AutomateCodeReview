@@ -1,7 +1,6 @@
 package com.automate.CodeReview.Service;
 
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,7 +9,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Instant;
 import java.util.*;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class JwtService {
 
@@ -22,11 +23,14 @@ public class JwtService {
 
     public JwtService(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-ms:90000000}") long accessMs,
-            @Value("${jwt.refresh-ms:2592000000}") long refreshMs
+            @Value("${jwt.access-ms}") long accessMs,
+            @Value("${jwt.refresh-ms}") long refreshMs
     ) {
         this.key = buildKey(secret);
-        this.parser = Jwts.parserBuilder().setSigningKey(this.key).build();
+        this.parser = Jwts.parserBuilder()
+                .setSigningKey(this.key)
+                .setAllowedClockSkewSeconds(60)
+                .build();
         this.accessMs = accessMs;
         this.refreshMs = refreshMs;
     }
@@ -40,29 +44,33 @@ public class JwtService {
         if (bytes.length < 32) {
             throw new IllegalArgumentException("JWT secret must be at least 256 bits (32 bytes)");
         }
-        // กรณีไม่ใช้ base64 ให้แน่ใจว่ายาว >= 32 ไบต์
         return Keys.hmacShaKeyFor(bytes);
     }
 
-    public String generateAccessToken(UUID userId,String Email, String username, Collection<String> roles) {
-        if(Email == null || Email.isBlank()) {
+    // ✅ แก้ไข: ส่ง userId, username, email, role ออกไปใน payload
+    public String generateAccessToken(UUID userId, String email, String username, String role) {
+        if(email == null || email.isBlank()) {
             throw new IllegalArgumentException("Email must not be null or empty");
         }
         if(username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username must not be null or empty");
         }
-        if(roles == null || roles.isEmpty()) {
-            throw new IllegalArgumentException("Roles must not be null or empty");
+        if(role == null || role.isBlank()) {
+            throw new IllegalArgumentException("Role must not be null or empty");
         }
 
+        // ✅ ปรับให้ role ไม่มี ROLE_ prefix (จะเติมใน Filter)
+        String normalizedRole = role.toUpperCase().replace("ROLE_", "");
+
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", userId);
-        claims.put("email", Email);         // << เพิ่ม email
-        claims.put("username", username);          // << เพิ่ม username
-        claims.put("roles", roles);                // ["USER","ADMIN"] เป็นต้น
+        claims.put("user_id", userId.toString());  // ส่งเป็น String ป้องกัน serialization issue
+        claims.put("email", email);
+        claims.put("username", username);
+        claims.put("roles", List.of(normalizedRole));  // ✅ ส่งเป็น List เสมอ
 
         return Jwts.builder()
-                .setSubject(Email)
+                .setClaims(claims)
+                .claim("token_type", "access")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(Instant.now().toEpochMilli() + accessMs))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -112,12 +120,12 @@ public class JwtService {
 
     public boolean isRefreshToken(String token) {
         if (token == null || token.isBlank()) {
-            return  false;
+            return false;
         }
         try {
             Object t = parseAllClaims(token).get("token_type");
             return "refresh".equals(String.valueOf(t));
-        }catch (Exception e) {
+        } catch (Exception e) {
             return false;
         }
     }
@@ -134,6 +142,14 @@ public class JwtService {
         } catch (Exception e) {
             throw new JwtException("Cannot extract subject from token", e);
         }
+    }
+
+    public Claims validateAndParseClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 
     public record TokenPair(String accessToken, String refreshToken, UUID jti) {}

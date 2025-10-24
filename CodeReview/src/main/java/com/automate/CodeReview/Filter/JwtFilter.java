@@ -3,6 +3,9 @@ package com.automate.CodeReview.Filter;
 import com.automate.CodeReview.Service.JwtService;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.UsersRepository;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -40,34 +44,54 @@ public class JwtFilter extends OncePerRequestFilter {
             return true;
         }
 
-        // Skip public endpoints
         return path.startsWith("/api/auth")
                 || path.startsWith("/v3/api-docs")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/swagger-ui.html")
-                || path.startsWith("/api/sonar/webhook");
+                || path.equals("/api/sonar/webhook");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        String uri = request.getRequestURI();
+        String method = request.getMethod();
+
+
         try {
             String token = extractTokenFromRequest(request);
 
             if (token != null) {
+                log.debug("🔹 Token extracted: {}...", token.substring(0, Math.min(20, token.length())));
                 authenticateToken(request, token);
+            } else {
+                log.debug("🔹 No Bearer token found in Authorization header");
             }
+
+
         } catch (Exception ex) {
-            log.error("Unexpected error in JWT filter: {}", ex.getMessage());
             SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
+
+        var postCtx = SecurityContextHolder.getContext();
+        if (postCtx.getAuthentication() != null) {
+            log.info("🧩 [JwtFilter] After chain: still authenticated as {}", postCtx.getAuthentication().getName());
+        } else {
+            log.warn("🧨 [JwtFilter] After chain: authentication was cleared");
+        }
+
+        log.info("🔚 [JwtFilter] End for [{} {}]", method, uri);
     }
 
     private String extractTokenFromRequest(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
+        if (authHeader == null) {
+            authHeader = request.getHeader("authorization"); // รองรับ lowercase
+        }
+
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);
         }
@@ -76,31 +100,49 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private void authenticateToken(HttpServletRequest request, String token) {
         try {
-            String email = jwtService.validateTokenAndGetUsername(token);
+            Claims claims = jwtService.validateAndParseClaims(token);
+            String email = claims.get("email", String.class);
+            String tokenType = claims.get("token_type", String.class);
+            if (!"access".equalsIgnoreCase(tokenType)) return;
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                Optional<UsersEntity> userOpt = usersRepository.findByEmail(email);
+                Object rolesClaim = claims.get("roles");
+                List<SimpleGrantedAuthority> authorities;
 
-                if (userOpt.isEmpty()) {
-                    log.warn("User not found for email: {}", email);
-                    return;
+                if (rolesClaim instanceof List<?> roleList) {
+                    authorities = roleList.stream()
+                            .map(r -> {
+                                String role = (r instanceof String s) ? s : r.toString();
+                                role = role.replaceAll("[\\[\\]\\s]", ""); // ลบ []
+                                role = role.toUpperCase();
+                                if (!role.startsWith("ROLE_")) role = "ROLE_" + role;
+                                return new SimpleGrantedAuthority(role);
+                            })
+                            .collect(Collectors.toList());
+                } else if (rolesClaim != null) {
+                    String role = rolesClaim.toString().replaceAll("[\\[\\]\\s]", "").toUpperCase();
+                    if (!role.startsWith("ROLE_")) role = "ROLE_" + role;
+                    authorities = List.of(new SimpleGrantedAuthority(role));
+                } else {
+                    authorities = List.of();
                 }
 
-                UsersEntity user = userOpt.get();
-                String roleWithPrefix = "ROLE_" + user.getRole();
-
-                log.debug("Authenticating user: {} with role: {}", user.getEmail(), roleWithPrefix);
+                Optional<UsersEntity> userOpt = usersRepository.findByEmail(email);
+                if (userOpt.isEmpty()) return;
 
                 var authToken = new UsernamePasswordAuthenticationToken(
-                        user.getEmail(),
-                        null,
-                        List.of(new SimpleGrantedAuthority(roleWithPrefix))
+                        email, null, authorities
                 );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
+        } catch (ExpiredJwtException ex) {
+            SecurityContextHolder.clearContext();
+
+        } catch (JwtException ex) {
+            SecurityContextHolder.clearContext();
+
         } catch (Exception ex) {
-            log.warn("Token authentication failed: {}", ex.getMessage());
             SecurityContextHolder.clearContext();
         }
     }

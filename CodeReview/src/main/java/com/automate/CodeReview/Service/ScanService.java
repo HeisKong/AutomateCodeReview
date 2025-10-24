@@ -22,8 +22,13 @@ import java.util.List;
 import java.util.UUID;
 import java.time.format.DateTimeFormatter;
 
-import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
+import java.util.stream.Stream;
+
+import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -33,8 +38,6 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.*;
-import java.util.stream.Stream;
-
 @Slf4j
 @Service
 public class ScanService {
@@ -42,12 +45,12 @@ public class ScanService {
     private final ScansRepository scanRepository;
     private final ProjectsRepository projectRepository;
     private final RepositoryService repositoryService;
-    private final RestTemplate restTemplate = new RestTemplate();
     private final WebClient sonarWebClient;
 
 
     private static final String BASE_DIR = "C:\\gitpools";
     private static final String SCRIPT_FILENAME = "run_sonar.bat";
+    private static final String LOG_BASE = "C:\\scan-logs";
 
     public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient) {
         this.scanRepository = scanRepository;
@@ -138,22 +141,20 @@ public class ScanService {
             // 9. รัน Sonar Analysis พร้อมเขียน log ลงไฟล์
             Map<String, Object> scanResult = runSonarAnalysis(newClonePath, logFilePath, scanId);
 
-            // 🔥 ดึง analysisId จาก SonarQube ทันที
+            // ดึง analysisId จาก SonarQube ทันที
             if (scanResult.get("success").equals(true)) {
                 // Poll หา analysisId พร้อม retry
                 String analysisId = pollForAnalysisId(sonarProjectKey, 30); // timeout 30 วินาที
                 if (analysisId != null) {
                     scan.setAnalysisId(analysisId);
-                    log.info("✅ เซ็ต analysisId ไว้ล่วงหน้า: {} สำหรับ scanId: {}", analysisId, scanId);
+                    log.info("เซ็ต analysisId ไว้ล่วงหน้า: {} สำหรับ scanId: {}", analysisId, scanId);
                 } else {
-                    log.warn("⚠️ ไม่สามารถดึง analysisId ได้ภายในเวลาที่กำหนด");
+                    log.warn("ไม่สามารถดึง analysisId ได้ภายในเวลาที่กำหนด");
                 }
             }
 
             // 10. อัพเดท status ของ scan
             scan.setCompletedAt(LocalDateTime.now());
-            //boolean success = (Boolean) scanResult.getOrDefault("success", false);
-            //scan.setStatus(success ? "SUCCESS" : "FAILED");
 
             // เก็บ error message ถ้ามี
             if (scanResult.containsKey("error")) {
@@ -163,8 +164,8 @@ public class ScanService {
 
             scanRepository.save(scan);
 
-            log.info("✅ Scan completed: scanId={}, status={}", scanId, scan.getStatus());
-            log.info("🔍 DEBUG: หลัง save analysisId - scanId={}, analysisId={}, status={}",
+            log.info("Scan completed: scanId={}, status={}", scanId, scan.getStatus());
+            log.info("DEBUG: หลัง save analysisId - scanId={}, analysisId={}, status={}",
                     scan.getScanId(), scan.getAnalysisId(), scan.getStatus());
 
             // 11. Return result
@@ -375,9 +376,9 @@ public class ScanService {
             result.put("exitCode", exitCode);
 
             if (exitCode == 0) {
-                log.info("✅ Sonar analysis completed successfully for scan: {}", scanId);
+                log.info("Sonar analysis completed successfully for scan: {}", scanId);
             } else {
-                log.error("❌ Sonar analysis failed with exit code: {} for scan: {}", exitCode, scanId);
+                log.error("Sonar analysis failed with exit code: {} for scan: {}", exitCode, scanId);
                 result.put("error", "Script exited with code " + exitCode);
             }
         } catch (Exception e) {
@@ -554,7 +555,7 @@ public class ScanService {
                 log.warn("⚠️ Polling ถูกขัดจังหวะ");
                 return null;
             } catch (Exception e) {
-                log.error("❌ Error polling analysisId (attempt {}): {}", attempt, e.getMessage());
+                log.error("Error polling analysisId (attempt {}): {}", attempt, e.getMessage());
             }
         }
 
@@ -580,15 +581,35 @@ public class ScanService {
             model.setStartedAt(scanEntity.getStartedAt());
             model.setCompletedAt(scanEntity.getCompletedAt());
             model.setQualityGate(String.valueOf(scanEntity.getQualityGate()));
+            model.setMetrics(scanEntity.getMetrics());
             model.setLogFilePath(String.valueOf(scanEntity.getLogFilePath()));
+            model.setMaintainabilityGate(String.valueOf(scanEntity.getMaintainabilityGate()));
+            model.setReliabilityGate(String.valueOf(scanEntity.getReliabilityGate()));
+            model.setSecurityGate(String.valueOf(scanEntity.getSecurityGate()));
+            model.setSecurityReviewGate(String.valueOf(scanEntity.getSecurityReviewGate()));
             scansModel.add(model);
         }
         return scansModel;
     }
 
-    public ScanModel getByIdScan(UUID id){
-        //จะใช้อันนนี้ก้ได้นะเเต่ถ้าทำใน repo มันใช้ jdbc ดึงได้เลย
-        return null;
+    public ScanModel getByIdScan(UUID scanId){
+        ScansEntity scan = scanRepository.findById(scanId)
+                .orElse(null);
+
+        ScanModel model = new ScanModel();
+        model.setScanId(scan.getScanId());
+        model.setProjectId(scan.getProject().getProjectId());
+        model.setStatus(scan.getStatus());
+        model.setStartedAt(scan.getStartedAt());
+        model.setCompletedAt(scan.getCompletedAt());
+        model.setQualityGate(String.valueOf(scan.getQualityGate()));
+        model.setMetrics(scan.getMetrics());
+        model.setLogFilePath(String.valueOf(scan.getLogFilePath()));
+        model.setMaintainabilityGate(String.valueOf(scan.getMaintainabilityGate()));
+        model.setReliabilityGate(String.valueOf(scan.getReliabilityGate()));
+        model.setSecurityGate(String.valueOf(scan.getSecurityGate()));
+        model.setSecurityReviewGate(String.valueOf(scan.getSecurityReviewGate()));
+        return model;
     }
 
     public ScanModel getLogScan(UUID id){
@@ -607,22 +628,40 @@ public class ScanService {
         return toModel(scan);
     }
 
-    public ScanLogModel getScanLogById(UUID id) {
-        return null;
+    public ScanLogModel getScanLogById(UUID scanId) {
+        try {
+            Path logPath = findLogFlie(scanId);
+
+            if(logPath == null || !Files.exists(logPath)){
+                throw new IllegalArgumentException("Scan Log Not Found in Id: " + scanId);
+            }
+
+            List<String> lines = Files.readAllLines(logPath, StandardCharsets.UTF_8);
+
+            ScanLogModel logModel = new ScanLogModel();
+            logModel.setScanId(scanId);
+            logModel.setLines(lines);
+            return logModel;
+        }catch (IOException e){
+            throw new RuntimeException("Error reading scan log: " + e.getMessage(), e);
+        }
     }
 
-    private ScanModel toModel(ScansEntity entity) {
-        ScanModel model = new ScanModel();
-        model.setScanId(entity.getScanId());
-        model.setProjectId(entity.getProject().getProjectId());
-        model.setStatus(entity.getStatus());
-        model.setQualityGate(entity.getQualityGate());
-//        model.setReliabilityGate(entity.getReliabilityGate());
-//        model.setMaintainabilityGate(entity.getMaintainabilityGate());
-//        model.setSecurityGate(entity.getSecurityGate());
-//        model.setSecurityReviewGate(entity.getSecurityReviewGate());
-        model.setStartedAt(entity.getStartedAt());
-        model.setCompletedAt(entity.getCompletedAt());
-        return model;
+    private Path findLogFlie(UUID scanId) throws IOException {
+        String logFileName = "scan_" + scanId + ".log";
+        Path logDir = Paths.get(LOG_BASE);
+
+        if (!Files.exists(logDir)) {
+            return null;
+        }
+
+        try (Stream<Path> paths = Files.walk(logDir,2)) {
+            return paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().equals(logFileName))
+                    .findFirst()
+                    .orElse(null);
+        }
     }
+
 }
