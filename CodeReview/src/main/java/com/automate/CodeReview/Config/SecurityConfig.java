@@ -2,6 +2,7 @@ package com.automate.CodeReview.Config;
 
 import com.automate.CodeReview.Filter.JwtFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -13,6 +14,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -26,6 +28,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -59,8 +62,8 @@ public class SecurityConfig {
         http
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
-                .anonymous(AbstractHttpConfigurer::disable)
-                .csrf(AbstractHttpConfigurer::disable) // Simplified CSRF disable
+                // ✅ ลบ .anonymous(AbstractHttpConfigurer::disable) ออก
+                .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
 
                 .exceptionHandling(eh -> eh
@@ -70,18 +73,49 @@ public class SecurityConfig {
 
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
+                // ✅ เพิ่ม SecurityContextHolderFilter เพื่อให้แน่ใจว่า SecurityContext persist
+                .securityContext(context -> context
+                        .requireExplicitSave(false)
+                )
+
+                // ✅ เพิ่ม JwtFilter ก่อน UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
+                // ✅ Debug: ดูว่า filter chain ทำงานอย่างไร
+                .addFilterBefore(
+                        (request, response, chain) -> {
+                            log.debug("🔵 [Before Authorization] URI: {}, Auth: {}",
+                                    ((jakarta.servlet.http.HttpServletRequest)request).getRequestURI(),
+                                    SecurityContextHolder.getContext().getAuthentication() != null ?
+                                            SecurityContextHolder.getContext().getAuthentication().getName() : "null"
+                            );
+                            chain.doFilter(request, response);
+                        },
+                        org.springframework.security.web.access.intercept.AuthorizationFilter.class
+                )
+
                 .authorizeHttpRequests(auth -> auth
+                        // ✅ OPTIONS requests (CORS preflight)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // ✅ Swagger/OpenAPI docs
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+
+                        // ✅ Public auth endpoints
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/auth/login",
                                 "/api/auth/register",
                                 "/api/auth/password-reset/**"
                         ).permitAll()
-                        .requestMatchers("/api/scans/**").hasAnyRole("USER","ADMIN")
+
+                        // ✅ Sonar webhook (public endpoint สำหรับรับ callback)
+                        .requestMatchers("/api/sonar/webhook").permitAll()
+
+                        // ✅ Scans endpoints
+                        .requestMatchers("/api/scans/**").hasAnyRole("USER", "ADMIN")
+
+                        // ✅ ทุก request อื่นๆ ต้อง authenticated
                         .anyRequest().authenticated()
                 );
 
@@ -92,13 +126,17 @@ public class SecurityConfig {
     @Bean
     public AuthenticationEntryPoint unauthorizedEntryPoint() {
         return (request, response, ex) -> {
+            log.warn("🚫 Unauthorized access attempt: {} {}", request.getMethod(), request.getRequestURI());
+            log.warn("🚫 Reason: {}", ex.getMessage());
+
             response.setStatus(401);
             response.setContentType("application/json;charset=UTF-8");
             new ObjectMapper().writeValue(response.getWriter(), Map.of(
                     "timestamp", Instant.now().toString(),
                     "status", 401,
                     "error", "Unauthorized",
-                    "message", "Authentication required or token invalid/expired"
+                    "message", "Authentication required or token invalid/expired",
+                    "path", request.getRequestURI()
             ));
         };
     }
@@ -106,13 +144,18 @@ public class SecurityConfig {
     @Bean
     public AccessDeniedHandler accessDeniedHandler() {
         return (request, response, ex) -> {
+            log.warn("🚫 Access denied: {} {}", request.getMethod(), request.getRequestURI());
+            log.warn("🚫 User: {}", request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous");
+            log.warn("🚫 Reason: {}", ex.getMessage());
+
             response.setStatus(403);
             response.setContentType("application/json;charset=UTF-8");
             new ObjectMapper().writeValue(response.getWriter(), Map.of(
                     "timestamp", Instant.now().toString(),
                     "status", 403,
                     "error", "Forbidden",
-                    "message", "Access denied. Insufficient privileges." // เปลี่ยนเป็นข้อความกลาง
+                    "message", "Access denied. Insufficient privileges.",
+                    "path", request.getRequestURI()
             ));
         };
     }

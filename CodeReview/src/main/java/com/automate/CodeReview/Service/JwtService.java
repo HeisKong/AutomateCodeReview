@@ -26,7 +26,6 @@ public class JwtService {
             @Value("${jwt.access-ms}") long accessMs,
             @Value("${jwt.refresh-ms}") long refreshMs
     ) {
-
         this.key = buildKey(secret);
         this.parser = Jwts.parserBuilder()
                 .setSigningKey(this.key)
@@ -45,26 +44,29 @@ public class JwtService {
         if (bytes.length < 32) {
             throw new IllegalArgumentException("JWT secret must be at least 256 bits (32 bytes)");
         }
-        // กรณีไม่ใช้ base64 ให้แน่ใจว่ายาว >= 32 ไบต์
         return Keys.hmacShaKeyFor(bytes);
     }
 
-    public String generateAccessToken(UUID userId,String email, String username,String roles) {
+    // ✅ แก้ไข: ส่ง userId, username, email, role ออกไปใน payload
+    public String generateAccessToken(UUID userId, String email, String username, String role) {
         if(email == null || email.isBlank()) {
             throw new IllegalArgumentException("Email must not be null or empty");
         }
         if(username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username must not be null or empty");
         }
-        if(roles == null || roles.isBlank()) {
-            throw new IllegalArgumentException("Roles must not be null or empty");
+        if(role == null || role.isBlank()) {
+            throw new IllegalArgumentException("Role must not be null or empty");
         }
 
+        // ✅ ปรับให้ role ไม่มี ROLE_ prefix (จะเติมใน Filter)
+        String normalizedRole = role.toUpperCase().replace("ROLE_", "");
+
         Map<String, Object> claims = new HashMap<>();
-        claims.put("user_id", userId);
+        claims.put("user_id", userId.toString());  // ส่งเป็น String ป้องกัน serialization issue
         claims.put("email", email);
         claims.put("username", username);
-        claims.put("roles", roles);
+        claims.put("roles", List.of(normalizedRole));  // ✅ ส่งเป็น List เสมอ
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -85,7 +87,6 @@ public class JwtService {
         }
         return Jwts.builder()
                 .setSubject(subject)
-                .claim("token_type", "access")
                 .addClaims(Map.of("token_type", "refresh", "jti", jti.toString()))
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(Instant.now().toEpochMilli() + refreshMs))
@@ -119,12 +120,12 @@ public class JwtService {
 
     public boolean isRefreshToken(String token) {
         if (token == null || token.isBlank()) {
-            return  false;
+            return false;
         }
         try {
             Object t = parseAllClaims(token).get("token_type");
             return "refresh".equals(String.valueOf(t));
-        }catch (Exception e) {
+        } catch (Exception e) {
             return false;
         }
     }
@@ -142,6 +143,7 @@ public class JwtService {
             throw new JwtException("Cannot extract subject from token", e);
         }
     }
+
     public Claims validateAndParseClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
@@ -149,5 +151,6 @@ public class JwtService {
                 .parseClaimsJws(token)
                 .getBody();
     }
+
     public record TokenPair(String accessToken, String refreshToken, UUID jti) {}
 }

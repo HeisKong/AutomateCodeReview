@@ -59,12 +59,6 @@ public class SonarController {
                         "returned", items.size(), "pageSize", pageSize, "maxPages", maxPages
                 )));
     }
-    @GetMapping("/batch/all_test")
-    public ResponseEntity<?> getAll(HttpServletRequest req, Authentication auth) {
-        log.info("🔍 Auth principal: {}", auth != null ? auth.getName() : "NULL");
-        log.info("🔍 Header Authorization: {}", req.getHeader("Authorization"));
-        return ResponseEntity.ok(Map.of("user", auth.getName(), "roles", auth.getAuthorities()));
-    }
     /* ------- CSV export ------- */
     // GET /api/sonar/batch.csv?projectKeys=a,b,c
     @GetMapping(value = "/batch.csv", produces = "text/csv")

@@ -44,12 +44,11 @@ public class JwtFilter extends OncePerRequestFilter {
             return true;
         }
 
-        // Skip public endpoints
         return path.startsWith("/api/auth")
                 || path.startsWith("/v3/api-docs")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/swagger-ui.html")
-                || path.startsWith("/api/sonar/webhook");
+                || path.equals("/api/sonar/webhook");
     }
 
     @Override
@@ -62,21 +61,20 @@ public class JwtFilter extends OncePerRequestFilter {
         log.info("🟢 [JwtFilter] Start for [{} {}]", method, uri);
 
         try {
-            String authHeader = request.getHeader("Authorization");
-            if (authHeader == null) {
-                authHeader = request.getHeader("authorization"); // รองรับ lowercase
-            }
-
-            log.debug("🔹 Authorization header: {}", authHeader);
-
             String token = extractTokenFromRequest(request);
-            authenticateToken(request, token);
+
+            if (token != null) {
+                log.debug("🔹 Token extracted: {}...", token.substring(0, Math.min(20, token.length())));
+                authenticateToken(request, token);
+            } else {
+                log.debug("🔹 No Bearer token found in Authorization header");
+            }
 
             // ✅ หลังจาก authenticate เสร็จ ลอง log context ปัจจุบัน
             var ctx = SecurityContextHolder.getContext();
             if (ctx.getAuthentication() != null) {
                 log.info("🔒 SecurityContext now holds authentication: {}", ctx.getAuthentication().getName());
-                log.debug("🔸 Authorities: {}", ctx.getAuthentication().getAuthorities());
+                log.info("🔸 Authorities: {}", ctx.getAuthentication().getAuthorities());
             } else {
                 log.warn("⚠️ SecurityContext is still empty after JwtFilter (no authentication)");
             }
@@ -99,9 +97,12 @@ public class JwtFilter extends OncePerRequestFilter {
         log.info("🔚 [JwtFilter] End for [{} {}]", method, uri);
     }
 
-
     private String extractTokenFromRequest(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
+        if (authHeader == null) {
+            authHeader = request.getHeader("authorization"); // รองรับ lowercase
+        }
+
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);
         }
@@ -113,7 +114,11 @@ public class JwtFilter extends OncePerRequestFilter {
             Claims claims = jwtService.validateAndParseClaims(token);
             String email = claims.get("email", String.class);
             String tokenType = claims.get("token_type", String.class);
+
+            log.debug("🔹 Token type: {}, email: {}", tokenType, email);
+
             if (!"access".equalsIgnoreCase(tokenType)) {
+                log.warn("⚠️ Token type is not 'access': {}", tokenType);
                 return;
             }
 
@@ -122,24 +127,35 @@ public class JwtFilter extends OncePerRequestFilter {
                 List<SimpleGrantedAuthority> authorities;
 
                 if (rolesClaim instanceof List<?> roleList) {
-                    // สำหรับ List: map และจัดการ prefix
+                    // ✅ สำหรับ List: map และเติม ROLE_ prefix
                     authorities = roleList.stream()
                             .map(r -> {
-                                String role = r.toString();
-                                // เพิ่ม ROLE_ ให้ถ้ายังไม่มี
-                                return new SimpleGrantedAuthority(role.startsWith("ROLE_") ? role : "ROLE_" + role);
+                                String role = r.toString().toUpperCase();
+                                // เติม ROLE_ ให้ถ้ายังไม่มี
+                                String prefixedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                                log.debug("🔸 Mapped role: {}", prefixedRole);
+                                return new SimpleGrantedAuthority(prefixedRole);
                             })
                             .collect(Collectors.toList());
+                } else if (rolesClaim != null) {
+                    // ✅ สำหรับ String/Single Object: จัดการ prefix
+                    String role = rolesClaim.toString().toUpperCase();
+                    String prefixedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                    log.debug("🔸 Mapped single role: {}", prefixedRole);
+                    authorities = List.of(new SimpleGrantedAuthority(prefixedRole));
                 } else {
-                    // สำหรับ String/Single Object: จัดการ prefix
-                    String role = rolesClaim.toString();
-                    authorities = List.of(new SimpleGrantedAuthority(role.startsWith("ROLE_") ? role : "ROLE_" + role));
+                    log.warn("⚠️ No roles claim found in token");
+                    authorities = List.of();
                 }
 
+                // ตรวจสอบว่า user มีอยู่ใน database
                 Optional<UsersEntity> userOpt = usersRepository.findByEmail(email);
                 if (userOpt.isEmpty()) {
+                    log.warn("⚠️ User not found in database: {}", email);
                     return;
                 }
+
+                log.info("✅ Authenticating user: {} with authorities: {}", email, authorities);
 
                 var authToken = new UsernamePasswordAuthenticationToken(
                         email,
@@ -149,14 +165,19 @@ public class JwtFilter extends OncePerRequestFilter {
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
 
+                log.info("✅ Authentication set successfully for: {}", email);
             }
 
         } catch (ExpiredJwtException ex) {
-            log.info("Token expired: {}", ex.getMessage());
+            log.info("⏰ Token expired: {}", ex.getMessage());
             SecurityContextHolder.clearContext();
 
         } catch (JwtException ex) {
-            log.warn("Invalid token: {}", ex.getMessage());
+            log.warn("⚠️ Invalid token: {}", ex.getMessage());
+            SecurityContextHolder.clearContext();
+
+        } catch (Exception ex) {
+            log.error("❌ Error during authentication: {}", ex.getMessage(), ex);
             SecurityContextHolder.clearContext();
         }
     }
