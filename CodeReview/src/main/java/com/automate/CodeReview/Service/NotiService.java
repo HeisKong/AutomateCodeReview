@@ -79,8 +79,8 @@ public class NotiService {
 
         NotiEntity noti = new NotiEntity();
         noti.setNotiId(UUID.randomUUID());
-        noti.setProject(project);          // อ้างอิง project (nullable=false กันไว้แล้ว)
-        noti.setScan(scan);                // ผมตั้งค่าให้ scan column เป็น nullable แล้ว ถ้าไม่ต้องการให้ null ให้แน่ใจว่ามีค่า
+        noti.setProject(project);
+        noti.setScan(scan);
         noti.setTypeNoti("scan");
         noti.setMessage(message);
         noti.setRead(false);
