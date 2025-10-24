@@ -696,8 +696,8 @@ public class RepositoryService {
 
         String[] queries = {
                 "DELETE FROM noti where project_id = ?",
-                "DELETE FROM scans where Project_id = ?",
                 "DELETE FROM issues where scan_id IN (SELECT scan_id FROM scans where project_id = ?)",
+                "DELETE FROM scans where Project_id = ?",
                 "DELETE FROM projects where project_id = ?"
         };
 
