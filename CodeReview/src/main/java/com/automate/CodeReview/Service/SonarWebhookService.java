@@ -206,7 +206,6 @@ public class SonarWebhookService {
                 : projectHeader;
 
         String taskId = p.getTaskId();
-        String analysedAt = p.getAnalysedAt();
 
         if (projectKey == null || taskId == null) {
             log.warn("webhook missing projectKey/taskId, delivery={}", deliveryId);
@@ -225,17 +224,18 @@ public class SonarWebhookService {
             }
         }
         // 1) task -> analysisId
-        String analysisId = p.getAnalysisId(); // อาจมีใน payload
-
-        // 🔥 2. ถ้าไม่มี ค่อย fetch จาก API
-        if (analysisId == null || analysisId.isBlank()) {
+        String webhookAnalysisId = p.getAnalysisId();
+        if (webhookAnalysisId == null || webhookAnalysisId.isBlank()) {
             log.info("🔍 analysisId not in payload, fetching from API...");
-            analysisId = fetchAnalysisIdWithRetry(taskId);
+            webhookAnalysisId = fetchAnalysisIdWithRetry(taskId);
+            if (webhookAnalysisId != null) {
+                log.info("✅ Got analysisId from API: {}", webhookAnalysisId);
+            }
         } else {
-            log.info("✅ Got analysisId from payload: {}", analysisId);
+            log.info("✅ Got analysisId from payload: {}", webhookAnalysisId);
         }
 
-        JsonNode qgNode = fetchQualityGateNode(analysisId, projectKey, branch);
+        JsonNode qgNode = fetchQualityGateNode(webhookAnalysisId, projectKey, branch);
         String qgStatus = null;
         List<SonarWebhookPayload.Condition> conditions =
                 Optional.ofNullable(p.getQualityGate()).map(SonarWebhookPayload.QualityGate::getConditions).orElse(null);
@@ -300,36 +300,66 @@ public class SonarWebhookService {
                     });
 
             Optional<ScansEntity> scanOpt = Optional.empty();
-            if (analysisId != null && !analysisId.isBlank()) {
-                scanOpt = scansRepository.findByAnalysisId(analysisId);
+        // 7.1 หาด้วย analysisId ก่อน (ถ้ามี)
+        if (webhookAnalysisId != null && !webhookAnalysisId.isBlank()) {
+            scanOpt = scansRepository.findByAnalysisId(webhookAnalysisId);
+            if (scanOpt.isPresent()) {
+                log.info("หา scan เจอจาก analysisId: {}", webhookAnalysisId);
             }
-            if (analysisId != null && !analysisId.isBlank()) {
-                scanOpt = scansRepository.findByAnalysisId(analysisId);
-                if (scanOpt.isPresent()) {
-                    log.info("✅ Found scan by analysisId: {}", analysisId);
-                }
-            }
-//            if (scanOpt.isEmpty() && deliveryId != null && !deliveryId.isBlank()) {
-//                scanOpt = scansRepository.findByDeliveryId(deliveryId);
-//            }
+        }
 
-             // ถ้ายังไม่เจอ หา scan ล่าสุดที่ status = RUNNING หรือ COMPLETED
-            if (scanOpt.isEmpty()) {
-              scanOpt = scansRepository
-                       .findTopByProject_SonarProjectKeyAndStatusInOrderByStartedAtDesc(
+        // 7.2 หาด้วย deliveryId (ถ้ายังไม่เจอ)
+        if (scanOpt.isEmpty() && deliveryId != null && !deliveryId.isBlank()) {
+            scanOpt = scansRepository.findByDeliveryId(deliveryId);
+            if (scanOpt.isPresent()) {
+                log.info("หา scan เจอจาก deliveryId: {}", deliveryId);
+            }
+        }
+
+        // 7.3 หา scan ล่าสุดที่ COMPLETED/RUNNING (ภายใน 5 นาที)
+        if (scanOpt.isEmpty()) {
+            scanOpt = scansRepository
+                    .findTopByProject_SonarProjectKeyAndStatusInOrderByStartedAtDesc(
                             projectKey,
                             List.of("RUNNING", "COMPLETED")
-                       );
-                if (scanOpt.isPresent()) {
-                     log.info("✅ Found existing RUNNING/COMPLETED scan for project: {}", projectKey);
-                }
+                    );
+            if (scanOpt.isPresent()) {
+                log.info("หา scan เจอจากโปรเจกต์: {}", projectKey);
             }
-            ScansEntity scan = scanOpt.orElseThrow(() ->
-                new RuntimeException("No pending scan found for project: " + projectKey)
-            );
+        }
+        ScansEntity scan = scanOpt.orElseThrow(() -> {
+            log.error("ไม่พบ scan: projectKey={}",
+                    projectKey);
+            return new RuntimeException("ไม่พบ scan ที่รอประมวลผลสำหรับโปรเจกต์: " + projectKey);
+        });
+
+        log.info("📋 Scan ปัจจุบัน: scanId={}, analysisId={}, status={}",
+                scan.getScanId(), scan.getAnalysisId(), scan.getStatus());
+
+        String currentAnalysisId = scan.getAnalysisId();
+        String finalAnalysisId;
+
+        if (currentAnalysisId != null && !currentAnalysisId.isBlank()) {
+            // มี analysisId อยู่แล้ว ใช้ค่าเดิม
+            finalAnalysisId = currentAnalysisId;
+            log.info("analysisId มีอยู่แล้ว: {} (ไม่เขียนทับ)", finalAnalysisId);
+        } else {
+            // ยังไม่มี ใช้ค่าจาก webhook
+            finalAnalysisId = webhookAnalysisId;
+            log.info("เซ็ต analysisId จาก webhook: {}", finalAnalysisId);
+        }
+
+        log.info("Scan ปัจจุบัน: scanId={}, analysisId(before)={}, status={}",
+                scan.getScanId(), scan.getAnalysisId(), scan.getStatus());
+
+        // 🔥 9. ตรวจสอบว่า scan เป็น SUCCESS อยู่แล้วหรือไม่
+        if ("SUCCESS".equals(scan.getStatus())) {
+            log.warn("Scan เป็น SUCCESS อยู่แล้ว ข้ามการอัปเดต (อาจเป็น duplicate webhook)");
+            return;
+        }
 
             scan.setProject(project);
-            scan.setAnalysisId(analysisId);
+            scan.setAnalysisId(finalAnalysisId);
             scan.setDeliveryId(deliveryId);
             scan.setStatus("SUCCESS");
             scan.setQualityGate(qgStatus != null ? qgStatus.toUpperCase() : "UNKNOWN");
@@ -363,8 +393,12 @@ public class SonarWebhookService {
                  log.warn("⚠️ Scan doesn't have log file path yet (scanId: {})", savedScan.getScanId());
              }
 
-            String notiMessage = String.format("Scan Success!! : project=%s qg=%s",
-                    project.getName(), analysisId, savedScan.getQualityGate());
+            String notiMessage = String.format(
+                "Scan Success!! : project=%s, qg=%s, analysisId=%s",
+                project.getName(),
+                savedScan.getQualityGate(),
+                savedScan.getAnalysisId()
+            );
 
             notiService.scanNotiAsync(savedScan.getScanId(),savedScan.getProject().getProjectId(), notiMessage);
 
@@ -372,18 +406,23 @@ public class SonarWebhookService {
             // 7) (ถ้ามี) import issues ต่อ…
             importIssues(projectKey, savedScan);
 
-            log.info("Webhook stored: proj={}, analysis={}, QG={}, conds={}", projectKey, analysisId, scan.getQualityGate(), conditions!=null?conditions.size():0);
+        log.info("✅ Webhook processed: proj={}, analysis={}, QG={}, conds={}",
+                projectKey, savedScan.getAnalysisId(), savedScan.getQualityGate(),
+                conditions != null ? conditions.size() : 0);
+
     }
     //add logfliepath
     public boolean updateLogFilePath(LogPayload payload) {
         try {
-            Thread.sleep(5000);
+            Thread.sleep(1000); // ลดจาก 5000 เป็น 1000
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+
         try {
             Optional<ScansEntity> scanOpt = Optional.empty();
 
+            // หาด้วย scanId ก่อน
             if (payload.getScanId() != null && !payload.getScanId().isBlank()) {
                 try {
                     UUID scanUUID = UUID.fromString(payload.getScanId());
@@ -393,19 +432,28 @@ public class SonarWebhookService {
                 }
             }
 
+            // ถ้าหาไม่เจอ ค่อยหาด้วย projectKey
             if (scanOpt.isEmpty() && payload.getProjectKey() != null) {
-                scanOpt = scansRepository.findTopByProject_SonarProjectKeyOrderByStartedAtDesc(payload.getProjectKey());
+                scanOpt = scansRepository
+                        .findTopByProject_SonarProjectKeyOrderByStartedAtDesc(payload.getProjectKey());
+            }
+
+            if (scanOpt.isEmpty()) {
+                log.error("❌ ไม่พบ scan สำหรับ scanId={}, projectKey={}",
+                        payload.getScanId(), payload.getProjectKey());
+                return false;
             }
 
             ScansEntity scan = scanOpt.get();
             scan.setLogFilePath(payload.getLogFilePath());
             scansRepository.save(scan);
 
-            log.info("อัปเดต logFilePath สำเร็จ: {} → {}", payload.getProjectKey(), payload.getLogFilePath());
+            log.info("✅ อัปเดต logFilePath สำเร็จ: {} → {}",
+                    payload.getProjectKey(), payload.getLogFilePath());
             return true;
 
         } catch (Exception e) {
-            log.error("updateLogFilePath error: {}", e.getMessage(), e);
+            log.error("❌ updateLogFilePath error: {}", e.getMessage(), e);
             return false;
         }
     }

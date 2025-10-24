@@ -2,8 +2,6 @@ package com.automate.CodeReview.Service;
 
 import com.automate.CodeReview.Models.ScanLogModel;
 import com.automate.CodeReview.Models.ScanModel;
-import com.automate.CodeReview.Models.ScanRequest;
-import com.automate.CodeReview.dto.LogPayload;
 import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.ScansEntity;
 import com.automate.CodeReview.repository.ProjectsRepository;
@@ -24,8 +22,13 @@ import java.util.List;
 import java.util.UUID;
 import java.time.format.DateTimeFormatter;
 
-import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
+import java.util.stream.Stream;
+
+import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -33,12 +36,8 @@ import java.util.stream.Collectors;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.*;
 import java.time.Duration;
-import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Stream;
-
 @Slf4j
 @Service
 public class ScanService {
@@ -46,12 +45,12 @@ public class ScanService {
     private final ScansRepository scanRepository;
     private final ProjectsRepository projectRepository;
     private final RepositoryService repositoryService;
-    private final RestTemplate restTemplate = new RestTemplate();
     private final WebClient sonarWebClient;
 
 
     private static final String BASE_DIR = "C:\\gitpools";
     private static final String SCRIPT_FILENAME = "run_sonar.bat";
+    private static final String LOG_BASE = "C:\\scan-logs";
 
     public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient) {
         this.scanRepository = scanRepository;
@@ -63,12 +62,6 @@ public class ScanService {
     // ส่วนของ startScan
     @Value("${app.sonar.token}")
     private String sonarToken;
-
-    @Value("${log-service.base-url}")
-    private String logServiceUrl;
-
-    @Value("${spring.application.name:unknown-service}")
-    private String appName;
 
     @Value("${scan.logs.directory:C:/scan-logs}")
     private String scanLogsDirectory;
@@ -123,9 +116,15 @@ public class ScanService {
             String newClonePath = (String) cloneResult.get("directory");
             log.info("Cloned to new directory: {}", newClonePath);
 
+            if (oldClonePath != null && !oldClonePath.isBlank()) {
+                deleteOldCloneDirectory(oldClonePath);
+                log.info("Deleted old clone directory before new clone: {}", oldClonePath);
+            }
+
             // 6. สร้าง Sonar script
             String projectType = detectProjectType(newClonePath);
             log.info("Detected project type: {}", projectType);
+
 
             Path scriptPath = createSonarScriptByType(
                     newClonePath,
@@ -139,31 +138,23 @@ public class ScanService {
             // 7. อัพเดท clonePath ใน database
             updateProjectClonePath(projectId, newClonePath);
 
-            // 8. ลบ folder เก่า
-            if (oldClonePath != null && !oldClonePath.isBlank()) {
-                deleteOldCloneDirectory(oldClonePath);
-            }
-
             // 9. รัน Sonar Analysis พร้อมเขียน log ลงไฟล์
-            Map<String, Object> scanResult = runSonarAnalysis(
-                    newClonePath,
-                    logFilePath,
-                    scanId
-            );
+            Map<String, Object> scanResult = runSonarAnalysis(newClonePath, logFilePath, scanId);
 
-            // 🔥 ดึง analysisId จาก SonarQube ทันที
+            // ดึง analysisId จาก SonarQube ทันที
             if (scanResult.get("success").equals(true)) {
-                String analysisId = fetchLatestAnalysisId(sonarProjectKey);
+                // Poll หา analysisId พร้อม retry
+                String analysisId = pollForAnalysisId(sonarProjectKey, 30); // timeout 30 วินาที
                 if (analysisId != null) {
                     scan.setAnalysisId(analysisId);
-                    log.info("✅ Set analysisId: {} for scanId: {}", analysisId, scanId);
+                    log.info("✅ เซ็ต analysisId ไว้ล่วงหน้า: {} สำหรับ scanId: {}", analysisId, scanId);
+                } else {
+                    log.warn("⚠️ ไม่สามารถดึง analysisId ได้ภายในเวลาที่กำหนด");
                 }
             }
 
             // 10. อัพเดท status ของ scan
             scan.setCompletedAt(LocalDateTime.now());
-            //boolean success = (Boolean) scanResult.getOrDefault("success", false);
-            //scan.setStatus(success ? "SUCCESS" : "FAILED");
 
             // เก็บ error message ถ้ามี
             if (scanResult.containsKey("error")) {
@@ -174,6 +165,8 @@ public class ScanService {
             scanRepository.save(scan);
 
             log.info("✅ Scan completed: scanId={}, status={}", scanId, scan.getStatus());
+            log.info("🔍 DEBUG: หลัง save analysisId - scanId={}, analysisId={}, status={}",
+                    scan.getScanId(), scan.getAnalysisId(), scan.getStatus());
 
             // 11. Return result
             Map<String, Object> result = new LinkedHashMap<>();
@@ -194,23 +187,30 @@ public class ScanService {
         } catch (Exception e) {
             log.error("Scan failed for project: {}", projectId, e);
 
-            // อัพเดท status เป็น FAILED
-            scan.setCompletedAt(LocalDateTime.now());
-            scan.setStatus("FAILED");
-            scanRepository.save(scan);
+            // ลบ scan record ที่ล้มเหลว
+            if (scan != null && scan.getScanId() != null) {
+                try {
+                    scanRepository.delete(scan);
+                    log.info("Deleted failed scan: {}", scan.getScanId());
+                } catch (Exception deleteEx) {
+                    log.error("Failed to delete scan", deleteEx);
+                }
+            }
 
             // เขียน error ลงไฟล์ log
-            try {
-                Files.createDirectories(logFilePath.getParent());
-                Files.writeString(logFilePath,
-                        String.format("=== SCAN FAILED ===\n%s\n%s\n%s\n",
-                                LocalDateTime.now(),
-                                e.getClass().getSimpleName(),
-                                e.getMessage()),
-                        StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.APPEND);
-            } catch (IOException ignored) {}
+            if (logFilePath != null) {
+                try {
+                    Files.createDirectories(logFilePath.getParent());
+                    Files.writeString(logFilePath,
+                            String.format("=== SCAN FAILED ===\n%s\n%s\n%s\n",
+                                    LocalDateTime.now(),
+                                    e.getClass().getSimpleName(),
+                                    e.getMessage()),
+                            StandardCharsets.UTF_8,
+                            StandardOpenOption.CREATE,
+                            StandardOpenOption.APPEND);
+                } catch (IOException ignored) {}
+            }
 
             throw new RuntimeException("Scan failed: " + e.getMessage(), e);
         }
@@ -321,24 +321,6 @@ public class ScanService {
         }
     }
 
-    /**
-     * ลบ directory แบบ recursive
-     */
-    private void deleteDirectory(Path path) throws IOException {
-        if (Files.isDirectory(path)) {
-            try (var stream = Files.list(path)) {
-                stream.forEach(child -> {
-                    try {
-                        deleteDirectory(child);
-                    } catch (IOException e) {
-                        log.error("Failed to delete: {}", child, e);
-                    }
-                });
-            }
-        }
-        Files.deleteIfExists(path);
-    }
-
     private String fetchLatestAnalysisId(String projectKey) {
         try {
             // เรียก SonarQube API เพื่อดึง analysis ล่าสุด
@@ -381,9 +363,9 @@ public class ScanService {
         log.info("Running Sonar analysis for scan: {}", scanId);
         log.info("Script path: {}", scriptPath);
 
-        List<String> command = Arrays.asList(
+        List<String> command = List.of(
                 "cmd.exe", "/c",
-                scriptPath.toString()
+                "\"" + scriptPath.toString() + "\""
         );
 
         try {
@@ -394,9 +376,9 @@ public class ScanService {
             result.put("exitCode", exitCode);
 
             if (exitCode == 0) {
-                log.info("✅ Sonar analysis completed successfully for scan: {}", scanId);
+                log.info("Sonar analysis completed successfully for scan: {}", scanId);
             } else {
-                log.error("❌ Sonar analysis failed with exit code: {} for scan: {}", exitCode, scanId);
+                log.error("Sonar analysis failed with exit code: {} for scan: {}", exitCode, scanId);
                 result.put("error", "Script exited with code " + exitCode);
             }
         } catch (Exception e) {
@@ -549,6 +531,38 @@ public class ScanService {
         }
     }
 
+    private String pollForAnalysisId(String projectKey, int timeoutSeconds) {
+        long endTime = System.currentTimeMillis() + (timeoutSeconds * 1000L);
+        int attempt = 0;
+
+        while (System.currentTimeMillis() < endTime) {
+            attempt++;
+            try {
+                String analysisId = fetchLatestAnalysisId(projectKey);
+                if (analysisId != null && !analysisId.isBlank()) {
+                    log.info("✅ พบ analysisId ในครั้งที่ {}: {}", attempt, analysisId);
+                    return analysisId;
+                }
+
+                if (attempt == 1) {
+                    log.info("🔄 กำลังรอ analysisId จาก SonarQube...");
+                }
+
+                Thread.sleep(2000); // รอ 2 วินาที
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("⚠️ Polling ถูกขัดจังหวะ");
+                return null;
+            } catch (Exception e) {
+                log.error("Error polling analysisId (attempt {}): {}", attempt, e.getMessage());
+            }
+        }
+
+        log.error("⏰ Timeout: ไม่พบ analysisId หลังจาก {} วินาที", timeoutSeconds);
+        return null;
+    }
+
 
 
     //ส่วนของ startScan
@@ -566,15 +580,35 @@ public class ScanService {
             model.setStartedAt(scanEntity.getStartedAt());
             model.setCompletedAt(scanEntity.getCompletedAt());
             model.setQualityGate(String.valueOf(scanEntity.getQualityGate()));
+            model.setMetrics(scanEntity.getMetrics());
             model.setLogFilePath(String.valueOf(scanEntity.getLogFilePath()));
+            model.setMaintainabilityGate(String.valueOf(scanEntity.getMaintainabilityGate()));
+            model.setReliabilityGate(String.valueOf(scanEntity.getReliabilityGate()));
+            model.setSecurityGate(String.valueOf(scanEntity.getSecurityGate()));
+            model.setSecurityReviewGate(String.valueOf(scanEntity.getSecurityReviewGate()));
             scansModel.add(model);
         }
         return scansModel;
     }
 
-    public ScanModel getByIdScan(UUID id){
-        //จะใช้อันนนี้ก้ได้นะเเต่ถ้าทำใน repo มันใช้ jdbc ดึงได้เลย
-        return null;
+    public ScanModel getByIdScan(UUID scanId){
+        ScansEntity scan = scanRepository.findById(scanId)
+                .orElse(null);
+
+        ScanModel model = new ScanModel();
+        model.setScanId(scan.getScanId());
+        model.setProjectId(scan.getProject().getProjectId());
+        model.setStatus(scan.getStatus());
+        model.setStartedAt(scan.getStartedAt());
+        model.setCompletedAt(scan.getCompletedAt());
+        model.setQualityGate(String.valueOf(scan.getQualityGate()));
+        model.setMetrics(scan.getMetrics());
+        model.setLogFilePath(String.valueOf(scan.getLogFilePath()));
+        model.setMaintainabilityGate(String.valueOf(scan.getMaintainabilityGate()));
+        model.setReliabilityGate(String.valueOf(scan.getReliabilityGate()));
+        model.setSecurityGate(String.valueOf(scan.getSecurityGate()));
+        model.setSecurityReviewGate(String.valueOf(scan.getSecurityReviewGate()));
+        return model;
     }
 
     public ScanModel getLogScan(UUID id){
@@ -582,22 +616,40 @@ public class ScanService {
     }
 
 
-    public ScanLogModel getScanLogById(UUID id) {
-        return null;
+    public ScanLogModel getScanLogById(UUID scanId) {
+        try {
+            Path logPath = findLogFlie(scanId);
+
+            if(logPath == null || !Files.exists(logPath)){
+                throw new IllegalArgumentException("Scan Log Not Found in Id: " + scanId);
+            }
+
+            List<String> lines = Files.readAllLines(logPath, StandardCharsets.UTF_8);
+
+            ScanLogModel logModel = new ScanLogModel();
+            logModel.setScanId(scanId);
+            logModel.setLines(lines);
+            return logModel;
+        }catch (IOException e){
+            throw new RuntimeException("Error reading scan log: " + e.getMessage(), e);
+        }
     }
 
-    private ScanModel toModel(ScansEntity entity) {
-        ScanModel model = new ScanModel();
-        model.setScanId(entity.getScanId());
-        model.setProjectId(entity.getProject().getProjectId());
-        model.setStatus(entity.getStatus());
-        model.setQualityGate(entity.getQualityGate());
-//        model.setReliabilityGate(entity.getReliabilityGate());
-//        model.setMaintainabilityGate(entity.getMaintainabilityGate());
-//        model.setSecurityGate(entity.getSecurityGate());
-//        model.setSecurityReviewGate(entity.getSecurityReviewGate());
-        model.setStartedAt(entity.getStartedAt());
-        model.setCompletedAt(entity.getCompletedAt());
-        return model;
+    private Path findLogFlie(UUID scanId) throws IOException {
+        String logFileName = "scan_" + scanId + ".log";
+        Path logDir = Paths.get(LOG_BASE);
+
+        if (!Files.exists(logDir)) {
+            return null;
+        }
+
+        try (Stream<Path> paths = Files.walk(logDir,2)) {
+            return paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().equals(logFileName))
+                    .findFirst()
+                    .orElse(null);
+        }
     }
+
 }
