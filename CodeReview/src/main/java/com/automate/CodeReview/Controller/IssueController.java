@@ -1,12 +1,17 @@
 package com.automate.CodeReview.Controller;
 
+
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.Service.IssueService;
 import com.automate.CodeReview.dto.CommentDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -40,9 +45,9 @@ public class IssueController {
         return null;
     }
 
-    @PutMapping("/{id}/assign")
-    public ResponseEntity<IssueModel> assign(@PathVariable UUID id,@RequestParam String assignTo){
-        return ResponseEntity.ok(issueService.assign(id, assignTo));
+    @PutMapping("/assign/{issueId}")
+    public ResponseEntity<IssueModel> assign(@PathVariable UUID issueId, @RequestParam UUID assignTo, @RequestBody LocalDate dueDate){
+        return ResponseEntity.ok(issueService.assign(issueId, assignTo, dueDate));
     }
 
 
@@ -56,10 +61,5 @@ public class IssueController {
         return ResponseEntity.ok(issueService.getCommentsByIssue(issueId));
     }
 
-
-    @PutMapping("/{issueId}/status")
-    public ResponseEntity<IssueModel> updateStatus(@PathVariable UUID issueId, @RequestParam String status){
-        return ResponseEntity.ok(issueService.updateStatus(issueId, status));
-    }
 
 }

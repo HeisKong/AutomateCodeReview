@@ -45,7 +45,7 @@ public class ScanController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping
+    @GetMapping("/getProject")
     public List<ScanModel> getAllScan() {
         return scanService.getAllScan();
     }

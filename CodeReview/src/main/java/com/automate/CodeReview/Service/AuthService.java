@@ -12,8 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.Collections;
 
 @Slf4j
 @Service
@@ -220,9 +219,10 @@ public class AuthService {
 
         UUID jti = UUID.randomUUID();
         String access = jwtService.generateAccessToken(
+                user.getUserId(),
                 user.getEmail(),
                 user.getUsername(),
-                List.of(user.getRole())
+                user.getRole()
         );
         String refresh = jwtService.generateRefreshToken(user.getEmail(), jti);
 
@@ -256,9 +256,10 @@ public class AuthService {
         // ออกคู่ใหม่ + rotate
         UUID newJti = UUID.randomUUID();
         String newAccess = jwtService.generateAccessToken(
+                u.getUserId(),
                 u.getEmail(),                // ส่ง email เป็นพารามิเตอร์แรก
                 u.getUsername(),             // ส่ง username เป็นพารามิเตอร์ที่สอง
-                List.of(u.getRole())         // แปลง String เป็น Collection<String>
+                u.getRole()          // แปลง String เป็น Collection<String>
         );
         String newRefresh = jwtService.generateRefreshToken(email, newJti);
 
