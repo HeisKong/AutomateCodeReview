@@ -304,7 +304,7 @@ public class SonarWebhookService {
         if (webhookAnalysisId != null && !webhookAnalysisId.isBlank()) {
             scanOpt = scansRepository.findByAnalysisId(webhookAnalysisId);
             if (scanOpt.isPresent()) {
-                log.info("✅ หา scan เจอจาก analysisId: {}", webhookAnalysisId);
+                log.info("หา scan เจอจาก analysisId: {}", webhookAnalysisId);
             }
         }
 
@@ -312,7 +312,7 @@ public class SonarWebhookService {
         if (scanOpt.isEmpty() && deliveryId != null && !deliveryId.isBlank()) {
             scanOpt = scansRepository.findByDeliveryId(deliveryId);
             if (scanOpt.isPresent()) {
-                log.info("✅ หา scan เจอจาก deliveryId: {}", deliveryId);
+                log.info("หา scan เจอจาก deliveryId: {}", deliveryId);
             }
         }
 
@@ -324,11 +324,11 @@ public class SonarWebhookService {
                             List.of("RUNNING", "COMPLETED")
                     );
             if (scanOpt.isPresent()) {
-                log.info("✅ หา scan เจอจากโปรเจกต์: {}", projectKey);
+                log.info("หา scan เจอจากโปรเจกต์: {}", projectKey);
             }
         }
         ScansEntity scan = scanOpt.orElseThrow(() -> {
-            log.error("❌ ไม่พบ scan: projectKey={}",
+            log.error("ไม่พบ scan: projectKey={}",
                     projectKey);
             return new RuntimeException("ไม่พบ scan ที่รอประมวลผลสำหรับโปรเจกต์: " + projectKey);
         });
@@ -342,19 +342,19 @@ public class SonarWebhookService {
         if (currentAnalysisId != null && !currentAnalysisId.isBlank()) {
             // มี analysisId อยู่แล้ว ใช้ค่าเดิม
             finalAnalysisId = currentAnalysisId;
-            log.info("ℹ️ analysisId มีอยู่แล้ว: {} (ไม่เขียนทับ)", finalAnalysisId);
+            log.info("analysisId มีอยู่แล้ว: {} (ไม่เขียนทับ)", finalAnalysisId);
         } else {
             // ยังไม่มี ใช้ค่าจาก webhook
             finalAnalysisId = webhookAnalysisId;
-            log.info("🔄 เซ็ต analysisId จาก webhook: {}", finalAnalysisId);
+            log.info("เซ็ต analysisId จาก webhook: {}", finalAnalysisId);
         }
 
-        log.info("📋 Scan ปัจจุบัน: scanId={}, analysisId(before)={}, status={}",
+        log.info("Scan ปัจจุบัน: scanId={}, analysisId(before)={}, status={}",
                 scan.getScanId(), scan.getAnalysisId(), scan.getStatus());
 
         // 🔥 9. ตรวจสอบว่า scan เป็น SUCCESS อยู่แล้วหรือไม่
         if ("SUCCESS".equals(scan.getStatus())) {
-            log.warn("⚠️ Scan เป็น SUCCESS อยู่แล้ว ข้ามการอัปเดต (อาจเป็น duplicate webhook)");
+            log.warn("Scan เป็น SUCCESS อยู่แล้ว ข้ามการอัปเดต (อาจเป็น duplicate webhook)");
             return;
         }
 
