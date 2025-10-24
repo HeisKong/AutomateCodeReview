@@ -84,6 +84,7 @@ public class SecurityConfig {
                                 "/api/auth/register"
                         ).permitAll()
                         .requestMatchers("/api/scans/**").hasAnyRole("USER","ADMIN")
+                        //.requestMatchers("/api/**").permitAll()
                         .requestMatchers("/api/sonar/logfile").permitAll()
                         .anyRequest().authenticated()
                 )

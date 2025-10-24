@@ -80,7 +80,7 @@ public class DashboardService {
                 DashboardModel.DashboardDTO model = new DashboardModel.DashboardDTO();
             model.setProjectId(project.getProjectId());
             model.setProjectName(project.getName());
-            model.setMetrics(latestScan != null ? (com.fasterxml.jackson.databind.JsonNode) latestScan.getMetrics() : null); // JsonNode → JSON ตรง ๆ
+            model.setMetrics((latestScan != null)? latestScan.getMetrics(): null); // JsonNode → JSON ตรง ๆ
 
             dashboardList.add(model);
         }

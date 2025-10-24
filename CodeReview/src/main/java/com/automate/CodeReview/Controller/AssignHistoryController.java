@@ -22,6 +22,7 @@ public class AssignHistoryController {
         this.assignHistoryService = assignHistoryService;
     }
 
+    //ใช้อันนี้
     @GetMapping("/{userId}")
     public List<AssignModel.getAssign> getAssignHistory(@PathVariable UUID userId){
         return assignHistoryService.getAssignHistory(userId);
