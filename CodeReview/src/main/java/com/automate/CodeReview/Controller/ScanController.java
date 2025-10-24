@@ -50,9 +50,9 @@ public class ScanController {
         return scanService.getAllScan();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Optional<ScansEntity>> getByIdScan(@PathVariable UUID id) {
-        Optional<ScansEntity> scan = scanRepository.getByIdScan(id);
+    @GetMapping("/{scanId}")
+    public ResponseEntity<ScanModel> getByIdScan(@PathVariable UUID scanId) {
+        ScanModel scan = scanService.getByIdScan(scanId);
         if(scan != null){
             return ResponseEntity.ok(scan);
         }else {
@@ -60,9 +60,9 @@ public class ScanController {
         }
     }
 
-    @GetMapping("/{id}/log")
-    public ResponseEntity<ScanLogModel> getLogScan(@PathVariable UUID id) {
-        ScanLogModel log = scanService.getScanLogById(id);
+    @GetMapping("/{scanId}/log")
+    public ResponseEntity<ScanLogModel> getScanLogById(@PathVariable UUID scanId) {
+        ScanLogModel log = scanService.getScanLogById(scanId);
         return ResponseEntity.ok(log);
     }
 }
