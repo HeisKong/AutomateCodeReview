@@ -3,16 +3,19 @@ package com.automate.CodeReview.Controller;
 import com.automate.CodeReview.dto.SonarBatchResponse;
 import com.automate.CodeReview.dto.SonarSummary;
 import com.automate.CodeReview.Service.SonarService;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+@Slf4j
 @RestController
-@CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping("/api/sonar")
 public class SonarController {
 
@@ -56,7 +59,12 @@ public class SonarController {
                         "returned", items.size(), "pageSize", pageSize, "maxPages", maxPages
                 )));
     }
-
+    @GetMapping("/batch/all_test")
+    public ResponseEntity<?> getAll(HttpServletRequest req, Authentication auth) {
+        log.info("🔍 Auth principal: {}", auth != null ? auth.getName() : "NULL");
+        log.info("🔍 Header Authorization: {}", req.getHeader("Authorization"));
+        return ResponseEntity.ok(Map.of("user", auth.getName(), "roles", auth.getAuthorities()));
+    }
     /* ------- CSV export ------- */
     // GET /api/sonar/batch.csv?projectKeys=a,b,c
     @GetMapping(value = "/batch.csv", produces = "text/csv")

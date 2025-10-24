@@ -8,11 +8,10 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Instant;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class JwtService {
 
@@ -27,8 +26,12 @@ public class JwtService {
             @Value("${jwt.access-ms}") long accessMs,
             @Value("${jwt.refresh-ms}") long refreshMs
     ) {
+
         this.key = buildKey(secret);
-        this.parser = Jwts.parserBuilder().setSigningKey(this.key).build();
+        this.parser = Jwts.parserBuilder()
+                .setSigningKey(this.key)
+                .setAllowedClockSkewSeconds(60)
+                .build();
         this.accessMs = accessMs;
         this.refreshMs = refreshMs;
     }
@@ -65,6 +68,7 @@ public class JwtService {
 
         return Jwts.builder()
                 .setClaims(claims)
+                .claim("token_type", "access")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(Instant.now().toEpochMilli() + accessMs))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -81,6 +85,7 @@ public class JwtService {
         }
         return Jwts.builder()
                 .setSubject(subject)
+                .claim("token_type", "access")
                 .addClaims(Map.of("token_type", "refresh", "jti", jti.toString()))
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(Instant.now().toEpochMilli() + refreshMs))
@@ -137,6 +142,12 @@ public class JwtService {
             throw new JwtException("Cannot extract subject from token", e);
         }
     }
-
+    public Claims validateAndParseClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
     public record TokenPair(String accessToken, String refreshToken, UUID jti) {}
 }

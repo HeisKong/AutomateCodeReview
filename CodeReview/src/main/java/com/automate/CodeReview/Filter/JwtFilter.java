@@ -3,6 +3,9 @@ package com.automate.CodeReview.Filter;
 import com.automate.CodeReview.Service.JwtService;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.UsersRepository;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -52,19 +56,49 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        try {
-            String token = extractTokenFromRequest(request);
+        String uri = request.getRequestURI();
+        String method = request.getMethod();
 
-            if (token != null) {
-                authenticateToken(request, token);
+        log.info("🟢 [JwtFilter] Start for [{} {}]", method, uri);
+
+        try {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null) {
+                authHeader = request.getHeader("authorization"); // รองรับ lowercase
             }
+
+            log.debug("🔹 Authorization header: {}", authHeader);
+
+            String token = extractTokenFromRequest(request);
+            authenticateToken(request, token);
+
+            // ✅ หลังจาก authenticate เสร็จ ลอง log context ปัจจุบัน
+            var ctx = SecurityContextHolder.getContext();
+            if (ctx.getAuthentication() != null) {
+                log.info("🔒 SecurityContext now holds authentication: {}", ctx.getAuthentication().getName());
+                log.debug("🔸 Authorities: {}", ctx.getAuthentication().getAuthorities());
+            } else {
+                log.warn("⚠️ SecurityContext is still empty after JwtFilter (no authentication)");
+            }
+
         } catch (Exception ex) {
-            log.error("Unexpected error in JWT filter: {}", ex.getMessage());
+            log.error("❌ Unexpected error in JWT filter for [{} {}]: {}", method, uri, ex.getMessage(), ex);
             SecurityContextHolder.clearContext();
         }
 
+        log.info("➡️ [JwtFilter] Passing request [{} {}] to next filter...", method, uri);
         filterChain.doFilter(request, response);
+
+        var postCtx = SecurityContextHolder.getContext();
+        if (postCtx.getAuthentication() != null) {
+            log.info("🧩 [JwtFilter] After chain: still authenticated as {}", postCtx.getAuthentication().getName());
+        } else {
+            log.warn("🧨 [JwtFilter] After chain: authentication was cleared");
+        }
+
+        log.info("🔚 [JwtFilter] End for [{} {}]", method, uri);
     }
+
 
     private String extractTokenFromRequest(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
@@ -76,31 +110,53 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private void authenticateToken(HttpServletRequest request, String token) {
         try {
-            String email = jwtService.validateTokenAndGetUsername(token);
+            Claims claims = jwtService.validateAndParseClaims(token);
+            String email = claims.get("email", String.class);
+            String tokenType = claims.get("token_type", String.class);
+            if (!"access".equalsIgnoreCase(tokenType)) {
+                return;
+            }
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                Optional<UsersEntity> userOpt = usersRepository.findByEmail(email);
+                Object rolesClaim = claims.get("roles");
+                List<SimpleGrantedAuthority> authorities;
 
+                if (rolesClaim instanceof List<?> roleList) {
+                    // สำหรับ List: map และจัดการ prefix
+                    authorities = roleList.stream()
+                            .map(r -> {
+                                String role = r.toString();
+                                // เพิ่ม ROLE_ ให้ถ้ายังไม่มี
+                                return new SimpleGrantedAuthority(role.startsWith("ROLE_") ? role : "ROLE_" + role);
+                            })
+                            .collect(Collectors.toList());
+                } else {
+                    // สำหรับ String/Single Object: จัดการ prefix
+                    String role = rolesClaim.toString();
+                    authorities = List.of(new SimpleGrantedAuthority(role.startsWith("ROLE_") ? role : "ROLE_" + role));
+                }
+
+                Optional<UsersEntity> userOpt = usersRepository.findByEmail(email);
                 if (userOpt.isEmpty()) {
-                    log.warn("User not found for email: {}", email);
                     return;
                 }
 
-                UsersEntity user = userOpt.get();
-                String roleWithPrefix = "ROLE_" + user.getRole();
-
-                log.debug("Authenticating user: {} with role: {}", user.getEmail(), roleWithPrefix);
-
                 var authToken = new UsernamePasswordAuthenticationToken(
-                        user.getEmail(),
+                        email,
                         null,
-                        List.of(new SimpleGrantedAuthority(roleWithPrefix))
+                        authorities
                 );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+
             }
-        } catch (Exception ex) {
-            log.warn("Token authentication failed: {}", ex.getMessage());
+
+        } catch (ExpiredJwtException ex) {
+            log.info("Token expired: {}", ex.getMessage());
+            SecurityContextHolder.clearContext();
+
+        } catch (JwtException ex) {
+            log.warn("Invalid token: {}", ex.getMessage());
             SecurityContextHolder.clearContext();
         }
     }
