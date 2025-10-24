@@ -147,9 +147,9 @@ public class ScanService {
                 String analysisId = pollForAnalysisId(sonarProjectKey, 30); // timeout 30 วินาที
                 if (analysisId != null) {
                     scan.setAnalysisId(analysisId);
-                    log.info("✅ เซ็ต analysisId ไว้ล่วงหน้า: {} สำหรับ scanId: {}", analysisId, scanId);
+                    log.info("เซ็ต analysisId ไว้ล่วงหน้า: {} สำหรับ scanId: {}", analysisId, scanId);
                 } else {
-                    log.warn("⚠️ ไม่สามารถดึง analysisId ได้ภายในเวลาที่กำหนด");
+                    log.warn("ไม่สามารถดึง analysisId ได้ภายในเวลาที่กำหนด");
                 }
             }
 
@@ -164,8 +164,8 @@ public class ScanService {
 
             scanRepository.save(scan);
 
-            log.info("✅ Scan completed: scanId={}, status={}", scanId, scan.getStatus());
-            log.info("🔍 DEBUG: หลัง save analysisId - scanId={}, analysisId={}, status={}",
+            log.info("Scan completed: scanId={}, status={}", scanId, scan.getStatus());
+            log.info("DEBUG: หลัง save analysisId - scanId={}, analysisId={}, status={}",
                     scan.getScanId(), scan.getAnalysisId(), scan.getStatus());
 
             // 11. Return result
