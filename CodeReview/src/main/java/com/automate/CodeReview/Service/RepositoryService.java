@@ -207,15 +207,35 @@ public class RepositoryService {
      * หาโฟลเดอร์ถัดไป: <project>_<yymmdd>_<seq 00-99> ที่ยังไม่ถูกใช้งาน
      */
     private String resolveNextSeqFolder(String baseDir, String project, String yymmdd) {
-        for (int i = 0; i < 100; i++) {
-            String seq = String.format("%02d", i);
-            String candidate = project + "_" + yymmdd + "_" + seq;
-            Path p = Paths.get(baseDir, candidate);
-            if (!Files.exists(p)) {
-                return candidate;
-            }
+        Path basePath = Paths.get(baseDir);
+        String prefix = project + "_" + yymmdd + "_";
+        int maxSeq = -1;
+
+        // 🔥 หา max sequence ที่มีอยู่
+        try (Stream<Path> stream = Files.list(basePath)) {
+            maxSeq = stream
+                    .filter(Files::isDirectory)
+                    .map(p -> p.getFileName().toString())
+                    .filter(name -> name.startsWith(prefix))
+                    .mapToInt(name -> {
+                        try {
+                            return Integer.parseInt(name.substring(prefix.length()));
+                        } catch (Exception e) {
+                            return -1;
+                        }
+                    })
+                    .max()
+                    .orElse(-1);
+        } catch (IOException e) {
+            log.warn("Cannot read directory, using seq 00", e);
         }
-        throw new IllegalStateException("No available sequence (00-99) for " + project + " on " + yymmdd);
+
+        int nextSeq = maxSeq + 1;
+        if (nextSeq >= 100) {
+            throw new IllegalStateException("Sequence exceeded 99");
+        }
+
+        return project + "_" + yymmdd + "_" + String.format("%02d", nextSeq);
     }
 
     private String buildAuthUrl(String url, String username, String password) {
@@ -351,8 +371,6 @@ public class RepositoryService {
                 return createSonarScriptMaven(clonePath, projectKey, projectName, sonarToken);
             case "ANGULAR":
                 return createSonarScriptAngular(clonePath, projectKey, projectName, sonarToken);
-//            case "GRADLE":
-//                return createSonarScriptGradle(clonePath, projectKey, projectName, sonarToken);
             case "NODE":
                 return createSonarScriptNode(clonePath, projectKey, projectName, sonarToken);
             default:
@@ -441,101 +459,61 @@ public class RepositoryService {
     }
 
     //angular
+    // RepositoryService.java  — แทนที่เมธอด createSonarScriptAngular ทั้งก้อนนี้
     public Path createSonarScriptAngular(String clonePath, String projectKey, String projectName, String sonarToken) throws IOException {
-        Path scriptPath = Paths.get(clonePath, SCRIPT_FILENAME);
+        Path projectPath = Paths.get(clonePath);
 
-        String scriptContent = String.format(
+        // 1) สร้าง sonar-project.properties ที่รากโปรเจกต์
+        Path propertiesPath = projectPath.resolve("sonar-project.properties");
+        String propertiesContent = String.format(
+                "sonar.projectKey=%s%n" +
+                        "sonar.projectName=%s%n" +
+                        "sonar.host.url=http://localhost:9000%n" +
+                        "sonar.token=%s%n" +
+                        "sonar.sources=.%n" +
+                        "sonar.inclusions=**/*.ts,**/*.tsx,**/*.js,**/*.jsx,**/*.html,**/*.css,**/*.scss%n" +
+                        "sonar.exclusions=**/node_modules/**,**/dist/**,**/.angular/**%n" +
+                        "sonar.sourceEncoding=UTF-8%n"+
+                        "sonar.typescript.tsconfigPaths=tsconfig.json%n" +
+                        "sonar.javascript.lcov.reportPaths=coverage/lcov.info%n",
+                projectKey, projectName, sonarToken
+        );
+        Files.writeString(propertiesPath, propertiesContent);
+        log.info("Created sonar-project.properties at: {}", propertiesPath);
+
+        // 2) เขียน run_sonar.bat: cd เข้าโปรเจกต์ → รัน sonar-scanner (ไม่ส่ง -Dsonar.projectBaseDir)
+        Path scriptPath = projectPath.resolve(SCRIPT_FILENAME);
+        String scriptContent =
                 "@echo off\r\n" +
                         "setlocal EnableExtensions EnableDelayedExpansion\r\n" +
-                        "REM Script created at %s\r\n" +
+                        "REM Script created for Angular project\r\n" +
                         "\r\n" +
-                        "REM ===== Default values from generator (ถูก override ได้ด้วย args) =====\r\n" +
-                        "set \"SONAR_TOKEN=%s\"\r\n" +
-                        "set \"PROJECT_KEY=%s\"\r\n" +
-                        "set \"PROJECT_NAME=%s\"\r\n" +
+                        "set \"ROOT=%~dp0\"\r\n" +
+                        "set \"PROJECT_DIR=%ROOT%\"\r\n" +
+                        "REM --- sanitize: ลบเครื่องหมายคำพูดเผื่อมี quote แอบติดมา ---\r\n" +
+                        "set \"PROJECT_DIR=!PROJECT_DIR:\"=!\"\r\n" +
+                        "echo [DBG] PROJECT_DIR=[!PROJECT_DIR!]\r\n" +
                         "\r\n" +
-                        "REM ===== Allow override by args: 1=token 2=projectKey 3=projectName =====\r\n" +
-                        "if not \"%%~1\"==\"\" set \"SONAR_TOKEN=%%~1\"\r\n" +
-                        "if not \"%%~2\"==\"\" set \"PROJECT_KEY=%%~2\"\r\n" +
-                        "if not \"%%~3\"==\"\" set \"PROJECT_NAME=%%~3\"\r\n" +
+                        "REM --- ตรวจ npm/sonar-scanner ---\r\n" +
+                        "where npm >nul 2>&1 || (echo [ERROR] npm not found in PATH.& exit /b 1)\r\n" +
+                        "where sonar-scanner >nul 2>&1 || (\r\n" +
+                        "  echo [ERROR] sonar-scanner not found in PATH.& echo Install: npm i -g sonarqube-scanner & exit /b 1)\r\n" +
                         "\r\n" +
-                        "REM ===== Find package.json or angular.json starting from this script directory =====\r\n" +
-                        "set \"ROOT=%%~dp0\"\r\n" +
-                        "set \"PROJECT_DIR=\"\r\n" +
-                        "if exist \"%%ROOT%%package.json\" (\r\n" +
-                        "  set \"PROJECT_DIR=%%ROOT%%\"\r\n" +
-                        ") else (\r\n" +
-                        "  for /r \"%%ROOT%%\" %%%%F in (angular.json) do (\r\n" +
-                        "    if exist \"%%%%~dpFpackage.json\" (\r\n" +
-                        "      set \"PROJECT_DIR=%%%%~dpF\"\r\n" +
-                        "      goto :project_found\r\n" +
-                        "    )\r\n" +
-                        "    if not defined PROJECT_DIR set \"PROJECT_DIR=%%%%~dpF\"\r\n" +
-                        "  )\r\n" +
-                        ")\r\n" +
-                        ":project_found\r\n" +
-                        "if not defined PROJECT_DIR (\r\n" +
-                        "  echo [ERROR] No Angular project found under \"%%ROOT%%\"\r\n" +
-                        "  pause\r\n" +
-                        "  exit /b 1\r\n" +
-                        ")\r\n" +
-                        "echo Using Project Directory: \"%%PROJECT_DIR%%\"\r\n" +
+                        "REM --- เข้าดิเรกทอรีโปรเจกต์ ---\r\n" +
+                        "cd /d \"!PROJECT_DIR!\" || (echo [ERROR] Cannot CD to !PROJECT_DIR! & exit /b 1)\r\n" +
                         "\r\n" +
-                        "REM ===== Change to project directory =====\r\n" +
-                        "cd /d \"%%PROJECT_DIR%%\"\r\n" +
-                        "\r\n" +
-                        "REM ===== Check if npm is installed =====\r\n" +
-                        "where npm >nul 2>&1\r\n" +
-                        "if errorlevel 1 (\r\n" +
-                        "  echo [ERROR] npm not found in PATH.\r\n" +
-                        "  echo Please install Node.js from: https://nodejs.org/\r\n" +
-                        "  pause\r\n" +
-                        "  exit /b 1\r\n" +
-                        ")\r\n" +
-                        "\r\n" +
-                        "REM ===== Check if node_modules exists, if not run npm install =====\r\n" +
-                        "if not exist \"node_modules\" (\r\n" +
-                        "  echo node_modules not found. Running npm install...\r\n" +
-                        "  call npm install\r\n" +
-                        "  if errorlevel 1 (\r\n" +
-                        "    echo [ERROR] npm install FAILED!\r\n" +
-                        "    pause\r\n" +
-                        "    exit /b 1\r\n" +
-                        "  )\r\n" +
-                        ")\r\n" +
-                        "\r\n" +
-                        "REM ===== Check if sonar-scanner is installed =====\r\n" +
-                        "where sonar-scanner >nul 2>&1\r\n" +
-                        "if errorlevel 1 (\r\n" +
-                        "  echo [ERROR] sonar-scanner not found in PATH.\r\n" +
-                        "  echo Please install sonar-scanner: npm install -g sonarqube-scanner\r\n" +
-                        "  echo Or download from: https://docs.sonarqube.org/latest/analysis/scan/sonarscanner/\r\n" +
-                        "  pause\r\n" +
-                        "  exit /b 1\r\n" +
-                        ")\r\n" +
-                        "\r\n" +
-                        "echo Starting Sonar Analysis for Angular project...\r\n" +
-                        "\r\n" +
-                        "sonar-scanner -Dsonar.projectKey=\"!PROJECT_KEY!\" -Dsonar.projectName=\"!PROJECT_NAME!\" -Dsonar.sources=src -Dsonar.host.url=http://localhost:9000 -Dsonar.token=\"!SONAR_TOKEN!\" -Dsonar.projectBaseDir=\"!PROJECT_DIR!\"\r\n" +
-                        "\r\n" +
-                        "if errorlevel 1 (\r\n" +
-                        "  echo [ERROR] Sonar Analysis FAILED! Exit Code: !errorlevel!\r\n" +
-                        "  pause\r\n" +
-                        "  exit /b 1\r\n" +
-                        ")\r\n" +
-                        "echo Sonar Analysis COMPLETED successfully.\r\n" +
-                        "pause\r\n" +
-                        "endlocal & exit /b 0\r\n",
-                LocalDateTime.now(),
-                sonarToken,
-                projectKey,
-                projectName
-        );
+                        "REM --- รันสแกน โดยให้อ่าน config จาก sonar-project.properties ---\r\n" +
+                        "echo Running SonarScanner in !CD! using sonar-project.properties\r\n" +
+                        "sonar-scanner\r\n" +
+                        "if errorlevel 1 (echo [ERROR] Sonar Analysis FAILED! ExitCode=!errorlevel! & exit /b 1)\r\n" +
+                        "echo Sonar Analysis COMPLETED.\r\n" +
+                        "exit /b 0\r\n";
 
         Files.writeString(scriptPath, scriptContent);
         log.info("Created Sonar script for Angular at: {}", scriptPath);
         return scriptPath;
     }
+
 
     //node
     public Path createSonarScriptNode(String clonePath, String projectKey, String projectName, String sonarToken) throws IOException {
