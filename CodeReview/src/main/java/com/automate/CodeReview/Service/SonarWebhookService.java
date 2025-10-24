@@ -54,7 +54,7 @@ public class SonarWebhookService {
     @Value("${sonar.metrics:bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density}")
     private String metricsCsv;
 
-    @Value("${sonar.service-token}")
+    @Value("${app.sonar.token}")
     private String serviceToken;
 
     @Value("${sonar.webhook.secret:}")
