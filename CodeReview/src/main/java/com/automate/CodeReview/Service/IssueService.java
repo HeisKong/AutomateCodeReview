@@ -53,9 +53,22 @@ public class IssueService {
 
                 final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
 
-        List<IssuesEntity> issues = isAdmin
-                ? issuesRepository.findAll()
-                : issuesRepository.findByScan_Project_User_UserId(userId);
+        List<IssuesEntity> issues;
+        if(isAdmin){
+            issues = issuesRepository.findAll();
+        }else{
+            List<IssuesEntity> owned = issuesRepository.findByScan_Project_User_UserId(userId);
+            List<IssuesEntity> assigned = issuesRepository.findByAssignedTo_UserId(userId);
+
+            LinkedHashSet<IssuesEntity> union = new LinkedHashSet<>();
+            if(owned != null){
+                union.addAll(owned);
+            }
+            if(assigned != null){
+                union.addAll(assigned);
+            }
+            issues = new ArrayList<>(union);
+        }
 
         List<IssueModel> issueList = new ArrayList<>();
         for (IssuesEntity issue : issues) {

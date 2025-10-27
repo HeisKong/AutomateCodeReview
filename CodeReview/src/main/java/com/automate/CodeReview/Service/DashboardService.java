@@ -66,10 +66,13 @@ public class DashboardService {
                 ? projectsRepository.findAll()
                 : projectsRepository.findByUser_UserId(userId);
 
+
         List<DashboardModel.HistoryDTO> historyList = new ArrayList<>();
         for (ProjectsEntity project : projects) {
             List<ScansEntity> scans = scansRepository.findByProject_ProjectId(project.getProjectId());
             ScansEntity latestScan = scans.isEmpty() ? null : scans.get(0);
+
+
 
             DashboardModel.HistoryDTO h = new DashboardModel.HistoryDTO();
             h.setProjectId(project.getProjectId());
@@ -77,8 +80,9 @@ public class DashboardService {
             h.setProjectType(project.getProjectType());
             if (latestScan != null) {
                 h.setQualityGate(latestScan.getQualityGate());
+                h.setCreatedAt(latestScan.getStartedAt());
+                h.setReliabilityGate(latestScan.getReliabilityGate());
             }
-            h.setCreatedAt(latestScan != null ? latestScan.getStartedAt() : null);
 
             historyList.add(h);
         }

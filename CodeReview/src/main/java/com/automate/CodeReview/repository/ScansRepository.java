@@ -29,4 +29,5 @@ public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
             String projectKey,
             List<String> statuses
     );
+
 }

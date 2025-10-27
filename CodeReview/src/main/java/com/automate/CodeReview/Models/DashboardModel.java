@@ -28,6 +28,7 @@ public class DashboardModel {
         private String projectName;
         private String projectType;
         private String qualityGate;
+        private String reliabilityGate;
         private LocalDateTime createdAt;
     }
 
