@@ -631,6 +631,11 @@ public class RepositoryService {
 
     // READ: get all
     public List<RepositoryModel> getAllRepository() {
+
+//        final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
+//        List<ProjectsEntity> projects = isAdmin
+//                ? projectsRepository.findAll()
+//                : projectsRepository.findByUser_UserId(userId);
         List<ProjectsEntity> projects = projectsRepository.findAll();
         List<RepositoryModel> repoModels = new ArrayList<>();
         for (ProjectsEntity e : projects) {

@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -16,7 +17,7 @@ public class DashboardModel {
     public static class DashboardDTO {
         private UUID projectId;
         private String projectName;
-        private com.fasterxml.jackson.databind.JsonNode metrics;
+        private Map<String, Object>metrics;
     }
 
     @Data

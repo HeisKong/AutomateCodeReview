@@ -45,42 +45,10 @@ public class DashboardService {
                     .findFirstByProject_ProjectIdOrderByStartedAtDesc(project.getProjectId())
                     .orElse(null);
 
-
-//            for (ProjectsEntity project : projects) {
-//                List<ScansEntity> scans = scansRepository.findByProject_ProjectId(project.getProjectId());
-//                ScansEntity latestScan = scans.isEmpty() ? null : scans.get(0);
-//
-//                ObjectMapper objectMapper = new ObjectMapper();
-//                for(ScansEntity scanEntity : scans){
-//                    DashboardModel.DashboardDTO model = DashboardModel.DashboardDTO();
-//                    model.setProjectId(scanEntity.getProject().getProjectId());
-//                    mode
-//                    try {
-//                        String metricsJson = scanRepository.findMetricsByScanId(scanEntity.getScanId());
-//                        if (metricsJson != null && !metricsJson.isBlank()) {
-//                            Map<String, Object> metricsMap = objectMapper.readValue(metricsJson, Map.class);
-//                            model.setMetrics(metricsMap);
-//                        } else {
-//                            model.setMetrics(new HashMap<>());
-//                        }
-//                    } catch (Exception e) {
-//                        log.error("Failed to parse metrics JSON for scan {}: {}", scanEntity.getScanId(), e.getMessage());
-//                        model.setMetrics(new HashMap<>());
-//                    }
-//
-//
-//                    scansModel.add(model);
-//                }
-
-
-
-
-
-
-                DashboardModel.DashboardDTO model = new DashboardModel.DashboardDTO();
+            DashboardModel.DashboardDTO model = new DashboardModel.DashboardDTO();
             model.setProjectId(project.getProjectId());
             model.setProjectName(project.getName());
-            model.setMetrics(latestScan != null ? (com.fasterxml.jackson.databind.JsonNode) latestScan.getMetrics() : null); // JsonNode → JSON ตรง ๆ
+            model.setMetrics(latestScan != null ?  latestScan.getMetrics() : null);
 
             dashboardList.add(model);
         }

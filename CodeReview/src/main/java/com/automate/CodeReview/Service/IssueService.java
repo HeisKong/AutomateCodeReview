@@ -3,6 +3,7 @@ package com.automate.CodeReview.Service;
 import com.automate.CodeReview.Models.AssignModel;
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
+import com.automate.CodeReview.dto.SonarIssuesResponse;
 import com.automate.CodeReview.entity.*;
 import com.automate.CodeReview.exception.IssueNotFoundException;
 import com.automate.CodeReview.exception.UserNotFoundException;
@@ -24,21 +25,33 @@ public class IssueService {
     private final UsersRepository usersRepository;
     private final CommentsRepository commentsRepository;
     private final AssignHistoryRepository assignHistoryRepository;
+    private final ProjectsRepository projectsRepository;
 
 
-    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository,  AssignHistoryRepository assignHistoryRepository) {
+    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository, AssignHistoryRepository assignHistoryRepository, ProjectsRepository projectsRepository) {
         this.issuesRepository = issuesRepository;
         this.usersRepository = usersRepository;
         this.commentsRepository = commentsRepository;
         this.assignHistoryRepository = assignHistoryRepository;
+        this.projectsRepository = projectsRepository;
     }
+
+//    public List<IssueModel> checkOwer(UUID ownerId) {
+//        List<IssuesEntity> issues = issuesRepository.findByProject_Project_UserId(ownerId);
+//        List<IssueModel> models = new ArrayList<>();
+//        for (IssuesEntity issue: issues){
+//            IssueModel model = getIssueModel(issue);
+//            saveIssue(models, issue, model);
+//        }
+//        return models;
+//    }
 
     @Transactional(readOnly = true)
     public List<IssueModel> getAllIssue(UUID userId) {
         UsersEntity user = usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
+                final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
 
         List<IssuesEntity> issues = isAdmin
                 ? issuesRepository.findAll()
@@ -66,12 +79,10 @@ public class IssueService {
         if (issue.getScan() != null && issue.getScan().getProject() != null) {
             projectId = issue.getScan().getProject().getProjectId();
             projectName = issue.getScan().getProject().getName();
-            assignedToName = issue.getScan().getProject().getUser().getUsername();
         }
         model.setProjectId(projectId);
         model.setProjectName(projectName);
-        model.setAssignedToName(assignedToName);
-        model.setAssignedTo(issue.getScan().getProject().getUser().getUserId());
+        model.setOwnerId(issue.getScan().getProject().getUser().getUserId());
         model.setScanId(issue.getScan().getScanId());
         return model;
     }
@@ -82,8 +93,7 @@ public class IssueService {
         model.setComponent(issue.getComponent());
         model.setMessage(issue.getMessage());
         model.setSeverity(issue.getSeverity());
-        model.setAssignedTo(issue.getScan().getProject().getUser().getUserId());
-        model.setAssignedToName(issue.getScan().getProject().getUser().getUsername());
+        model.setOwnerId(issue.getScan().getProject().getUser().getUserId());
         model.setStatus(issue.getStatus());
         model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
 
@@ -144,7 +154,7 @@ public class IssueService {
         model.setComponent(issue.getComponent());
         model.setMessage(issue.getMessage());
         model.setSeverity(issue.getSeverity());
-        model.setAssignedTo(assignedTo);
+        model.setOwnerId(assignedTo);
         model.setStatus(issue.getStatus());
         model.setCreatedAt(issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null);
 
