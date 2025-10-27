@@ -579,6 +579,7 @@ public class ScanService {
             ScanModel model = new ScanModel();
             model.setScanId(scanEntity.getScanId());
             model.setProjectId(scanEntity.getProject().getProjectId());
+            model.setProjectName(scanEntity.getProject().getName());
             model.setStatus(scanEntity.getStatus());
             model.setStartedAt(scanEntity.getStartedAt());
             model.setCompletedAt(scanEntity.getCompletedAt());
@@ -614,9 +615,6 @@ public class ScanService {
         return model;
     }
 
-    public ScanModel getLogScan(UUID id){
-        return null;
-    }
 
 
     public ScanLogModel getScanLogById(UUID scanId) {

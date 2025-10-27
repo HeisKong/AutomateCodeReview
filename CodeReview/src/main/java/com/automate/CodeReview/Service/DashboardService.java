@@ -7,7 +7,6 @@ import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.ProjectsRepository;
 import com.automate.CodeReview.repository.ScansRepository;
 import com.automate.CodeReview.repository.UsersRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,15 +20,12 @@ public class DashboardService {
     private final ScansRepository scansRepository;
     private final ProjectsRepository projectsRepository;
     private final UsersRepository usersRepository;
-    private final ObjectMapper objectMapper;
     public DashboardService(ProjectsRepository projectsRepository,
                             ScansRepository scansRepository,
-                            UsersRepository usersRepository,
-                            ObjectMapper objectMapper) {
+                            UsersRepository usersRepository) {
         this.projectsRepository = projectsRepository;
         this.scansRepository = scansRepository;
         this.usersRepository = usersRepository;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -49,42 +45,10 @@ public class DashboardService {
                     .findFirstByProject_ProjectIdOrderByStartedAtDesc(project.getProjectId())
                     .orElse(null);
 
-
-//            for (ProjectsEntity project : projects) {
-//                List<ScansEntity> scans = scansRepository.findByProject_ProjectId(project.getProjectId());
-//                ScansEntity latestScan = scans.isEmpty() ? null : scans.get(0);
-//
-//                ObjectMapper objectMapper = new ObjectMapper();
-//                for(ScansEntity scanEntity : scans){
-//                    DashboardModel.DashboardDTO model = DashboardModel.DashboardDTO();
-//                    model.setProjectId(scanEntity.getProject().getProjectId());
-//                    mode
-//                    try {
-//                        String metricsJson = scanRepository.findMetricsByScanId(scanEntity.getScanId());
-//                        if (metricsJson != null && !metricsJson.isBlank()) {
-//                            Map<String, Object> metricsMap = objectMapper.readValue(metricsJson, Map.class);
-//                            model.setMetrics(metricsMap);
-//                        } else {
-//                            model.setMetrics(new HashMap<>());
-//                        }
-//                    } catch (Exception e) {
-//                        log.error("Failed to parse metrics JSON for scan {}: {}", scanEntity.getScanId(), e.getMessage());
-//                        model.setMetrics(new HashMap<>());
-//                    }
-//
-//
-//                    scansModel.add(model);
-//                }
-
-
-
-
-
-
-                DashboardModel.DashboardDTO model = new DashboardModel.DashboardDTO();
+            DashboardModel.DashboardDTO model = new DashboardModel.DashboardDTO();
             model.setProjectId(project.getProjectId());
             model.setProjectName(project.getName());
-            model.setMetrics(latestScan != null ? (com.fasterxml.jackson.databind.JsonNode) latestScan.getMetrics() : null); // JsonNode → JSON ตรง ๆ
+            model.setMetrics(latestScan != null ?  latestScan.getMetrics() : null);
 
             dashboardList.add(model);
         }
@@ -98,23 +62,19 @@ public class DashboardService {
 
         final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
 
-        List<ProjectsEntity> projects = isAdmin
-                ? projectsRepository.findAll()
-                : projectsRepository.findByUser_UserId(userId);
+        List<ScansEntity> scans = isAdmin
+                ? scansRepository.findAll()
+                : scansRepository.findByProject_User_UserId(userId);
 
         List<DashboardModel.HistoryDTO> historyList = new ArrayList<>();
-        for (ProjectsEntity project : projects) {
-            List<ScansEntity> scans = scansRepository.findByProject_ProjectId(project.getProjectId());
-            ScansEntity latestScan = scans.isEmpty() ? null : scans.get(0);
-
+        for (ScansEntity scan : scans) {
             DashboardModel.HistoryDTO h = new DashboardModel.HistoryDTO();
-            h.setProjectId(project.getProjectId());
-            h.setProjectName(project.getName());
-            h.setProjectType(project.getProjectType());
-            if (latestScan != null) {
-                h.setQualityGate(latestScan.getQualityGate());
-            }
-            h.setCreatedAt(latestScan != null ? latestScan.getStartedAt() : null);
+            h.setProjectId(scan.getProject().getProjectId());
+            h.setProjectName(scan.getProject().getName());
+            h.setProjectType(scan.getProject().getProjectType());
+            h.setQualityGate(scan.getQualityGate());
+            h.setCreatedAt(scan.getStartedAt());
+            h.setReliabilityGate(scan.getReliabilityGate());
 
             historyList.add(h);
         }
@@ -137,17 +97,22 @@ public class DashboardService {
             List<ScansEntity> scans = scansRepository.findByProject_ProjectId(project.getProjectId());
             for (ScansEntity scan : scans) {
 
-                    DashboardModel.TrendsDTO t = new DashboardModel.TrendsDTO();
-                    t.setId(scan.getScanId());
-                    t.setStartTime(scan.getStartedAt());
-                    t.setQualityGate(scan.getQualityGate());
-                    t.setReliabilityGate(scan.getReliabilityGate());
-                    t.setSecurityGate(scan.getSecurityGate());
-                    t.setMaintainabilityGate(scan.getMaintainabilityGate());
-                    t.setSecurityReviewGate(scan.getSecurityReviewGate());
-                    trendsList.add(t);
+                DashboardModel.TrendsDTO t = getTrendsDTO(scan);
+                trendsList.add(t);
                 }
             }
         return trendsList;
+    }
+
+    private static DashboardModel.TrendsDTO getTrendsDTO(ScansEntity scan) {
+        DashboardModel.TrendsDTO t = new DashboardModel.TrendsDTO();
+        t.setId(scan.getScanId());
+        t.setStartTime(scan.getStartedAt());
+        t.setQualityGate(scan.getQualityGate());
+        t.setReliabilityGate(scan.getReliabilityGate());
+        t.setSecurityGate(scan.getSecurityGate());
+        t.setMaintainabilityGate(scan.getMaintainabilityGate());
+        t.setSecurityReviewGate(scan.getSecurityReviewGate());
+        return t;
     }
 }
