@@ -79,7 +79,6 @@ public class IssueService {
 
         UUID projectId = null;
         String projectName = null;
-        String assignedToName = null;
         if (issue.getScan() != null && issue.getScan().getProject() != null) {
             projectId = issue.getScan().getProject().getProjectId();
             projectName = issue.getScan().getProject().getName();
@@ -87,7 +86,11 @@ public class IssueService {
         model.setProjectId(projectId);
         model.setProjectName(projectName);
         model.setOwnerId(issue.getScan().getProject().getUser().getUserId());
-        model.setScanId(issue.getScan().getScanId());
+
+        if (issue.getAssignedTo() != null) {
+            model.setAssignedTo(issue.getAssignedTo().getUserId());
+            model.setAssignedName(issue.getAssignedTo().getUsername());
+        }
         return model;
     }
 
