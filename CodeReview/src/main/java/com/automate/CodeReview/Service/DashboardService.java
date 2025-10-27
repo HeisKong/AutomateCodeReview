@@ -62,27 +62,19 @@ public class DashboardService {
 
         final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
 
-        List<ProjectsEntity> projects = isAdmin
-                ? projectsRepository.findAll()
-                : projectsRepository.findByUser_UserId(userId);
-
+        List<ScansEntity> scans = isAdmin
+                ? scansRepository.findAll()
+                : scansRepository.findByProject_User_UserId(userId);
 
         List<DashboardModel.HistoryDTO> historyList = new ArrayList<>();
-        for (ProjectsEntity project : projects) {
-            List<ScansEntity> scans = scansRepository.findByProject_ProjectId(project.getProjectId());
-            ScansEntity latestScan = scans.isEmpty() ? null : scans.get(0);
-
-
-
+        for (ScansEntity scan : scans) {
             DashboardModel.HistoryDTO h = new DashboardModel.HistoryDTO();
-            h.setProjectId(project.getProjectId());
-            h.setProjectName(project.getName());
-            h.setProjectType(project.getProjectType());
-            if (latestScan != null) {
-                h.setQualityGate(latestScan.getQualityGate());
-                h.setCreatedAt(latestScan.getStartedAt());
-                h.setReliabilityGate(latestScan.getReliabilityGate());
-            }
+            h.setProjectId(scan.getProject().getProjectId());
+            h.setProjectName(scan.getProject().getName());
+            h.setProjectType(scan.getProject().getProjectType());
+            h.setQualityGate(scan.getQualityGate());
+            h.setCreatedAt(scan.getStartedAt());
+            h.setReliabilityGate(scan.getReliabilityGate());
 
             historyList.add(h);
         }

@@ -36,15 +36,6 @@ public class IssueService {
         this.projectsRepository = projectsRepository;
     }
 
-//    public List<IssueModel> checkOwer(UUID ownerId) {
-//        List<IssuesEntity> issues = issuesRepository.findByProject_Project_UserId(ownerId);
-//        List<IssueModel> models = new ArrayList<>();
-//        for (IssuesEntity issue: issues){
-//            IssueModel model = getIssueModel(issue);
-//            saveIssue(models, issue, model);
-//        }
-//        return models;
-//    }
 
     @Transactional(readOnly = true)
     public List<IssueModel> getAllIssue(UUID userId) {
@@ -60,14 +51,14 @@ public class IssueService {
             List<IssuesEntity> owned = issuesRepository.findByScan_Project_User_UserId(userId);
             List<IssuesEntity> assigned = issuesRepository.findByAssignedTo_UserId(userId);
 
-            LinkedHashSet<IssuesEntity> union = new LinkedHashSet<>();
+            LinkedHashSet<IssuesEntity> mix = new LinkedHashSet<>();
             if(owned != null){
-                union.addAll(owned);
+                mix.addAll(owned);
             }
             if(assigned != null){
-                union.addAll(assigned);
+                mix.addAll(assigned);
             }
-            issues = new ArrayList<>(union);
+            issues = new ArrayList<>(mix);
         }
 
         List<IssueModel> issueList = new ArrayList<>();
