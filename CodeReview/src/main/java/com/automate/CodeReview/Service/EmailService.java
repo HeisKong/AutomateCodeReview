@@ -78,7 +78,7 @@ public class EmailService {
           </div>
         </div>
       </div>
-    """.formatted(safeName, "https://yourapp.example.com/login");
+    """.formatted(safeName, "http://localhost:4200/login");
 
         sendHtml(to, subject, html);
     }
