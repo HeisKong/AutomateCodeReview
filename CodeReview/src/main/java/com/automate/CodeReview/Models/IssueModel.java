@@ -24,6 +24,7 @@ public class IssueModel {
     private String assignedName;
     private String status;
     private String createdAt;
+    private String dueDate;
 
 
 }

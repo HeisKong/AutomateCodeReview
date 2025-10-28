@@ -155,7 +155,8 @@ public class IssueService {
         model.setProjectId(projectId);
         model.setProjectName(projectName);
         model.setScanId(issue.getScan().getScanId());
-        model.setScanId(issue.getScan().getScanId());
+        model.setAssignedTo(assignedTo);
+        model.setAssignedName(issue.getAssignedTo().getUsername());
         model.setIssueKey(issue.getIssueKey());
         model.setType(issue.getType());
         model.setComponent(issue.getComponent());
@@ -164,8 +165,7 @@ public class IssueService {
         model.setOwnerId(assignedTo);
         model.setStatus(issue.getStatus());
         model.setCreatedAt(issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null);
-
-
+        model.setDueDate(issue.getDueDate() != null ? issue.getDueDate().toString() : null);
 
         return model;
     }
