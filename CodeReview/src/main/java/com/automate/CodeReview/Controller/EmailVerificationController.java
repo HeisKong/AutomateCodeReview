@@ -1,4 +1,4 @@
-package com.automate.CodeReview.Service;
+package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.dto.ApiMessage;
 import com.automate.CodeReview.dto.ResendRequest;

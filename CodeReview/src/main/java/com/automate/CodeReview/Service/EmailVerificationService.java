@@ -1,8 +1,5 @@
 package com.automate.CodeReview.Service;
 
-import com.automate.CodeReview.Service.EmailService;
-import com.automate.CodeReview.Service.ResendLimiter;
-import com.automate.CodeReview.Service.VerificationTokenService;
 import com.automate.CodeReview.entity.UserStatus;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.UsersRepository;
