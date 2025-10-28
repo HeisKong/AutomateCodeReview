@@ -115,6 +115,7 @@ public class SecurityConfig {
                         // ✅ Scans endpoints
                         .requestMatchers("/api/scans/**").hasAnyRole("USER", "ADMIN")
 
+
                         // ✅ ทุก request อื่นๆ ต้อง authenticated
                         .anyRequest().authenticated()
                 );
