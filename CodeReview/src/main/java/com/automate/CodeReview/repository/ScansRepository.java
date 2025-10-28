@@ -29,4 +29,7 @@ public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
             String projectKey,
             List<String> statuses
     );
+
+    List<ScansEntity> findByProject_User_UserId(UUID userId);
+
 }

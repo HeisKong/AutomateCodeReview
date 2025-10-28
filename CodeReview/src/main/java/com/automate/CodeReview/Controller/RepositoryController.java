@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping("/api/repositories")
 public class RepositoryController {
 
@@ -24,7 +23,7 @@ public class RepositoryController {
         this.repositoryService = repositoryService;
     }
 
-    @PostMapping
+    @PostMapping("/add")
     public ResponseEntity<RepositoryResponse> createRepository(@Valid @RequestBody RepositoryCreateRequest req,
                                                                UriComponentsBuilder uriBuilder) {
         RepositoryResponse created = repositoryService.createRepository(req);
@@ -37,14 +36,14 @@ public class RepositoryController {
         return ResponseEntity.created(location).body(created);
     }
 
-    @GetMapping
+    @GetMapping("/getAll")
     public List<RepositoryModel> getAllRepository(){
         return repositoryService.getAllRepository();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<RepositoryModel> getByIdDetail(@PathVariable UUID id) {
-        RepositoryModel repo = repositoryService.getByIdDetail(id);
+    @GetMapping("/detail/{projectId}")
+    public ResponseEntity<RepositoryModel> getByIdDetail(@PathVariable UUID projectId) {
+        RepositoryModel repo = repositoryService.getByIdDetail(projectId);
         if (repo != null) {
             return ResponseEntity.ok(repo);
         }else{
@@ -52,15 +51,15 @@ public class RepositoryController {
         }
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<RepositoryModel> updateRepository(@PathVariable UUID id,
+    @PutMapping("/{projectId}")
+    public ResponseEntity<RepositoryModel> updateRepository(@PathVariable UUID projectId,
                                                             @RequestBody RepositoryModel repo){
-        return ResponseEntity.ok(repositoryService.updateRepository(id, repo));
+        return ResponseEntity.ok(repositoryService.updateRepository(projectId, repo));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteRepository(@PathVariable UUID id) {
-        repositoryService.deleteRepository(id);
+    @DeleteMapping("/{projectId}")
+    public ResponseEntity<Void> deleteRepository(@PathVariable UUID projectId) {
+        repositoryService.deleteRepository(projectId);
         return ResponseEntity.noContent().build();
     }
 

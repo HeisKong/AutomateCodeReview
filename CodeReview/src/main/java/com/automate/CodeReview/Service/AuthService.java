@@ -222,7 +222,7 @@ public class AuthService {
                 user.getUserId(),
                 user.getEmail(),
                 user.getUsername(),
-                user.getRole()
+                Collections.singleton(user.getRole()).toString()
         );
         String refresh = jwtService.generateRefreshToken(user.getEmail(), jti);
 
@@ -259,7 +259,7 @@ public class AuthService {
                 u.getUserId(),
                 u.getEmail(),                // ส่ง email เป็นพารามิเตอร์แรก
                 u.getUsername(),             // ส่ง username เป็นพารามิเตอร์ที่สอง
-                u.getRole()          // แปลง String เป็น Collection<String>
+                Collections.singleton(u.getRole()).toString()          // แปลง String เป็น Collection<String>
         );
         String newRefresh = jwtService.generateRefreshToken(email, newJti);
 

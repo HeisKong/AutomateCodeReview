@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -51,12 +52,14 @@ public class ScanService {
     private static final String BASE_DIR = "C:\\gitpools";
     private static final String SCRIPT_FILENAME = "run_sonar.bat";
     private static final String LOG_BASE = "C:\\scan-logs";
+    private final JdbcTemplate jdbcTemplate;
 
-    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient) {
+    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate) {
         this.scanRepository = scanRepository;
         this.projectRepository = projectRepository;
         this.repositoryService = repositoryService;
         this.sonarWebClient = sonarWebClient;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     // ส่วนของ startScan
@@ -147,9 +150,9 @@ public class ScanService {
                 String analysisId = pollForAnalysisId(sonarProjectKey, 30); // timeout 30 วินาที
                 if (analysisId != null) {
                     scan.setAnalysisId(analysisId);
-                    log.info("✅ เซ็ต analysisId ไว้ล่วงหน้า: {} สำหรับ scanId: {}", analysisId, scanId);
+                    log.info("เซ็ต analysisId ไว้ล่วงหน้า: {} สำหรับ scanId: {}", analysisId, scanId);
                 } else {
-                    log.warn("⚠️ ไม่สามารถดึง analysisId ได้ภายในเวลาที่กำหนด");
+                    log.warn("ไม่สามารถดึง analysisId ได้ภายในเวลาที่กำหนด");
                 }
             }
 
@@ -164,8 +167,8 @@ public class ScanService {
 
             scanRepository.save(scan);
 
-            log.info("✅ Scan completed: scanId={}, status={}", scanId, scan.getStatus());
-            log.info("🔍 DEBUG: หลัง save analysisId - scanId={}, analysisId={}, status={}",
+            log.info("Scan completed: scanId={}, status={}", scanId, scan.getStatus());
+            log.info("DEBUG: หลัง save analysisId - scanId={}, analysisId={}, status={}",
                     scan.getScanId(), scan.getAnalysisId(), scan.getStatus());
 
             // 11. Return result
@@ -576,6 +579,7 @@ public class ScanService {
             ScanModel model = new ScanModel();
             model.setScanId(scanEntity.getScanId());
             model.setProjectId(scanEntity.getProject().getProjectId());
+            model.setProjectName(scanEntity.getProject().getName());
             model.setStatus(scanEntity.getStatus());
             model.setStartedAt(scanEntity.getStartedAt());
             model.setCompletedAt(scanEntity.getCompletedAt());
@@ -611,9 +615,6 @@ public class ScanService {
         return model;
     }
 
-    public ScanModel getLogScan(UUID id){
-        return null;
-    }
 
 
     public ScanLogModel getScanLogById(UUID scanId) {
@@ -649,6 +650,18 @@ public class ScanService {
                     .filter(path -> path.getFileName().toString().equals(logFileName))
                     .findFirst()
                     .orElse(null);
+        }
+    }
+
+    public void deleteScan(UUID scanId){
+        String[] queries = {
+                "DELETE FROM noti where scan_id = ?",
+                "DELETE FROM issues where scan_id =?",
+                "DELETE FROM scans where scan_id = ?",
+        };
+
+        for (String query : queries) {
+            jdbcTemplate.update(query, scanId);
         }
     }
 

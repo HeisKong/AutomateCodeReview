@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,14 +46,16 @@ public class RepositoryService {
 
     private static final String BASE_DIR = "C:\\gitpools";
     private static final String SCRIPT_FILENAME = "run_sonar.bat";
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${app.sonar.token}")
     private String sonarToken;
 
-    public RepositoryService(ProjectsRepository projectsRepository, UsersRepository usersRepository, NotiService notiService) {
+    public RepositoryService(ProjectsRepository projectsRepository, UsersRepository usersRepository, NotiService notiService, JdbcTemplate jdbcTemplate) {
         this.projectsRepository = projectsRepository;
         this.usersRepository = usersRepository;
         this.notiService = notiService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     // CREATE
@@ -628,6 +631,11 @@ public class RepositoryService {
 
     // READ: get all
     public List<RepositoryModel> getAllRepository() {
+
+//        final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
+//        List<ProjectsEntity> projects = isAdmin
+//                ? projectsRepository.findAll()
+//                : projectsRepository.findByUser_UserId(userId);
         List<ProjectsEntity> projects = projectsRepository.findAll();
         List<RepositoryModel> repoModels = new ArrayList<>();
         for (ProjectsEntity e : projects) {
@@ -685,7 +693,46 @@ public class RepositoryService {
         if (!projectsRepository.existsById(id)) {
             throw new ProjectNotFoundException();
         }
-        projectsRepository.deleteById(id);
+
+        String clonePath = jdbcTemplate.queryForObject(
+                "SELECT clone_path FROM projects where project_id = ?",
+                String.class,id
+        );
+
+        String[] queries = {
+                "DELETE FROM noti where project_id = ?",
+                "DELETE FROM issues where scan_id IN (SELECT scan_id FROM scans where project_id = ?)",
+                "DELETE FROM scans where Project_id = ?",
+                "DELETE FROM projects where project_id = ?"
+        };
+
+        for (String query : queries) {
+            jdbcTemplate.update(query, id);
+        }
+
+        if (clonePath != null && !clonePath.isEmpty()) {
+            deleteCloneDirectory(clonePath);
+        }
+    }
+    private void deleteCloneDirectory(String directoryPath) {
+        try {
+            Path path = Paths.get(directoryPath);
+            if (Files.exists(path)) {
+                log.info("Deleting old clone directory: {}", directoryPath);
+
+                List<String> command = Arrays.asList(
+                        "cmd.exe", "/c",
+                        "rmdir", "/s", "/q",
+                        directoryPath
+                );
+
+                ProcessBuilder pb = new ProcessBuilder(command);
+                Process p = pb.start();
+                p.waitFor(30, TimeUnit.SECONDS);
+            }
+        } catch (Exception e) {
+            log.error("Failed to delete clone directory: {}", directoryPath, e);
+        }
     }
 
     // ACTION: clone repo by project id
