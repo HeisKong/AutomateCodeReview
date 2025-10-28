@@ -12,6 +12,8 @@ import jakarta.transaction.Transactional;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -27,18 +29,29 @@ public class NotiService {
         this.scanRepository = scanRepository;
     }
 //Noti Create Repo
-    public NotiEntity createRepoNoti(UUID projectId, String message) {
+    public NotiModel createRepoNoti(UUID projectId, String message) {
         ProjectsEntity project = projectsRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
         NotiEntity noti = new NotiEntity();
         noti.setNotiId(UUID.randomUUID());
         noti.setProject(project);
-        noti.setTypeNoti("Repo");
+        noti.setTypeNoti("Repository");
         noti.setMessage(message);
         noti.setRead(false);
 
-        return notiRepository.save(noti);
+        NotiEntity saved = notiRepository.save(noti);
+
+        NotiModel model = new NotiModel();
+        model.setScanId(model.getScanId());
+        model.setProjectId(model.getProjectId());
+        model.setMessage(message);
+        model.setRead(false);
+        model.setTypeNoti("Repository");
+
+        return model;
+
+
     }
 
     @Async
@@ -54,10 +67,10 @@ public class NotiService {
         noti.setRead(true);
         NotiEntity saved = notiRepository.save(noti);
         NotiModel model = new NotiModel();
-        model.setNotiId(model.getNotiId());
-        model.setProjectId(noti.getProject().getProjectId());
-        model.setMessage(saved.getMessage());
+        model.setNotiId(saved.getNotiId());
         model.setRead(saved.getRead());
+        model.setTypeNoti(saved.getTypeNoti());
+        model.setMessage(saved.getMessage());
         model.setCreatedAt(saved.getCreatedAt());
         return model;
     }
@@ -89,10 +102,65 @@ public class NotiService {
 
         return model;
     }
-
     @Async
     @Transactional
     public void scanNotiAsync(UUID scanId,UUID projectId, String message) {
         scanNoti(scanId,projectId, message);
+    }
+
+    public NotiModel exportReportNoti(UUID projectId, String message) {
+        ProjectsEntity project = projectsRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        NotiEntity noti = new NotiEntity();
+        noti.setNotiId(UUID.randomUUID());
+        noti.setProject(project);
+        noti.setTypeNoti("Export");
+        noti.setMessage(message);
+        noti.setRead(false);
+
+        NotiEntity saved = notiRepository.save(noti);
+
+        NotiModel model = new NotiModel();
+        model.setScanId(model.getScanId());
+        model.setProjectId(model.getProjectId());
+        model.setMessage(message);
+        model.setRead(false);
+        model.setTypeNoti("Export");
+
+
+        return model;
+    }
+    @Async
+    @Transactional
+    public void exportReportNotiAsync(UUID projectId, String message) {
+        exportReportNoti(projectId, message);
+    }
+
+
+    //Delete
+    public void deleteNoti (UUID id){
+        if (!notiRepository.existsById(id)){
+            throw new EntityNotFoundException("Noti not found with id: " + id);
+        }
+        notiRepository.deleteById(id);
+    }
+
+    //GetAll
+    public List<NotiModel> getAllNotification() {
+        List<NotiEntity> notiEntities = notiRepository.findAll();
+        List<NotiModel> notiModels = new ArrayList<NotiModel>();
+        for (NotiEntity notiEntity : notiEntities) {
+            NotiModel notiModel = new NotiModel();
+            notiModel.setNotiId(notiEntity.getNotiId());
+            notiModel.setProjectId(notiEntity.getProject().getProjectId());
+            notiModel.setScanId(notiEntity.getScan() != null ? notiEntity.getScan().getScanId() : null);
+            notiModel.setRead(notiEntity.getRead());
+            notiModel.setTypeNoti(notiEntity.getTypeNoti());
+            notiModel.setMessage(notiEntity.getMessage());
+            notiModel.setCreatedAt(notiEntity.getCreatedAt());
+            notiModels.add(notiModel);
+        }
+        return notiModels;
     }
 }

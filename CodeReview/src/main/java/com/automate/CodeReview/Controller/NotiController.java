@@ -3,11 +3,9 @@ package com.automate.CodeReview.Controller;
 import com.automate.CodeReview.Models.NotiModel;
 import com.automate.CodeReview.Service.NotiService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -20,10 +18,21 @@ public class NotiController {
         this.notiService = notiService;
     }
 
-    @PutMapping("/api/noti/{id}")
+    @PutMapping("/read/{id}")
     public ResponseEntity<NotiModel> getReadCreateNoti(@PathVariable UUID id) {
         NotiModel updateCreateNoti = notiService.markAsRead(id);
         return ResponseEntity.ok(updateCreateNoti);
+    }
+
+    @GetMapping
+    public List<NotiModel> getAllNoti(){
+        return notiService.getAllNotification();
+    }
+
+    @DeleteMapping("delete/{id}")
+    public ResponseEntity<NotiModel> deleteNoti(@PathVariable UUID id) {
+        notiService.deleteNoti(id);
+        return ResponseEntity.noContent().build();
     }
 
 }
