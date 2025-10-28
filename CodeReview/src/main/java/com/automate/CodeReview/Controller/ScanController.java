@@ -65,4 +65,10 @@ public class ScanController {
         ScanLogModel log = scanService.getScanLogById(scanId);
         return ResponseEntity.ok(log);
     }
+
+    @DeleteMapping("/{scanId}")
+    public ResponseEntity<Void> deleteScan(@PathVariable UUID scanId) {
+        scanService.deleteScan(scanId);
+        return ResponseEntity.noContent().build();
+    }
 }

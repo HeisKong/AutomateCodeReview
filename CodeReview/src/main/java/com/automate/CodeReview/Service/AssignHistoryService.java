@@ -1,7 +1,6 @@
 package com.automate.CodeReview.Service;
 
 import com.automate.CodeReview.Models.AssignModel;
-import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.entity.AssignHistoryEntity;
 import com.automate.CodeReview.entity.IssuesEntity;
 import com.automate.CodeReview.entity.UsersEntity;
@@ -41,21 +40,27 @@ public class AssignHistoryService {
         List<AssignModel.getAssign> result = new ArrayList<>();
 
         for (AssignHistoryEntity a : assignHist) {
-            AssignModel.getAssign dto = new AssignModel.getAssign();
-
-            IssuesEntity issue = a.getIssues();
-            dto.setIssueId(issue != null ? issue.getIssuesId() : null);
-            dto.setSeverity(issue != null ? issue.getSeverity() : null);
-
-            dto.setMessage(a.getMessage());
-
-            dto.setAssignedTo(a.getAssignedTo());
-            dto.setStatus(a.getStatus());
-            dto.setAnnotation(a.getAnnotation());
-            dto.setDueDate(a.getDueDate());
+            AssignModel.getAssign dto = getGetAssign(a, user);
             result.add(dto);
         }
         return result;
+    }
+
+    private static AssignModel.getAssign getGetAssign(AssignHistoryEntity a, UsersEntity user) {
+        AssignModel.getAssign dto = new AssignModel.getAssign();
+
+        IssuesEntity issue = a.getIssues();
+        dto.setIssueId(issue != null ? issue.getIssuesId() : null);
+        dto.setSeverity(issue != null ? issue.getSeverity() : null);
+
+        dto.setMessage(a.getMessage());
+
+        dto.setAssignedTo(a.getAssignedTo());
+        dto.setAssignedToName(user.getUsername());
+        dto.setStatus(a.getStatus());
+        dto.setAnnotation(a.getAnnotation());
+        dto.setDueDate(a.getDueDate());
+        return dto;
     }
 
 
@@ -68,14 +73,14 @@ public class AssignHistoryService {
 
         String statusUpper = rawStatus == null ? "" : rawStatus.trim().toUpperCase();
 
-        UUID assignedTo = (issue.getAssignedTo() != null) ? issue.getAssignedTo().getUserId() : null;
+        UUID assignedTo = (issue.getAssignedTo() != null) ? user.getUserId() : null;
 
         if ("REJECT".equals(statusUpper) && !"DONE".equals(issue.getStatus())) {
             issue.setStatus("OPEN");
             issuesRepository.save(issue);
 
             AssignHistoryEntity hist = assignHistoryRepository
-                    .findByIssues_IssuesIdAndStatus(issueId, "IN PROGRESS")
+                    .findByIssues_IssuesIdAndStatus(issueId, "PENDING")
                     .orElseGet(AssignHistoryEntity::new);
 
             hist.setIssues(issue);
@@ -86,7 +91,7 @@ public class AssignHistoryService {
         }
 
         if ("DONE".equals(statusUpper)) {
-            issue.setStatus("DONE");
+            issue.setStatus(statusUpper);
             issuesRepository.save(issue);
 
             AssignHistoryEntity hist = assignHistoryRepository
@@ -95,6 +100,22 @@ public class AssignHistoryService {
 
             hist.setIssues(issue);
             hist.setStatus("DONE");
+            hist.setAssignedTo(assignedTo);
+            hist.setAnnotation(annotation);
+            hist.setDueDate(issue.getDueDate());
+            assignHistoryRepository.save(hist);
+        }
+
+        if ("ACCEPT".equals(statusUpper)) {
+            issue.setStatus(statusUpper);
+            issuesRepository.save(issue);
+
+            AssignHistoryEntity hist = assignHistoryRepository
+                    .findByIssues_IssuesIdAndStatus(issueId, "PENDING")
+                    .orElseGet(AssignHistoryEntity::new);
+
+            hist.setIssues(issue);
+            hist.setStatus("IN PROGRESS");
             hist.setAssignedTo(assignedTo);
             hist.setAnnotation(annotation);
             hist.setDueDate(issue.getDueDate());
