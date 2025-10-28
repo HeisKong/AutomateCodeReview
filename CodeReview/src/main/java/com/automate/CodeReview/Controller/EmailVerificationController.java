@@ -32,9 +32,9 @@ public class EmailVerificationController {
     public RedirectView  verifyEmail(@RequestParam("token") String token) {
         try {
             emailVerificationService.verifyEmail(token);
-            return new RedirectView("https://yourfrontend.com/verify-success");
+            return new RedirectView("http://localhost:4200/verify-success");
         } catch (Exception e) {
-            return new RedirectView("https://yourfrontend.com/verify-failed");
+            return new RedirectView("http://localhost:4200/verify-failed");
         }
     }
 }
