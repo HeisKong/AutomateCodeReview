@@ -3,8 +3,10 @@ package com.automate.CodeReview.Service;
 import com.automate.CodeReview.Models.LoginRequest;
 import com.automate.CodeReview.Models.RegisterRequest;
 import com.automate.CodeReview.Models.UserModel;
+import com.automate.CodeReview.Models.UserSummary;
 import com.automate.CodeReview.dto.ChangePasswordRequest;
 import com.automate.CodeReview.dto.UpdateUserRequest;
+import com.automate.CodeReview.entity.UserStatus;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.exception.DuplicateFieldsException;
 import com.automate.CodeReview.repository.UsersRepository;
@@ -67,7 +69,9 @@ public class AuthService {
         m.setEmail(e.getEmail());
         m.setPhoneNumber(e.getPhoneNumber());
         m.setRole(e.getRole());
+        m.setStatus(e.getStatus() != null ? e.getStatus().name() : null);
         m.setCreatedAt(e.getCreatedAt());
+
         return m;
     }
 
@@ -95,6 +99,7 @@ public class AuthService {
         u.setPassword(encoder.encode(req.password()));
         u.setPhoneNumber(req.phoneNumber());
         u.setRole(normalizeRole("USER"));
+        u.setStatus(UserStatus.PENDING_VERIFICATION);
         usersRepository.save(u);
 
         try {
@@ -313,5 +318,11 @@ public class AuthService {
         if (req.phoneNumber() == null || req.phoneNumber().trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone number is required");
         }
+    }
+
+    public UserSummary getUserSummaryById(UUID userId) {
+        UsersEntity u = usersRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        return new UserSummary(u.getUsername(), u.getEmail(), u.getStatus(), u.getPhoneNumber());
     }
 }

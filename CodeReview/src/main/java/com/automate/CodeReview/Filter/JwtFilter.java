@@ -63,7 +63,6 @@ public class JwtFilter extends OncePerRequestFilter {
             String token = extractTokenFromRequest(request);
 
             if (token != null) {
-                log.debug("🔹 Token extracted: {}...", token.substring(0, Math.min(20, token.length())));
                 authenticateToken(request, token);
             } else {
                 log.debug("🔹 No Bearer token found in Authorization header");
@@ -75,15 +74,8 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
-
         var postCtx = SecurityContextHolder.getContext();
-        if (postCtx.getAuthentication() != null) {
-            log.info("🧩 [JwtFilter] After chain: still authenticated as {}", postCtx.getAuthentication().getName());
-        } else {
-            log.warn("🧨 [JwtFilter] After chain: authentication was cleared");
-        }
 
-        log.info("🔚 [JwtFilter] End for [{} {}]", method, uri);
     }
 
     private String extractTokenFromRequest(HttpServletRequest request) {
@@ -103,39 +95,52 @@ public class JwtFilter extends OncePerRequestFilter {
             Claims claims = jwtService.validateAndParseClaims(token);
             String email = claims.get("email", String.class);
             String tokenType = claims.get("token_type", String.class);
-            if (!"access".equalsIgnoreCase(tokenType)) return;
+
+            if (!"access".equalsIgnoreCase(tokenType)) {
+                return;
+            }
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 Object rolesClaim = claims.get("roles");
                 List<SimpleGrantedAuthority> authorities;
 
                 if (rolesClaim instanceof List<?> roleList) {
+                    // สำหรับ List: map และเติม ROLE_ prefix
                     authorities = roleList.stream()
                             .map(r -> {
-                                String role = (r instanceof String s) ? s : r.toString();
-                                role = role.replaceAll("[\\[\\]\\s]", ""); // ลบ []
-                                role = role.toUpperCase();
-                                if (!role.startsWith("ROLE_")) role = "ROLE_" + role;
-                                return new SimpleGrantedAuthority(role);
+                                String role = r.toString().toUpperCase();
+                                // เติม ROLE_ ให้ถ้ายังไม่มี
+                                String prefixedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                                log.debug("🔸 Mapped role: {}", prefixedRole);
+                                return new SimpleGrantedAuthority(prefixedRole);
                             })
                             .collect(Collectors.toList());
                 } else if (rolesClaim != null) {
-                    String role = rolesClaim.toString().replaceAll("[\\[\\]\\s]", "").toUpperCase();
-                    if (!role.startsWith("ROLE_")) role = "ROLE_" + role;
-                    authorities = List.of(new SimpleGrantedAuthority(role));
+                    // สำหรับ String/Single Object: จัดการ prefix
+                    String role = rolesClaim.toString().toUpperCase();
+                    String prefixedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                    authorities = List.of(new SimpleGrantedAuthority(prefixedRole));
                 } else {
                     authorities = List.of();
                 }
 
+                // ตรวจสอบว่า user มีอยู่ใน database
                 Optional<UsersEntity> userOpt = usersRepository.findByEmail(email);
-                if (userOpt.isEmpty()) return;
+                if (userOpt.isEmpty()) {
+                    return;
+                }
+
 
                 var authToken = new UsernamePasswordAuthenticationToken(
-                        email, null, authorities
+                        email,
+                        null,
+                        authorities
                 );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+
             }
+
         } catch (ExpiredJwtException ex) {
             SecurityContextHolder.clearContext();
 

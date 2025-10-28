@@ -1,5 +1,6 @@
 package com.automate.CodeReview.Controller;
 
+import com.automate.CodeReview.Models.UserSummary;
 import com.automate.CodeReview.dto.ChangePasswordRequest;
 import com.automate.CodeReview.dto.UpdateUserRequest;
 import com.automate.CodeReview.Models.UserModel;
@@ -59,9 +60,13 @@ public class UserController {
     }
 
     @GetMapping("/users")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserModel>> getAllUsers() {
         return ResponseEntity.ok(authService.listAllUsers());
+    }
+    @GetMapping("/users/{id}")
+    public ResponseEntity<UserSummary> getUserSummaryById(@PathVariable UUID id) {
+        return ResponseEntity.ok(authService.getUserSummaryById(id));
     }
 
 
