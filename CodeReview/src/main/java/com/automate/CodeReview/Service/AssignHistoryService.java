@@ -107,7 +107,7 @@ public class AssignHistoryService {
         }
 
         if ("ACCEPT".equals(statusUpper)) {
-            issue.setStatus(statusUpper);
+            issue.setStatus("IN PROGRESS");
             issuesRepository.save(issue);
 
             AssignHistoryEntity hist = assignHistoryRepository
