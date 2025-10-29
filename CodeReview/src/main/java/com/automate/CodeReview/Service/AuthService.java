@@ -333,26 +333,38 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         // check duplicates (เว้นตัวเอง)
-        if (req.getUsername() != null && !req.getUsername().equals(u.getUsername())
-                && usersRepository.existsByUsername(req.getUsername())) {
+        if (req.getUsername() != null && !req.getUsername().isBlank() &&
+                !req.getUsername().equals(u.getUsername()) &&
+                usersRepository.existsByUsername(req.getUsername())) {
             throw new DuplicateKeyException("Username already exists");
         }
-        if (req.getEmail() != null && !req.getEmail().equals(u.getEmail())
-                && usersRepository.existsByEmail(req.getEmail())) {
+
+        if (req.getEmail() != null && !req.getEmail().isBlank() &&
+                !req.getEmail().equals(u.getEmail()) &&
+                usersRepository.existsByEmail(req.getEmail())) {
             throw new DuplicateKeyException("Email already exists");
         }
-        if (req.getPhoneNumber() != null && !req.getPhoneNumber().equals(u.getPhoneNumber())
-                && usersRepository.existsByPhoneNumber(req.getPhoneNumber())) {
+
+        if (req.getPhoneNumber() != null && !req.getPhoneNumber().isBlank() &&
+                !req.getPhoneNumber().equals(u.getPhoneNumber()) &&
+                usersRepository.existsByPhoneNumber(req.getPhoneNumber())) {
             throw new DuplicateKeyException("Phone number already exists");
         }
 
-        // ตรวจสอบว่ามีการเปลี่ยน email หรือไม่
-        boolean emailChanged = req.getEmail() != null && !req.getEmail().equals(u.getEmail());
+        // ตรวจสอบว่ามีการเปลี่ยน email หรือไม่ (เฉพาะกรณีที่ไม่เป็นค่าว่าง)
+        boolean emailChanged = req.getEmail() != null && !req.getEmail().isBlank()
+                && !req.getEmail().equals(u.getEmail());
 
-        // update fields
-        if (req.getUsername() != null) u.setUsername(req.getUsername());
-        if (req.getEmail() != null) u.setEmail(req.getEmail());
-        if (req.getPhoneNumber() != null) u.setPhoneNumber(req.getPhoneNumber());
+        // update fields เฉพาะที่ไม่ null และไม่ว่าง
+        if (req.getUsername() != null && !req.getUsername().isBlank()) {
+            u.setUsername(req.getUsername());
+        }
+        if (req.getEmail() != null && !req.getEmail().isBlank()) {
+            u.setEmail(req.getEmail());
+        }
+        if (req.getPhoneNumber() != null && !req.getPhoneNumber().isBlank()) {
+            u.setPhoneNumber(req.getPhoneNumber());
+        }
 
         // ถ้าเปลี่ยน email ให้เปลี่ยนสถานะเป็น PENDING_VERIFICATION
         if (emailChanged) {
