@@ -64,8 +64,19 @@ public class RepositoryService {
     @Transactional
     public RepositoryResponse createRepository(RepositoryCreateRequest req) {
         if (req.getUser() == null) {
-            throw new IllegalArgumentException("userId is required");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"userId is required");
         }
+        String rawName = Optional.ofNullable(req.getName()).orElse("").trim();
+        if (rawName.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Project name is required");
+
+        }
+
+        boolean checkProject = projectsRepository.existsByNameIgnoreCase(rawName);
+        if (checkProject) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Project name already exists");
+        }
+
 
         boolean valid = checkRepo(req.getRepositoryUrl(), req.getUsername(), req.getPassword());
         if (!valid) throw new IllegalArgumentException("Invalid repository or authentication failed");
