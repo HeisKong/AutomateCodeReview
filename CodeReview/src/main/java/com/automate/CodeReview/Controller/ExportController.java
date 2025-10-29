@@ -21,17 +21,35 @@ public class ExportController {
     @PostMapping("/generate")
     public ResponseEntity<byte[]> generateReport(@RequestBody ReportRequest req) throws Exception{
         byte[] data = exportService.generateReport(req);
-        String filename = String.format("report-%s.%s", req.projectId(), req.outputFormat());
-        String mediaType = switch (req.outputFormat().toLowerCase()) {
-            case "pdf" -> "application/pdf";
-            case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-            default -> "application/octet-stream";
-        };
+        String format = req.outputFormat().toLowerCase();
+
+        // ตรวจสอบว่าควรเป็น ZIP หรือไม่
+        boolean isZip = !"xlsx".equals(format) && req.includeSections() != null && req.includeSections().size() > 1;
+
+        String filename;
+        String mediaType;
+
+        if (isZip) {
+            // กรณีเป็น ZIP
+            filename = String.format("report_%s.zip",
+                    new java.text.SimpleDateFormat("yyMMdd").format(new java.util.Date()));
+            mediaType = "application/zip";
+        } else {
+            // กรณีไฟล์เดียว (xlsx หรือ section เดียว)
+            filename = String.format("report-%s.%s", req.projectId(), format);
+            mediaType = switch (format) {
+                case "pdf" -> "application/pdf";
+                case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                case "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+                default -> "application/octet-stream";
+            };
+        }
+
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.parseMediaType(mediaType))
+                .contentLength(data.length)
                 .body(data);
     }
 }
