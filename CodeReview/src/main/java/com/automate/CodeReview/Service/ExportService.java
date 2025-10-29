@@ -35,6 +35,7 @@ import java.text.SimpleDateFormat;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.zip.*;
 
 
 @Service
@@ -71,33 +72,64 @@ public class ExportService {
             }
         }
 
-        // สำหรับ PDF, DOCX, PPTX ให้สร้าง report แยกตาม section
-        try (ByteArrayOutputStream mergedOutput = new ByteArrayOutputStream()) {
-            List<byte[]> reportBytes = new ArrayList<>();
+        // ---- PDF/DOCX/PPTX: สร้างไฟล์ย่อย แล้ว ZIP รวม ----
+        try {
+            // เก็บชื่อไฟล์กับเนื้อไฟล์แต่ละ section
+            record SectionFile(String name, byte[] bytes) {}
+            List<SectionFile> files = new ArrayList<>();
 
-            // Generate QualityGateSummary
+            // QualityGateSummary
             if (req.includeSections().contains("QualityGateSummary")) {
-                byte[] qgateReport = generateQualityGateReport(req, fromTs, toExcl, dateFromInclDisplay, dateToInclDisplay, fmt);
-                reportBytes.add(qgateReport);
+                byte[] b = generateQualityGateReport(req, fromTs, toExcl, dateFromInclDisplay, dateToInclDisplay, fmt);
+                if (b != null && b.length > 0) {
+                    files.add(new SectionFile("QualityGateSummary", b));
+                }
             }
 
-            // Generate IssueBreakdown
+            // IssueBreakdown
             if (req.includeSections().contains("IssueBreakdown")) {
-                byte[] issueReport = generateIssueBreakdownReport(req, fromTs, toExcl, dateFromInclDisplay, dateToInclDisplay, fmt);
-                reportBytes.add(issueReport);
+                byte[] b = generateIssueBreakdownReport(req, fromTs, toExcl, dateFromInclDisplay, dateToInclDisplay, fmt);
+                if (b != null && b.length > 0) {
+                    files.add(new SectionFile("IssueBreakdown", b));
+                }
             }
 
-            if (reportBytes.isEmpty()) {
+            if (files.isEmpty()) {
                 throw new IllegalStateException("No sections selected for export");
             }
-            notiService.exportReportNotiAsync(req.projectId(), "Export Success!");
-            return reportBytes.get(0);
+
+            // ถ้ามีแค่ไฟล์เดียว ไม่ต้อง ZIP
+            if (files.size() == 1) {
+                notiService.exportReportNotiAsync(req.projectId(), "Export Success!");
+                return files.get(0).bytes();
+            }
+
+            // ถ้ามีหลายไฟล์ ให้ ZIP
+            try (ByteArrayOutputStream zipOutput = new ByteArrayOutputStream();
+                 ZipOutputStream zipOutputs = new ZipOutputStream(zipOutput)) {
+
+                String projectName = getProjectName(req, files.isEmpty() ? List.of() :
+                        (files.get(0).name().equals("QualityGateSummary") ?
+                                fetchSectionRows(req, "QualityGateSummary", fromTs, toExcl) :
+                                fetchSectionRows(req, "IssueBreakdown", fromTs, toExcl)));
+
+                for (SectionFile f : files) {
+                    // ตั้งชื่อไฟล์: QualityGateSummary_ProjectName.pdf
+                    String entryName = f.name() + "_" + projectName + "." + fmt;
+                    zipOutputs.putNextEntry(new ZipEntry(entryName));
+                    zipOutputs.write(f.bytes());
+                    zipOutputs.closeEntry();
+                }
+                zipOutputs.finish();
+
+                notiService.exportReportNotiAsync(req.projectId(), "Export Success!");
+                return zipOutput.toByteArray();
+            }
 
         } catch (Exception e) {
             log.error("Generate report failed: {}", e.getMessage(), e);
             throw new RuntimeException("Generate report failed", e);
         }
-
 
     }
 
