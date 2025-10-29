@@ -17,7 +17,7 @@ public class RepositoryCreateRequest {
     private String repositoryUrl;
     private String projectType;
 
-    // one-time credentials
+//     one-time credentials
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String username;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)

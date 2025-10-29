@@ -16,12 +16,14 @@ public class AssignModel {
     @NoArgsConstructor
     public static class getAssign {
         private UUID assignedTo;
+        private String assignedToName;
         private UUID issueId;
         private String severity;
         private String message;
         private String status;
         private LocalDate dueDate;
         private String annotation;
+        private Boolean own;
     }
     @Data
     @AllArgsConstructor

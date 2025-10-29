@@ -2,7 +2,6 @@ package com.automate.CodeReview.Service;
 
 
 import com.automate.CodeReview.dto.ReportRequest;
-import com.automate.CodeReview.repository.ScansRepository;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jasperreports.engine.*;
 
@@ -10,10 +9,8 @@ import net.sf.jasperreports.engine.data.JRMapCollectionDataSource;
 import net.sf.jasperreports.engine.export.JRPdfExporter;
 import net.sf.jasperreports.engine.export.ooxml.JRDocxExporter;
 import net.sf.jasperreports.engine.export.ooxml.JRPptxExporter;
-import net.sf.jasperreports.engine.export.ooxml.JRXlsxExporter;
 import net.sf.jasperreports.export.SimpleExporterInput;
 import net.sf.jasperreports.export.SimpleOutputStreamExporterOutput;
-import net.sf.jasperreports.export.SimpleXlsxReportConfiguration;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -29,127 +26,28 @@ import net.sf.jasperreports.engine.JasperReport;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import javax.sql.DataSource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.PreparedStatement;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static java.util.Map.entry;
 
 @Service
 @Slf4j
 public class ExportService {
 
-    private final ScansRepository scansRepository;
-    private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
+    private final NotiService notiService;
 
-    public ExportService(ScansRepository scansRepository, DataSource dataSource, JdbcTemplate jdbcTemplate) {
-        this.scansRepository = scansRepository;
-        this.dataSource = dataSource;
+    public ExportService(JdbcTemplate jdbcTemplate, NotiService notiService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.notiService = notiService;
     }
-
-//    public byte[] generateReport(ReportRequest req) throws Exception {
-//        InputStream jrxml = getClass().getResourceAsStream("/reports/QualityGateReport.jrxml");
-//        if (jrxml == null) {
-//            throw new FileNotFoundException("JRXML template not found at /reports/QualityGateReport.jrxml");
-//        }
-//
-//        JasperReport report = JasperCompileManager.compileReport(jrxml);
-//
-//        ZoneId ZONE = ZoneId.of("Asia/Bangkok"); // โซนเวลาธุรกิจคุณ
-//        Timestamp FROM = Timestamp.from(req.dateFrom().atStartOfDay(ZONE).toInstant());
-//        Timestamp TO_EXCL = Timestamp.from(req.dateTo().plusDays(1).atStartOfDay(ZONE).toInstant());
-//
-//
-//
-//        // 2. สร้าง parameters map ตามที่ template คาดหวัง
-//        Map<String, Object> params = new HashMap<>();
-//        params.put("PROJECT_ID", req.projectId().toString());
-//        params.put("REPORT_TYPE", req.reportType());
-//        params.put("DATE_FROM_TS", FROM);
-//        params.put("DATE_TO_TS_EXCL", TO_EXCL);
-//
-//        // ตัวอย่างตั้งค่า section flags (Jasper template จะใช้พวกนี้เพื่อ show/hide subreports/sections)
-//        params.put("INCLUDE_QUALITY_GATE", req.includeSections().contains("QualityGateSummary"));
-//        params.put("INCLUDE_ISSUE_BREAKDOWN", req.includeSections().contains("IssueBreakdown"));
-//        params.put("INCLUDE_SECURITY_ANALYSIS", req.includeSections().contains("SecurityAnalysis"));
-//        params.put("INCLUDE_TECHNICAL_DEBT", req.includeSections().contains("TechnicalDebt"));
-//        // ... เพิ่มตามที่ต้องการ
-//
-//        log.info("QGATE_SELECT_LIST = {}", params.get("QGATE_SELECT_LIST"));
-//        log.info("PROJECT_ID = {}", params.get("PROJECT_ID"));
-//        log.info("DATE_FROM_TS = {}", params.get("DATE_FROM_TS"));
-//        log.info("DATE_TO_TS_EXCL = {}", params.get("DATE_TO_TS_EXCL"));
-//
-//        // ==== ทำ SELECT_LIST ต่อ "หัวข้อ" ที่ต้องดึงจาก DB เฉพาะคอลัมน์ที่เลือก ====
-//        List<String> qgCols = sanitize("QualityGateSummary", req.selectedColumns().get("QualityGateSummary"));
-//        if (qgCols.isEmpty()) qgCols = List.of("project_id","started_at","quality_gate");
-//        params.put("QGATE_SELECT_LIST", String.join(", ", qgCols));
-//
-//        List<String> ibCols = sanitize("IssueBreakdown", req.selectedColumns().get("IssueBreakdown"));
-//        if (ibCols.isEmpty()) ibCols = List.of("issue_type","severity","message"); // default
-//        params.put("ISSUE_SELECT_LIST", String.join(", ", ibCols));
-//
-//        // ถ้าต้องมี WHERE เสริม สามารถรับมาจาก req แล้ว whitelist เช่นเดียวกัน
-//        params.put("EXTRA_WHERE", ""); // หรือสร้างจากเงื่อนไข
-//
-//        // 3. datasource: ถ้า template ดึงจาก DB ใช้ getConnection(); ถ้าใช้ Java list: new JRBeanCollectionDataSource(list)
-//        JasperPrint jasperPrint;
-//        if (dataSource != null) {
-//            try (Connection conn = dataSource.getConnection()) {
-//                jasperPrint = JasperFillManager.fillReport(report, params, conn);
-//            }
-//        } else {
-//            // ถ้ไม่มี DB: ใช้ empty datasource หรือ bean datasource
-//            JRDataSource emptyDS = new JREmptyDataSource();
-//            jasperPrint = JasperFillManager.fillReport(report, params, emptyDS);
-//        }
-//
-//        // 4. Export ตาม format
-//        String fmt = req.outputFormat().toLowerCase();
-//        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-//
-//        switch (fmt) {
-//            case "pdf" -> {
-//                JRPdfExporter exporter = new JRPdfExporter();
-//                exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
-//                exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(bos));
-//                exporter.exportReport();
-//            }
-//            case "xlsx" -> {
-//                JRXlsxExporter exporter = new JRXlsxExporter();
-//                exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
-//                exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(bos));
-//                SimpleXlsxReportConfiguration configuration = new SimpleXlsxReportConfiguration();
-//                configuration.setOnePagePerSheet(false);
-//                configuration.setDetectCellType(true);
-//                exporter.setConfiguration(configuration);
-//                exporter.exportReport();
-//            }
-//            case "docx" -> {
-//                JRDocxExporter exporter = new JRDocxExporter();
-//                exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
-//                exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(bos));
-//                exporter.exportReport();
-//            }
-//            case "pptx" -> {
-//                JRPptxExporter exporter = new JRPptxExporter();
-//                exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
-//                exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(bos));
-//                exporter.exportReport();
-//            }
-//            default -> throw new IllegalArgumentException("Unsupported format: " + fmt);
-//        }
-//
-//        return bos.toByteArray();
-//    }
 
     public byte[] generateReport(ReportRequest req) {
         ZoneId Z = ZoneId.of("Asia/Bangkok");
@@ -157,106 +55,165 @@ public class ExportService {
         Timestamp toExcl = Timestamp.from(req.dateTo().plusDays(1).atStartOfDay(Z).toInstant());
 
         Date dateFromInclDisplay = Date.from(req.dateFrom().atStartOfDay(Z).toInstant());
-        Date dateToInclDisplay   = Date.from(req.dateTo().atStartOfDay(Z).toInstant());
+        Date dateToInclDisplay = Date.from(req.dateTo().atStartOfDay(Z).toInstant());
 
+        String fmt = (req.outputFormat() == null ? "pdf" : req.outputFormat().toLowerCase());
+
+        // สำหรับ Excel ให้ใช้วิธีพิเศษ
+        if ("xlsx".equals(fmt)) {
+            try {
+                Map<String, Object> params = buildCommonParams(fromTs, toExcl, dateFromInclDisplay, dateToInclDisplay);
+                notiService.exportReportNotiAsync(req.projectId(), "Export Success!");
+                return generateTrueExcel(req, params);
+            } catch (Exception e) {
+                log.error("Generate Excel failed: {}", e.getMessage(), e);
+                throw new RuntimeException("Generate Excel failed", e);
+            }
+        }
+
+        // สำหรับ PDF, DOCX, PPTX ให้สร้าง report แยกตาม section
+        try (ByteArrayOutputStream mergedOutput = new ByteArrayOutputStream()) {
+            List<byte[]> reportBytes = new ArrayList<>();
+
+            // Generate QualityGateSummary
+            if (req.includeSections().contains("QualityGateSummary")) {
+                byte[] qgateReport = generateQualityGateReport(req, fromTs, toExcl, dateFromInclDisplay, dateToInclDisplay, fmt);
+                reportBytes.add(qgateReport);
+            }
+
+            // Generate IssueBreakdown
+            if (req.includeSections().contains("IssueBreakdown")) {
+                byte[] issueReport = generateIssueBreakdownReport(req, fromTs, toExcl, dateFromInclDisplay, dateToInclDisplay, fmt);
+                reportBytes.add(issueReport);
+            }
+
+            if (reportBytes.isEmpty()) {
+                throw new IllegalStateException("No sections selected for export");
+            }
+            notiService.exportReportNotiAsync(req.projectId(), "Export Success!");
+            return reportBytes.get(0);
+
+        } catch (Exception e) {
+            log.error("Generate report failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Generate report failed", e);
+        }
+
+
+    }
+
+    private byte[] generateQualityGateReport(ReportRequest req, Timestamp fromTs, Timestamp toExcl,
+                                             Date dateFromDisplay, Date dateToDisplay, String format) throws Exception {
+        List<Map<String, ?>> qgateRows = fetchSectionRows(req, "QualityGateSummary", fromTs, toExcl);
+
+        if (qgateRows.isEmpty()) {
+            log.warn("No data found for QualityGateSummary");
+            return new byte[0];
+        }
+
+        Map<String, Object> params = buildCommonParams(fromTs, toExcl, dateFromDisplay, dateToDisplay);
+
+        // เพิ่ม project_name ให้ทุก row ถ้ายังไม่มี
+        String projectName = getProjectName(req, qgateRows);
+        for (Map<String, ?> row : qgateRows) {
+            if (!row.containsKey("project_name") || row.get("project_name") == null) {
+                ((Map<String, Object>) row).put("project_name", projectName);
+            }
+        }
+
+        params.put("project_name", projectName);
+
+        JRMapCollectionDataSource dataSource = new JRMapCollectionDataSource(qgateRows);
+
+        try (InputStream jrxml = new ClassPathResource("reports/QualityGateReport.jrxml").getInputStream()) {
+            JasperReport report = JasperCompileManager.compileReport(jrxml);
+            JasperPrint print = JasperFillManager.fillReport(report, params, dataSource);
+            return exportToFormat(print, format, req, params);
+        }
+    }
+
+    private byte[] generateIssueBreakdownReport(ReportRequest req, Timestamp fromTs, Timestamp toExcl,
+                                                Date dateFromDisplay, Date dateToDisplay, String format) throws Exception {
+        List<Map<String, ?>> issueRows = fetchSectionRows(req, "IssueBreakdown", fromTs, toExcl);
+
+        if (issueRows.isEmpty()) {
+            log.warn("No data found for IssueBreakdown");
+            return new byte[0];
+        }
+
+        Map<String, Object> params = buildCommonParams(fromTs, toExcl, dateFromDisplay, dateToDisplay);
+
+        // เพิ่ม project_name ให้ทุก row
+        String projectName = getProjectName(req, issueRows);
+        for (Map<String, ?> row : issueRows) {
+            ((Map<String, Object>) row).put("project_name", projectName);
+        }
+
+        params.put("project_name", projectName);
+
+        JRMapCollectionDataSource dataSource = new JRMapCollectionDataSource(issueRows);
+
+        try (InputStream jrxml = new ClassPathResource("reports/IssueBreakdownReport.jrxml").getInputStream()) {
+            JasperReport report = JasperCompileManager.compileReport(jrxml);
+            JasperPrint print = JasperFillManager.fillReport(report, params, dataSource);
+            return exportToFormat(print, format, req, params);
+        }
+    }
+
+    private Map<String, Object> buildCommonParams(Timestamp fromTs, Timestamp toExcl,
+                                                  Date dateFromDisplay, Date dateToDisplay) {
         Map<String, Object> params = new HashMap<>();
         params.put("dateNow", new java.util.Date());
         params.put("DATE_FROM_TS", fromTs);
         params.put("DATE_TO_TS_EXCL", toExcl);
-        params.put("DATE_FROM_DISPLAY", dateFromInclDisplay);
-        params.put("DATE_TO_DISPLAY", dateToInclDisplay);
+        params.put("DATE_FROM_DISPLAY", dateFromDisplay);
+        params.put("DATE_TO_DISPLAY", dateToDisplay);
+        return params;
+    }
 
-        // ====================== Section: Quality Gate ======================
-        if (req.includeSections().contains("QualityGateSummary")) {
-            List<Map<String, ?>> qgateRows = fetchSectionRows(req, "QualityGateSummary", fromTs, toExcl);
-            JRMapCollectionDataSource qgateDS = new JRMapCollectionDataSource(qgateRows);
-            params.put("INCLUDE_QUALITY_GATE", true);
-            params.put("QGATE_DS", qgateDS);
-
-            // ----- set ค่าให้ Page Header -----
-            String projectName = null;
-            if (!qgateRows.isEmpty()) {
-                Object v = qgateRows.get(0).get("project_name");
-                if (v != null) projectName = String.valueOf(v);
-            }
-            // ถ้า selectedCols ไม่ได้ใส่ project_name มา ให้ดึงชื่อโปรเจ็กต์จากตาราง projects
-            if (projectName == null) {
-                try {
-                    projectName = jdbcTemplate.queryForObject(
-                            "SELECT name FROM projects WHERE project_id = ?",
-                            String.class,
-                            req.projectId()
-                    );
-                } catch (Exception ignore) { /* keep null */ }
-            }
-            params.put("project_name", projectName != null ? projectName : "(unknown)");
-        } else {
-            params.put("INCLUDE_QUALITY_GATE", false);
+    private String getProjectName(ReportRequest req, List<Map<String, ?>> rows) {
+        // ลองดึงจาก row แรก
+        if (!rows.isEmpty()) {
+            Object v = rows.get(0).get("project_name");
+            if (v != null) return String.valueOf(v);
         }
 
-        // ====================== Section: Issue Breakdown ======================
-        if (req.includeSections().contains("IssueBreakdown")) {
-            List<Map<String, ?>> issueRows = fetchSectionRows(req, "IssueBreakdown", fromTs, toExcl);
-            JRMapCollectionDataSource issueDS = new JRMapCollectionDataSource(issueRows);
-            params.put("INCLUDE_ISSUE_BREAKDOWN", true);
-            params.put("ISSUE_DS", issueDS);
-        } else {
-            params.put("INCLUDE_ISSUE_BREAKDOWN", false);
-        }
-
-        // ====================== Section: Security Analysis ======================
-        if (req.includeSections().contains("SecurityAnalysis")) {
-            List<Map<String, ?>> secRows = fetchSectionRows(req, "SecurityAnalysis", fromTs, toExcl);
-            JRMapCollectionDataSource secDS = new JRMapCollectionDataSource(secRows);
-            params.put("INCLUDE_SECURITY_ANALYSIS", true);
-            params.put("SECURITY_DS", secDS);
-        } else {
-            params.put("INCLUDE_SECURITY_ANALYSIS", false);
-        }
-
-        // ====================== Section: Technical Debt ======================
-        if (req.includeSections().contains("TechnicalDebt")) {
-            List<Map<String, ?>> debtRows = fetchSectionRows(req, "TechnicalDebt", fromTs, toExcl);
-            JRMapCollectionDataSource debtDS = new JRMapCollectionDataSource(debtRows);
-            params.put("INCLUDE_TECHNICAL_DEBT", true);
-            params.put("TECH_DS", debtDS);
-        } else {
-            params.put("INCLUDE_TECHNICAL_DEBT", false);
-        }
-        log.info("includeSections = {}", req.includeSections());
-        log.info("DATE_FROM_TS = {}, DATE_TO_TS_EXCL = {}", fromTs, toExcl);
-
-        // ==== compile & fill report ====
-        try (InputStream jrxml = new ClassPathResource("reports/QualityGateReport.jrxml").getInputStream()) {
-            JasperReport report = JasperCompileManager.compileReport(jrxml);
-            JasperPrint print = JasperFillManager.fillReport(report, params, new JREmptyDataSource());
-            return exportBytes(print, req.outputFormat(), req, params);
+        // ถ้าไม่มีให้ query จาก database
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT name FROM projects WHERE project_id = ?",
+                    String.class,
+                    req.projectId()
+            );
         } catch (Exception e) {
-            log.error("Generate report failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Generate report failed", e);
+            log.warn("Cannot get project name for project_id: {}", req.projectId());
+            return "(unknown)";
         }
     }
 
     private List<Map<String, ?>> fetchSectionRows(ReportRequest req, String section,
                                                   Timestamp fromTs, Timestamp toExcl)  {
-        List<String> requested = Optional.ofNullable(req.selectedColumns())
-                .map(m -> m.get(section)).orElse(null);
+        List<String> selectedCols = switch (section) {
+                case "QualityGateSummary" -> List.of("started_at", "quality_gate",
+                        "bugs", "coverage", "code_smells", "vulnerabilities", "duplicated_lines_density",
+                        "maintainability_gate", "reliability_gate", "security_gate", "security_review_gate");
+                case "IssueBreakdown" -> List.of("component", "message", "type", "severity", "status",
+                        "created_at", "due_date", "assigned_to");
+                default -> List.of("project_id", "started_at");
+        };
 
-        List<String> allowed = new ArrayList<>(allowedColumn.getOrDefault(section, Set.of()));
-        List<String> selectedCols = (requested == null)
-                ? List.of()
-                : requested.stream().filter(allowed::contains).toList();
-
-        if (selectedCols.isEmpty()) {
-            selectedCols = List.of("project_id", "started_at", "quality_gate"); // หรือ default ของ section นั้น ๆ
-        }
-
+        // ตรวจสอบว่าต้อง JOIN กับ projects หรือไม่
         boolean needsJoinProjects = selectedCols.contains("project_name");
+        boolean needsJoinUsers = selectedCols.contains("assigned_to");
         final List<String> colsForMap = List.copyOf(selectedCols);
 
         String selectList = colsForMap.stream()
-                .map(c -> Optional.ofNullable(COL_EXPR.get(c))
-                        .orElseThrow(() -> new IllegalArgumentException("Unknown column: " + c)))
+                .map(c -> {
+                    String expr = getColumnExpression(c, section);
+                    if (expr == null) {
+                        throw new IllegalArgumentException("Unknown column: " + c + " for section: " + section);
+                    }
+                    return expr;
+                })
                 .collect(Collectors.joining(", "));
 
         String sql = switch (section) {
@@ -267,19 +224,17 @@ public class ExportService {
                             "WHERE s.project_id = ? AND s.started_at >= ? AND s.started_at < ? " +
                             "ORDER BY s.started_at DESC";
             case "IssueBreakdown" ->
-                    "SELECT " + selectList + " FROM issues WHERE project_id = ? AND created_at BETWEEN ? AND ?";
-            case "SecurityAnalysis" ->
-                    "SELECT " + selectList + " FROM vulnerabilities WHERE project_id = ? AND created_at BETWEEN ? AND ?";
-            case "TechnicalDebt" ->
-                    "SELECT " + selectList + " FROM tech_debts WHERE project_id = ? AND started_at BETWEEN ? AND ?";
+                    "SELECT " + selectList +
+                            " FROM issues i " +
+                            " JOIN scans s ON s.scan_id = i.scan_id " +
+                            (needsJoinProjects ? "JOIN projects p ON p.project_id = s.project_id " : "") +
+                            (needsJoinUsers ? "LEFT JOIN users u ON u.user_id = i.assigned_to " : "") +
+                            " WHERE s.project_id = ? AND s.started_at >= ? AND s.started_at < ? " +
+                            " ORDER BY s.started_at DESC, i.severity DESC";
             default ->
-                    "SELECT " + selectList + " FROM scans s WHERE s.project_id = ? AND s.started_at BETWEEN ? AND ?";
+                    "SELECT " + selectList + " FROM scans s WHERE s.project_id = ? AND s.started_at >= ? AND s.started_at < ?";
         };
 
-        log.info("[{}] selectedCols = {}", section, colsForMap);
-        log.info("[{}] SQL = {}", section, sql);
-        log.info("[{}] params: projectId={}, fromTs={}, toExcl={}",
-                section, req.projectId(), fromTs, toExcl);
         return jdbcTemplate.query(con -> {
             PreparedStatement ps = con.prepareStatement(sql);
             ps.setObject(1, req.projectId());
@@ -287,7 +242,7 @@ public class ExportService {
             ps.setTimestamp(3, toExcl);
             return ps;
         }, (rs, i) -> {
-            Map<String, Object> m = new HashMap<>();
+            Map<String, Object> m = new LinkedHashMap<>();
             for (String c : colsForMap) {
                 m.put(c, rs.getObject(c));
             }
@@ -295,25 +250,48 @@ public class ExportService {
         });
     }
 
-    private static final Map<String, Set<String>> allowedColumn = Map.of(
-            "QualityGateSummary", Set.of("project_name","started_at","quality_gate","bugs","coverage","code_smells","vulnerabilities","duplicated_lines_density","maintainability_gate","reliability_gate","security_gate","security_review_gate"),
-            "IssueBreakdown",     Set.of("project_id","created_at","type","severity","component","message","status","assign_to"),
-            "SecurityAnalysis",   Set.of("vuln_id","severity","cvss","component","status")
-            //เดี๋ยวเพิ่มอันอื่น
-    );
+    private String getColumnExpression(String columnName, String section) {
+        // สำหรับ columns ที่ใช้ร่วมกันได้
+        if ("project_name".equals(columnName)) {
+            return "p.name AS project_name";
+        }
 
-    private static List<String> sanitize(String section, List<String> requested) {
-        Set<String> allowed = allowedColumn.getOrDefault(section, Set.of());
-        if (requested == null) return List.of();
-        return requested.stream().filter(allowed::contains).toList();
+        // สำหรับแต่ละ section
+        return switch (section) {
+            case "QualityGateSummary" -> switch (columnName) {
+                case "project_id" -> "s.project_id AS project_id";
+                case "started_at" -> "s.started_at AS started_at";
+                case "quality_gate" -> "s.quality_gate AS quality_gate";
+                case "maintainability_gate" -> "s.maintainability_gate AS maintainability_gate";
+                case "reliability_gate" -> "s.reliability_gate AS reliability_gate";
+                case "security_gate" -> "s.security_gate AS security_gate";
+                case "security_review_gate" -> "s.security_review_gate AS security_review_gate";
+                case "bugs" -> "(s.metrics->>'bugs')::int AS bugs";
+                case "coverage" -> "(s.metrics->>'coverage')::numeric AS coverage";
+                case "code_smells" -> "(s.metrics->>'code_smells')::int AS code_smells";
+                case "vulnerabilities" -> "(s.metrics->>'vulnerabilities')::int AS vulnerabilities";
+                case "duplicated_lines_density" -> "(s.metrics->>'duplicated_lines_density')::numeric AS duplicated_lines_density";
+                default -> null;
+            };
+            case "IssueBreakdown" -> switch (columnName) {
+                case "created_at"   -> "i.created_at AS created_at";
+                case "due_date"     -> "i.due_date AS due_date";
+                case "type"         -> "i.type AS type";
+                case "severity"     -> "i.severity AS severity";
+                case "component"    -> "i.component AS component";
+                case "message"      -> "i.message AS message";
+                case "status"       -> "i.status AS status";
+                case "assigned_to"  -> "COALESCE(u.email, i.assigned_to::text) AS assigned_to";
+                default -> null;
+            };
+            default -> null;
+        };
     }
 
 
-    private byte[] exportBytes(JasperPrint print, String format, ReportRequest req, Map<String, Object> params)
-            throws JRException, IOException {
-        String fmt = (format == null ? "pdf" : format.toLowerCase());
+    private byte[] exportToFormat(JasperPrint print, String format, ReportRequest req, Map<String, Object> params) throws JRException, IOException {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-            switch (fmt) {
+            switch (format) {
                 case "pdf" -> {
                     JRPdfExporter ex = new JRPdfExporter();
                     ex.setExporterInput(new SimpleExporterInput(print));
@@ -336,36 +314,17 @@ public class ExportService {
                     ex.setExporterOutput(new SimpleOutputStreamExporterOutput(bos));
                     ex.exportReport();
                 }
-                default -> throw new IllegalArgumentException("Unsupported format: " + fmt);
+                default -> throw new IllegalArgumentException("Unsupported format: " + format);
             }
             return bos.toByteArray();
         }
     }
 
-    private static final Map<String,String> COL_EXPR = Map.ofEntries(
-            // จาก projects
-            Map.entry("project_name", "p.name AS project_name"),
-            // จาก scans (ใส่ s. ทุกอัน)
-            Map.entry("started_at", "s.started_at AS started_at"),
-            Map.entry("quality_gate", "s.quality_gate AS quality_gate"),
-            Map.entry("maintainability_gate", "s.maintainability_gate AS maintainability_gate"),
-            Map.entry("reliability_gate", "s.reliability_gate AS reliability_gate"),
-            Map.entry("security_gate", "s.security_gate AS security_gate"),
-            Map.entry("security_review_gate", "s.security_review_gate AS security_review_gate"),
-            // metrics (JSONB) → ดึงด้วย ->> แล้ว CAST พร้อม alias ให้ตรง JRXML
-            Map.entry("bugs", "(s.metrics->>'bugs')::int AS bugs"),
-            Map.entry("coverage", "(s.metrics->>'coverage')::numeric AS coverage"),
-            Map.entry("code_smells", "(s.metrics->>'code_smells')::int AS code_smells"),
-            Map.entry("vulnerabilities", "(s.metrics->>'vulnerabilities')::int AS vulnerabilities"),
-            Map.entry("duplicated_lines_density", "(s.metrics->>'duplicated_lines_density')::numeric AS duplicated_lines_density")
-    );
-
-
 
     //generateExcel
     private byte[] generateTrueExcel(ReportRequest req, Map<String, Object> params) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
-
+            String projectName = getProjectName(req, List.of());
             // === QualityGateSummary ===
             if (req.includeSections().contains("QualityGateSummary")) {
                 Sheet sheet = workbook.createSheet("Quality Gate");
@@ -375,7 +334,9 @@ public class ExportService {
                         (Timestamp) params.get("DATE_FROM_TS"),
                         (Timestamp) params.get("DATE_TO_TS_EXCL")
                 );
-                writeSheet(sheet, rows);
+                writeSheetWithHeader(sheet, rows, "Quality Gate Summary", projectName,
+                        (Date) params.get("DATE_FROM_DISPLAY"),
+                        (Date) params.get("DATE_TO_DISPLAY"));
             }
 
             // === IssueBreakdown ===
@@ -387,31 +348,9 @@ public class ExportService {
                         (Timestamp) params.get("DATE_FROM_TS"),
                         (Timestamp) params.get("DATE_TO_TS_EXCL")
                 );
-                writeSheet(sheet, rows);
-            }
-
-            // === SecurityAnalysis ===
-            if (req.includeSections().contains("SecurityAnalysis")) {
-                Sheet sheet = workbook.createSheet("Security Analysis");
-                List<Map<String, ?>> rows = fetchSectionRows(
-                        req,
-                        "SecurityAnalysis",
-                        (Timestamp) params.get("DATE_FROM_TS"),
-                        (Timestamp) params.get("DATE_TO_TS_EXCL")
-                );
-                writeSheet(sheet, rows);
-            }
-
-            // === TechnicalDebt ===
-            if (req.includeSections().contains("TechnicalDebt")) {
-                Sheet sheet = workbook.createSheet("Technical Debt");
-                List<Map<String, ?>> rows = fetchSectionRows(
-                        req,
-                        "TechnicalDebt",
-                        (Timestamp) params.get("DATE_FROM_TS"),
-                        (Timestamp) params.get("DATE_TO_TS_EXCL")
-                );
-                writeSheet(sheet, rows);
+                writeSheetWithHeader(sheet, rows, "Issue Breakdown", projectName,
+                        (Date) params.get("DATE_FROM_DISPLAY"),
+                        (Date) params.get("DATE_TO_DISPLAY"));
             }
 
             try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
@@ -421,26 +360,50 @@ public class ExportService {
         }
     }
 
-    private void writeSheet(Sheet sheet, List<Map<String, ?>> rows) {
+    private void writeSheetWithHeader(Sheet sheet, List<Map<String, ?>> rows, String sectionTitle,
+                                      String projectName, Date dateFrom, Date dateTo) {
+        int currentRow = 0;
+
+        // Title
+        sheet.createRow(currentRow++).createCell(0).setCellValue(sectionTitle);
+        currentRow++; // บรรทัดว่าง
+
+        // Project Name
+        Row projectRow = sheet.createRow(currentRow++);
+        projectRow.createCell(0).setCellValue("Project Name :");
+        projectRow.createCell(1).setCellValue(projectName);
+
+        // วันที่
+        SimpleDateFormat sdf = new SimpleDateFormat("dd MMMM yyyy", new Locale("th", "TH"));
+        Row dateRow = sheet.createRow(currentRow++);
+        dateRow.createCell(0).setCellValue("เริ่มจากวันที่");
+        dateRow.createCell(1).setCellValue(sdf.format(dateFrom));
+        dateRow.createCell(2).setCellValue("ถึง");
+        dateRow.createCell(3).setCellValue(sdf.format(dateTo));
+
+        currentRow += 1;
+
         if (rows.isEmpty()) return;
 
-        // header
-        Row header = sheet.createRow(0);
+        // ตารางข้อมูล - Header
+        Row headerRow = sheet.createRow(currentRow++);
         List<String> cols = new ArrayList<>(rows.get(0).keySet());
+        headerRow.createCell(0).setCellValue("No.");
         for (int i = 0; i < cols.size(); i++) {
-            header.createCell(i).setCellValue(cols.get(i));
+            headerRow.createCell(i+1).setCellValue(cols.get(i));
         }
 
-        // body
-        for (int r = 0; r < rows.size(); r++) {
-            Row row = sheet.createRow(r + 1);
-            Map<String, ?> data = rows.get(r);
+        // ตารางข้อมูล - Body
+        int rowNum = 1;
+        for (Map<String, ?> data : rows) {
+            Row row = sheet.createRow(currentRow++);
+            row.createCell(0).setCellValue(rowNum++);
             for (int c = 0; c < cols.size(); c++) {
                 Object v = data.get(cols.get(c));
-                Cell cell = row.createCell(c);
+                Cell cell = row.createCell(c + 1);
                 if (v instanceof Number num) {
                     cell.setCellValue(num.doubleValue());
-                } else if (v instanceof java.util.Date date) {
+                } else if (v instanceof Date date) {
                     cell.setCellValue(date.toString());
                 } else {
                     cell.setCellValue(v != null ? v.toString() : "");
@@ -448,9 +411,10 @@ public class ExportService {
             }
         }
 
-        // auto size columns
+        // Auto size
+        sheet.autoSizeColumn(0);
         for (int i = 0; i < cols.size(); i++) {
-            sheet.autoSizeColumn(i);
+            sheet.autoSizeColumn(i+1);
         }
     }
     //GenerateExcel

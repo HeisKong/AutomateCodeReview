@@ -21,11 +21,9 @@ import java.util.UUID;
 public class ScanController {
 
     private final ScanService scanService;
-    private final ScansRepository scanRepository;
 
-    public ScanController(ScanService scanService, ScansRepository scanRepository) {
+    public ScanController(ScanService scanService ) {
         this.scanService = scanService;
-        this.scanRepository = scanRepository;
 
     }
 
@@ -45,14 +43,14 @@ public class ScanController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/getProject")
-    public List<ScanModel> getAllScan() {
-        return scanService.getAllScan();
+    @GetMapping("/getProject/{userId}")
+    public List<ScanModel> getAllScan(@PathVariable UUID userId) {
+        return scanService.getAllScan(userId);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Optional<ScansEntity>> getByIdScan(@PathVariable UUID id) {
-        Optional<ScansEntity> scan = scanRepository.getByIdScan(id);
+    @GetMapping("/{scanId}")
+    public ResponseEntity<ScanModel> getByIdScan(@PathVariable UUID scanId) {
+        ScanModel scan = scanService.getByIdScan(scanId);
         if(scan != null){
             return ResponseEntity.ok(scan);
         }else {
@@ -60,9 +58,15 @@ public class ScanController {
         }
     }
 
-    @GetMapping("/{id}/log")
-    public ResponseEntity<ScanLogModel> getLogScan(@PathVariable UUID id) {
-        ScanLogModel log = scanService.getScanLogById(id);
+    @GetMapping("/{scanId}/log")
+    public ResponseEntity<ScanLogModel> getScanLogById(@PathVariable UUID scanId) {
+        ScanLogModel log = scanService.getScanLogById(scanId);
         return ResponseEntity.ok(log);
+    }
+
+    @DeleteMapping("/{scanId}")
+    public ResponseEntity<Void> deleteScan(@PathVariable UUID scanId) {
+        scanService.deleteScan(scanId);
+        return ResponseEntity.noContent().build();
     }
 }

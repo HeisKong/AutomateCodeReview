@@ -4,6 +4,7 @@ import com.automate.CodeReview.entity.AssignHistoryEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,4 +16,5 @@ public interface AssignHistoryRepository extends JpaRepository<AssignHistoryEnti
     List<AssignHistoryEntity> findByAssignedTo(UUID userId);
     boolean existsByIssues_IssuesIdAndAssignedTo(UUID issuesIssuesId, UUID assignedTo);
     Optional<AssignHistoryEntity> findByIssues_IssuesIdAndStatus(UUID issuesId, String status);
+    Collection<AssignHistoryEntity> findByIssues_Scan_Project_User_UserId(UUID userId);
 }

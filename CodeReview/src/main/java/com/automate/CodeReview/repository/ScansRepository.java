@@ -29,8 +29,7 @@ public interface ScansRepository extends JpaRepository<ScansEntity, UUID> {
             String projectKey,
             List<String> statuses
     );
-    Optional<ScansEntity> findTopByProject_ProjectIdOrderByStartedAtDesc(UUID projectId);
-    List<ScansEntity> findByProject_ProjectIdOrderByStartedAtDesc(UUID projectId);
 
+    List<ScansEntity> findByProject_User_UserId(UUID userId);
 
 }

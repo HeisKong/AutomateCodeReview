@@ -25,7 +25,7 @@ public class AuthController {
     // ใช้ค่านี้ตั้งอายุคุกกี้ rt ให้สอดคล้องกับ JWT refresh (ms)
 
     public AuthController(AuthService authService,
-                          @Value("${jwt.refresh-ms:604800000}") long refreshMs) {
+                          @Value("${jwt.refresh-ms}") long refreshMs) {
         this.authService = authService;
         this.cookieUtil = new CookieUtil(refreshMs, "None");
     }

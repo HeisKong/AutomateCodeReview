@@ -17,6 +17,7 @@ public class ScanModel {
     private int exitCode;
     private UUID scanId;
     private UUID projectId;
+    private String projectName;
     private String branchName;
     private String status;
     private String qualityGate;
