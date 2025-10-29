@@ -12,7 +12,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 public class NotiModel {
-    private Long notiId;
+    private UUID notiId;
     private UUID projectId;
     private UUID scanId;
     private String typeNoti;

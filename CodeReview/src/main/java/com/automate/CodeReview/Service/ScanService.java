@@ -4,16 +4,20 @@ import com.automate.CodeReview.Models.ScanLogModel;
 import com.automate.CodeReview.Models.ScanModel;
 import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.ScansEntity;
+import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.ProjectsRepository;
 import com.automate.CodeReview.repository.ScansRepository;
+import com.automate.CodeReview.repository.UsersRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -47,6 +51,7 @@ public class ScanService {
     private final ProjectsRepository projectRepository;
     private final RepositoryService repositoryService;
     private final WebClient sonarWebClient;
+    private final UsersRepository userRepository;
 
 
     private static final String BASE_DIR = "C:\\gitpools";
@@ -54,12 +59,14 @@ public class ScanService {
     private static final String LOG_BASE = "C:\\scan-logs";
     private final JdbcTemplate jdbcTemplate;
 
-    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate) {
+    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate,
+                       UsersRepository userRepository) {
         this.scanRepository = scanRepository;
         this.projectRepository = projectRepository;
         this.repositoryService = repositoryService;
         this.sonarWebClient = sonarWebClient;
         this.jdbcTemplate = jdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     // ส่วนของ startScan
@@ -72,7 +79,7 @@ public class ScanService {
 
 
     public Map<String, Object> startScan(UUID projectId, String username, String password) {
-        log.info("Starting scan for project: {}", projectId);
+//        log.info("Starting scan for project: {}", projectId);
 
         // 1. ดึงข้อมูล project
         ProjectsEntity project = projectRepository.findById(projectId)
@@ -97,7 +104,7 @@ public class ScanService {
         scan = scanRepository.save(scan);
 
         UUID scanId = scan.getScanId();
-        log.info("Created scan record with ID: {}, reference: {}", scanId, referenceId);
+//        log.info("Created scan record with ID: {}, reference: {}", scanId, referenceId);
 
         //สร้าง log path จาก scanId (เก็บใน folder ของโปรเจ็ก)
         String logFileName = String.format("scan_%s.log", scanId);
@@ -106,7 +113,7 @@ public class ScanService {
         scan.setLogFilePath(logFilePath.toString());
         scanRepository.save(scan);
 
-        log.info("Log file will be saved at: {}", logFilePath);
+//        log.info("Log file will be saved at: {}", logFilePath);
 
 
         // 2. Clone project ใหม่
@@ -117,16 +124,16 @@ public class ScanService {
             );
 
             String newClonePath = (String) cloneResult.get("directory");
-            log.info("Cloned to new directory: {}", newClonePath);
+//            log.info("Cloned to new directory: {}", newClonePath);
 
             if (oldClonePath != null && !oldClonePath.isBlank()) {
                 deleteOldCloneDirectory(oldClonePath);
-                log.info("Deleted old clone directory before new clone: {}", oldClonePath);
+//                log.info("Deleted old clone directory before new clone: {}", oldClonePath);
             }
 
             // 6. สร้าง Sonar script
             String projectType = detectProjectType(newClonePath);
-            log.info("Detected project type: {}", projectType);
+//            log.info("Detected project type: {}", projectType);
 
 
             Path scriptPath = createSonarScriptByType(
@@ -136,7 +143,7 @@ public class ScanService {
                     this.sonarToken,
                     projectType
             );
-            log.info("Created Sonar script at: {}", scriptPath);
+//            log.info("Created Sonar script at: {}", scriptPath);
 
             // 7. อัพเดท clonePath ใน database
             updateProjectClonePath(projectId, newClonePath);
@@ -150,7 +157,7 @@ public class ScanService {
                 String analysisId = pollForAnalysisId(sonarProjectKey, 30); // timeout 30 วินาที
                 if (analysisId != null) {
                     scan.setAnalysisId(analysisId);
-                    log.info("เซ็ต analysisId ไว้ล่วงหน้า: {} สำหรับ scanId: {}", analysisId, scanId);
+//                    log.info("เซ็ต analysisId ไว้ล่วงหน้า: {} สำหรับ scanId: {}", analysisId, scanId);
                 } else {
                     log.warn("ไม่สามารถดึง analysisId ได้ภายในเวลาที่กำหนด");
                 }
@@ -167,9 +174,9 @@ public class ScanService {
 
             scanRepository.save(scan);
 
-            log.info("Scan completed: scanId={}, status={}", scanId, scan.getStatus());
-            log.info("DEBUG: หลัง save analysisId - scanId={}, analysisId={}, status={}",
-                    scan.getScanId(), scan.getAnalysisId(), scan.getStatus());
+//            log.info("Scan completed: scanId={}, status={}", scanId, scan.getStatus());
+//            log.info("DEBUG: หลัง save analysisId - scanId={}, analysisId={}, status={}",
+//                    scan.getScanId(), scan.getAnalysisId(), scan.getStatus());
 
             // 11. Return result
             Map<String, Object> result = new LinkedHashMap<>();
@@ -194,7 +201,7 @@ public class ScanService {
             if (scan != null && scan.getScanId() != null) {
                 try {
                     scanRepository.delete(scan);
-                    log.info("Deleted failed scan: {}", scan.getScanId());
+//                    log.info("Deleted failed scan: {}", scan.getScanId());
                 } catch (Exception deleteEx) {
                     log.error("Failed to delete scan", deleteEx);
                 }
@@ -226,7 +233,7 @@ public class ScanService {
                 .orElseThrow(() -> new RuntimeException("Project not found"));
         project.setClonePath(newClonePath);
         projectRepository.save(project);
-        log.info("Updated clone path for project: {}", projectId);
+//        log.info("Updated clone path for project: {}", projectId);
     }
 
     //detect
@@ -295,7 +302,7 @@ public class ScanService {
         try {
             Path path = Paths.get(directoryPath);
             if (Files.exists(path)) {
-                log.info("Deleting old clone directory: {}", directoryPath);
+//                log.info("Deleting old clone directory: {}", directoryPath);
 
                 // ใช้ cmd.exe /c rmdir /s /q แทน Java Files API
                 // เพราะ Windows จะ handle file locks ได้ดีกว่า
@@ -310,7 +317,7 @@ public class ScanService {
                 boolean finished = p.waitFor(30, TimeUnit.SECONDS);
 
                 if (finished && p.exitValue() == 0) {
-                    log.info("Successfully deleted: {}", directoryPath);
+//                    log.info("Successfully deleted: {}", directoryPath);
                 } else {
                     log.warn("Failed to delete directory (exit code: {}), but continuing...",
                             finished ? p.exitValue() : "timeout");
@@ -363,8 +370,8 @@ public class ScanService {
             return result;
         }
 
-        log.info("Running Sonar analysis for scan: {}", scanId);
-        log.info("Script path: {}", scriptPath);
+//        log.info("Running Sonar analysis for scan: {}", scanId);
+//        log.info("Script path: {}", scriptPath);
 
         List<String> command = List.of(
                 "cmd.exe", "/c",
@@ -379,7 +386,7 @@ public class ScanService {
             result.put("exitCode", exitCode);
 
             if (exitCode == 0) {
-                log.info("Sonar analysis completed successfully for scan: {}", scanId);
+//                log.info("Sonar analysis completed successfully for scan: {}", scanId);
             } else {
                 log.error("Sonar analysis failed with exit code: {} for scan: {}", exitCode, scanId);
                 result.put("error", "Script exited with code " + exitCode);
@@ -404,8 +411,8 @@ public class ScanService {
         pb.redirectErrorStream(true);
 
         String printable = String.join(" ", cmd);
-        log.info("EXEC: {}", printable);
-        log.info("Log file: {}", logFilePath);
+//        log.info("EXEC: {}", printable);
+//        log.info("Log file: {}", logFilePath);
 
         ExecutorService ex = null;
         BufferedWriter fileWriter = null;
@@ -440,7 +447,7 @@ public class ScanService {
                         String line;
                         while ((line = reader.readLine()) != null) {
                             // Log to console
-                            log.info("[sonar] {}", line);
+//                            log.info("[sonar] {}", line);
 
                             // Log to file (with timestamp)
                             synchronized (finalFileWriter) {
@@ -516,7 +523,7 @@ public class ScanService {
             if (fileWriter != null) {
                 try {
                     fileWriter.close();
-                    log.info("Log file closed: {}", logFilePath);
+//                    log.info("Log file closed: {}", logFilePath);
                 } catch (IOException e) {
                     log.error("Failed to close log file", e);
                 }
@@ -543,12 +550,12 @@ public class ScanService {
             try {
                 String analysisId = fetchLatestAnalysisId(projectKey);
                 if (analysisId != null && !analysisId.isBlank()) {
-                    log.info("✅ พบ analysisId ในครั้งที่ {}: {}", attempt, analysisId);
+//                    log.info("✅ พบ analysisId ในครั้งที่ {}: {}", attempt, analysisId);
                     return analysisId;
                 }
 
                 if (attempt == 1) {
-                    log.info("🔄 กำลังรอ analysisId จาก SonarQube...");
+//                    log.info("🔄 กำลังรอ analysisId จาก SonarQube...");
                 }
 
                 Thread.sleep(2000); // รอ 2 วินาที
@@ -570,9 +577,16 @@ public class ScanService {
 
     //ส่วนของ startScan
 
-    public List<ScanModel> getAllScan(){
+    public List<ScanModel> getAllScan(UUID userId){
         List<ScanModel> scansModel = new ArrayList<>();
-        List<ScansEntity> scansEntities = scanRepository.findAll();
+        UsersEntity user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
+
+        List<ScansEntity> scansEntities = isAdmin
+                ? scanRepository.findAll()
+                : scanRepository.findByProject_User_UserId(userId);
 
 
         for(ScansEntity scanEntity : scansEntities){

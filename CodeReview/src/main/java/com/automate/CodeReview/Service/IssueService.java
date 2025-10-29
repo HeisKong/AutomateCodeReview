@@ -10,6 +10,7 @@ import com.automate.CodeReview.exception.UserNotFoundException;
 import com.automate.CodeReview.repository.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -147,15 +148,17 @@ public class IssueService {
             projectName = issue.getScan().getProject().getName();
         }
 
-        UUID assignedTo = (issue.getAssignedTo() != null)
-                ? issue.getAssignedTo().getUserId()
-                : null;
+        UsersEntity assigned = issue.getAssignedTo();
+        UUID assignedTo = (assigned != null) ? assigned.getUserId() : null;
+        String assignedToName = (assignedTo != null) ? assigned.getUsername() : null;
+
 
         model.setIssueId(issue.getIssuesId());
         model.setProjectId(projectId);
         model.setProjectName(projectName);
         model.setScanId(issue.getScan().getScanId());
-        model.setScanId(issue.getScan().getScanId());
+        model.setAssignedTo(assignedTo);
+        model.setAssignedName(assignedToName);
         model.setIssueKey(issue.getIssueKey());
         model.setType(issue.getType());
         model.setComponent(issue.getComponent());
@@ -164,8 +167,7 @@ public class IssueService {
         model.setOwnerId(assignedTo);
         model.setStatus(issue.getStatus());
         model.setCreatedAt(issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null);
-
-
+        model.setDueDate(issue.getDueDate() != null ? issue.getDueDate().toString() : null);
 
         return model;
     }
@@ -245,6 +247,7 @@ public class IssueService {
         model.setCreatedAt(saved.getCreatedAt());
         model.setUserId(saved.getUser().getUserId());
         model.setIssueId(saved.getIssues().getIssuesId());
+        model.setUsername(saved.getUser().getUsername());
         return model;
     }
 
@@ -260,6 +263,7 @@ public class IssueService {
             model.setUserId(entity.getUser().getUserId());
             model.setComment(entity.getComment());
             model.setCreatedAt(entity.getCreatedAt());
+            model.setUsername(entity.getUser().getUsername());
             return model;
         }).toList();
     }

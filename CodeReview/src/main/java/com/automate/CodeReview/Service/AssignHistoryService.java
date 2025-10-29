@@ -12,9 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class AssignHistoryService {
@@ -36,17 +34,37 @@ public class AssignHistoryService {
         UsersEntity user = usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        List<AssignHistoryEntity> assignHist = assignHistoryRepository.findByAssignedTo(user.getUserId());
-        List<AssignModel.getAssign> result = new ArrayList<>();
+        // ดึงทั้งสองฝั่ง
+        Collection<AssignHistoryEntity> owned    = assignHistoryRepository.findByIssues_Scan_Project_User_UserId(user.getUserId());
+        Collection<AssignHistoryEntity> assigned = assignHistoryRepository.findByAssignedTo(user.getUserId());
 
-        for (AssignHistoryEntity a : assignHist) {
-            AssignModel.getAssign dto = getGetAssign(a, user);
+        // รวม + กันซ้ำ
+        LinkedHashSet<AssignHistoryEntity> merged = new LinkedHashSet<>();
+        if (owned != null)    merged.addAll(owned);
+        if (assigned != null) merged.addAll(assigned);
+
+        Map<UUID, String> assigneeNameCache = new HashMap<>();
+
+        List<AssignModel.getAssign> result = new ArrayList<>();
+        for (AssignHistoryEntity a : merged) {
+            boolean isOwn = Objects.equals(a.getAssignedTo(), user.getUserId());
+
+            String assignedToName = null;
+            UUID assigneeId = a.getAssignedTo();
+            if (assigneeId != null) {
+                assignedToName = assigneeNameCache.computeIfAbsent(
+                        assigneeId,
+                        id -> usersRepository.findById(id).map(UsersEntity::getUsername).orElse(null)
+                );
+            }
+
+            AssignModel.getAssign dto = toAssignDto(a, isOwn, assignedToName);
             result.add(dto);
         }
         return result;
     }
 
-    private static AssignModel.getAssign getGetAssign(AssignHistoryEntity a, UsersEntity user) {
+    private static AssignModel.getAssign toAssignDto(AssignHistoryEntity a, boolean own, String assignedToName) {
         AssignModel.getAssign dto = new AssignModel.getAssign();
 
         IssuesEntity issue = a.getIssues();
@@ -54,14 +72,15 @@ public class AssignHistoryService {
         dto.setSeverity(issue != null ? issue.getSeverity() : null);
 
         dto.setMessage(a.getMessage());
-
         dto.setAssignedTo(a.getAssignedTo());
-        dto.setAssignedToName(user.getUsername());
+        dto.setAssignedToName(assignedToName);
         dto.setStatus(a.getStatus());
         dto.setAnnotation(a.getAnnotation());
         dto.setDueDate(a.getDueDate());
+        dto.setOwn(own);
         return dto;
     }
+
 
 
     public AssignModel.setAssign updateStatus(UUID userId, UUID issueId, String rawStatus, String annotation) {
@@ -107,7 +126,7 @@ public class AssignHistoryService {
         }
 
         if ("ACCEPT".equals(statusUpper)) {
-            issue.setStatus(statusUpper);
+            issue.setStatus("IN PROGRESS");
             issuesRepository.save(issue);
 
             AssignHistoryEntity hist = assignHistoryRepository
