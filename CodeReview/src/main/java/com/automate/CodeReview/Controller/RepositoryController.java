@@ -36,9 +36,9 @@ public class RepositoryController {
         return ResponseEntity.created(location).body(created);
     }
 
-    @GetMapping("/getAll")
-    public List<RepositoryModel> getAllRepository(){
-        return repositoryService.getAllRepository();
+    @GetMapping("/getAll/{userId}")
+    public List<RepositoryModel> getAllRepository(@PathVariable UUID userId) {
+        return repositoryService.getAllRepository(userId);
     }
 
     @GetMapping("/detail/{projectId}")

@@ -393,14 +393,8 @@ public class SonarWebhookService {
                  log.warn("⚠️ Scan doesn't have log file path yet (scanId: {})", savedScan.getScanId());
              }
 
-            String notiMessage = String.format(
-                "Scan Success!! : project=%s, qg=%s, analysisId=%s",
-                project.getName(),
-                savedScan.getQualityGate(),
-                savedScan.getAnalysisId()
-            );
 
-            notiService.scanNotiAsync(savedScan.getScanId(),savedScan.getProject().getProjectId(), notiMessage);
+            notiService.scanNotiAsync(savedScan.getScanId(),savedScan.getProject().getProjectId(), "Scan Success!");
 
 
             // 7) (ถ้ามี) import issues ต่อ…

@@ -13,6 +13,7 @@ public class CommentModel {
 
     private UUID issueId;
     private UUID userId;
+    private String username;
     private String comment;
     private LocalDateTime createdAt;
 }
