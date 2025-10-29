@@ -3,8 +3,11 @@ package com.automate.CodeReview.Service;
 import com.automate.CodeReview.Models.LoginRequest;
 import com.automate.CodeReview.Models.RegisterRequest;
 import com.automate.CodeReview.Models.UserModel;
+import com.automate.CodeReview.Models.UserSummary;
 import com.automate.CodeReview.dto.ChangePasswordRequest;
+import com.automate.CodeReview.dto.UpdateUserProfileRequest;
 import com.automate.CodeReview.dto.UpdateUserRequest;
+import com.automate.CodeReview.entity.UserStatus;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.exception.DuplicateFieldsException;
 import com.automate.CodeReview.repository.UsersRepository;
@@ -67,7 +70,9 @@ public class AuthService {
         m.setEmail(e.getEmail());
         m.setPhoneNumber(e.getPhoneNumber());
         m.setRole(e.getRole());
+        m.setStatus(e.getStatus() != null ? e.getStatus().name() : null);
         m.setCreatedAt(e.getCreatedAt());
+
         return m;
     }
 
@@ -95,6 +100,7 @@ public class AuthService {
         u.setPassword(encoder.encode(req.password()));
         u.setPhoneNumber(req.phoneNumber());
         u.setRole(normalizeRole("USER"));
+        u.setStatus(UserStatus.PENDING_VERIFICATION);
         usersRepository.save(u);
 
         try {
@@ -222,7 +228,7 @@ public class AuthService {
                 user.getUserId(),
                 user.getEmail(),
                 user.getUsername(),
-                user.getRole()
+                Collections.singleton(user.getRole()).toString()
         );
         String refresh = jwtService.generateRefreshToken(user.getEmail(), jti);
 
@@ -259,7 +265,7 @@ public class AuthService {
                 u.getUserId(),
                 u.getEmail(),                // ส่ง email เป็นพารามิเตอร์แรก
                 u.getUsername(),             // ส่ง username เป็นพารามิเตอร์ที่สอง
-                u.getRole()          // แปลง String เป็น Collection<String>
+                Collections.singleton(u.getRole()).toString()          // แปลง String เป็น Collection<String>
         );
         String newRefresh = jwtService.generateRefreshToken(email, newJti);
 
@@ -313,5 +319,62 @@ public class AuthService {
         if (req.phoneNumber() == null || req.phoneNumber().trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone number is required");
         }
+    }
+
+    public UserSummary getUserSummaryById(UUID userId) {
+        UsersEntity u = usersRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        return new UserSummary(u.getUsername(), u.getEmail(), u.getStatus(), u.getPhoneNumber());
+    }
+
+    public UserModel updateUserProfile(UpdateUserProfileRequest req, String email) {
+        // ดึง user จาก email ที่ได้จาก token
+        UsersEntity u = usersRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        // check duplicates (เว้นตัวเอง)
+        if (req.getUsername() != null && !req.getUsername().isBlank() &&
+                !req.getUsername().equals(u.getUsername()) &&
+                usersRepository.existsByUsername(req.getUsername())) {
+            throw new DuplicateKeyException("Username already exists");
+        }
+
+        if (req.getEmail() != null && !req.getEmail().isBlank() &&
+                !req.getEmail().equals(u.getEmail()) &&
+                usersRepository.existsByEmail(req.getEmail())) {
+            throw new DuplicateKeyException("Email already exists");
+        }
+
+        if (req.getPhoneNumber() != null && !req.getPhoneNumber().isBlank() &&
+                !req.getPhoneNumber().equals(u.getPhoneNumber()) &&
+                usersRepository.existsByPhoneNumber(req.getPhoneNumber())) {
+            throw new DuplicateKeyException("Phone number already exists");
+        }
+
+        // ตรวจสอบว่ามีการเปลี่ยน email หรือไม่ (เฉพาะกรณีที่ไม่เป็นค่าว่าง)
+        boolean emailChanged = req.getEmail() != null && !req.getEmail().isBlank()
+                && !req.getEmail().equals(u.getEmail());
+
+        // update fields เฉพาะที่ไม่ null และไม่ว่าง
+        if (req.getUsername() != null && !req.getUsername().isBlank()) {
+            u.setUsername(req.getUsername());
+        }
+        if (req.getEmail() != null && !req.getEmail().isBlank()) {
+            u.setEmail(req.getEmail());
+        }
+        if (req.getPhoneNumber() != null && !req.getPhoneNumber().isBlank()) {
+            u.setPhoneNumber(req.getPhoneNumber());
+        }
+
+        // ถ้าเปลี่ยน email ให้เปลี่ยนสถานะเป็น PENDING_VERIFICATION
+        if (emailChanged) {
+            u.setStatus(UserStatus.PENDING_VERIFICATION);
+        }
+
+        UsersEntity saved = usersRepository.save(u);
+
+        UserModel model = toModel(saved);
+        model.setCreatedAt(saved.getCreatedAt());
+        return model;
     }
 }

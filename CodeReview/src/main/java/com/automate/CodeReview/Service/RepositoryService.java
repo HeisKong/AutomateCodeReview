@@ -12,9 +12,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -62,8 +64,19 @@ public class RepositoryService {
     @Transactional
     public RepositoryResponse createRepository(RepositoryCreateRequest req) {
         if (req.getUser() == null) {
-            throw new IllegalArgumentException("userId is required");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"userId is required");
         }
+        String rawName = Optional.ofNullable(req.getName()).orElse("").trim();
+        if (rawName.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Project name is required");
+
+        }
+
+        boolean checkProject = projectsRepository.existsByNameIgnoreCase(rawName);
+        if (checkProject) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Project name already exists");
+        }
+
 
         boolean valid = checkRepo(req.getRepositoryUrl(), req.getUsername(), req.getPassword());
         if (!valid) throw new IllegalArgumentException("Invalid repository or authentication failed");
@@ -630,8 +643,14 @@ public class RepositoryService {
     //หาไฟล์ pom
 
     // READ: get all
-    public List<RepositoryModel> getAllRepository() {
-        List<ProjectsEntity> projects = projectsRepository.findAll();
+    public List<RepositoryModel> getAllRepository(UUID userId) {
+
+        UsersEntity user = usersRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
+        List<ProjectsEntity> projects = isAdmin
+                ? projectsRepository.findAll()
+                : projectsRepository.findByUser_UserId(userId);
         List<RepositoryModel> repoModels = new ArrayList<>();
         for (ProjectsEntity e : projects) {
             RepositoryModel m = new RepositoryModel();

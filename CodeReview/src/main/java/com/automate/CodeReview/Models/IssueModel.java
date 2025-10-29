@@ -19,9 +19,12 @@ public class IssueModel {
     private String component;
     private String message;
     private String severity;
+    private UUID ownerId;
     private UUID assignedTo;
+    private String assignedName;
     private String status;
     private String createdAt;
+    private String dueDate;
 
 
 }

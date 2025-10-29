@@ -1,13 +1,16 @@
 package com.automate.CodeReview.Service;
 
+import com.automate.CodeReview.Models.AssignModel;
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
+import com.automate.CodeReview.dto.SonarIssuesResponse;
 import com.automate.CodeReview.entity.*;
 import com.automate.CodeReview.exception.IssueNotFoundException;
 import com.automate.CodeReview.exception.UserNotFoundException;
 import com.automate.CodeReview.repository.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,58 +26,86 @@ public class IssueService {
     private final UsersRepository usersRepository;
     private final CommentsRepository commentsRepository;
     private final AssignHistoryRepository assignHistoryRepository;
+    private final ProjectsRepository projectsRepository;
 
 
-    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository,  AssignHistoryRepository assignHistoryRepository) {
+    public IssueService(IssuesRepository issuesRepository, UsersRepository usersRepository, CommentsRepository commentsRepository, AssignHistoryRepository assignHistoryRepository, ProjectsRepository projectsRepository) {
         this.issuesRepository = issuesRepository;
         this.usersRepository = usersRepository;
         this.commentsRepository = commentsRepository;
         this.assignHistoryRepository = assignHistoryRepository;
+        this.projectsRepository = projectsRepository;
     }
+
 
     @Transactional(readOnly = true)
     public List<IssueModel> getAllIssue(UUID userId) {
         UsersEntity user = usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
+                final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
 
-        List<IssuesEntity> issues = isAdmin
-                ? issuesRepository.findAll()
-                : issuesRepository.findByScan_Project_User_UserId(userId);
+        List<IssuesEntity> issues;
+        if(isAdmin){
+            issues = issuesRepository.findAll();
+        }else{
+            List<IssuesEntity> owned = issuesRepository.findByScan_Project_User_UserId(userId);
+            List<IssuesEntity> assigned = issuesRepository.findByAssignedTo_UserId(userId);
+
+            LinkedHashSet<IssuesEntity> mix = new LinkedHashSet<>();
+            if(owned != null){
+                mix.addAll(owned);
+            }
+            if(assigned != null){
+                mix.addAll(assigned);
+            }
+            issues = new ArrayList<>(mix);
+        }
 
         List<IssueModel> issueList = new ArrayList<>();
         for (IssuesEntity issue : issues) {
-            IssueModel model  = new IssueModel();
-            model.setIssueId(issue.getIssuesId());
-
-            UUID scanId = (issue.getScan() != null) ? issue.getScan().getScanId() : null;
-            model.setScanId(scanId);
-
-            UUID projectId = null;
-            String projectName = null;
-            if (issue.getScan() != null && issue.getScan().getProject() != null) {
-                projectId = issue.getScan().getProject().getProjectId();
-                projectName = issue.getScan().getProject().getName();
-            }
-            model.setProjectId(projectId);
-            model.setProjectName(projectName);
-            model.setScanId(issue.getScan().getScanId());
-            model.setIssueKey(issue.getIssueKey());
-            model.setType(issue.getType());
-            model.setComponent(issue.getComponent());
-            model.setMessage(issue.getMessage());
-            model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(
-                    issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null
-            );
-            model.setStatus(issue.getStatus());
-            model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
-
-            issueList.add(model);
+            IssueModel model = getIssueModel(issue);
+            saveIssue(issueList, issue, model);
 
         }
         return issueList;
+    }
+
+    private static IssueModel getIssueModel(IssuesEntity issue) {
+        IssueModel model  = new IssueModel();
+        model.setIssueId(issue.getIssuesId());
+
+        UUID scanId = (issue.getScan() != null) ? issue.getScan().getScanId() : null;
+        model.setScanId(scanId);
+
+        UUID projectId = null;
+        String projectName = null;
+        if (issue.getScan() != null && issue.getScan().getProject() != null) {
+            projectId = issue.getScan().getProject().getProjectId();
+            projectName = issue.getScan().getProject().getName();
+        }
+        model.setProjectId(projectId);
+        model.setProjectName(projectName);
+        model.setOwnerId(issue.getScan().getProject().getUser().getUserId());
+
+        if (issue.getAssignedTo() != null) {
+            model.setAssignedTo(issue.getAssignedTo().getUserId());
+            model.setAssignedName(issue.getAssignedTo().getUsername());
+        }
+        return model;
+    }
+
+    private void saveIssue(List<IssueModel> issueList, IssuesEntity issue, IssueModel model) {
+        model.setIssueKey(issue.getIssueKey());
+        model.setType(issue.getType());
+        model.setComponent(issue.getComponent());
+        model.setMessage(issue.getMessage());
+        model.setSeverity(issue.getSeverity());
+        model.setOwnerId(issue.getScan().getProject().getUser().getUserId());
+        model.setStatus(issue.getStatus());
+        model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
+
+        issueList.add(model);
     }
 
 
@@ -97,16 +128,7 @@ public class IssueService {
             }
             model.setProjectId(projectId);
             model.setScanId(issue.getScan().getScanId());
-            model.setIssueKey(issue.getIssueKey());
-            model.setType(issue.getType());
-            model.setComponent(issue.getComponent());
-            model.setMessage(issue.getMessage());
-            model.setSeverity(issue.getSeverity());
-            model.setAssignedTo(issue.getAssignedTo() != null ? issue.getAssignedTo().getUserId() : null);
-            model.setStatus(issue.getStatus());
-            model.setCreatedAt(String.valueOf(issue.getCreatedAt()));
-
-            issueList.add(model);
+            saveIssue(issueList, issue, model);
 
         }
         return issueList;
@@ -126,31 +148,32 @@ public class IssueService {
             projectName = issue.getScan().getProject().getName();
         }
 
-        UUID assignedTo = (issue.getAssignedTo() != null)
-                ? issue.getAssignedTo().getUserId()
-                : null;
+        UsersEntity assigned = issue.getAssignedTo();
+        UUID assignedTo = (assigned != null) ? assigned.getUserId() : null;
+        String assignedToName = (assignedTo != null) ? assigned.getUsername() : null;
+
 
         model.setIssueId(issue.getIssuesId());
         model.setProjectId(projectId);
         model.setProjectName(projectName);
         model.setScanId(issue.getScan().getScanId());
-        model.setScanId(issue.getScan().getScanId());
+        model.setAssignedTo(assignedTo);
+        model.setAssignedName(assignedToName);
         model.setIssueKey(issue.getIssueKey());
         model.setType(issue.getType());
         model.setComponent(issue.getComponent());
         model.setMessage(issue.getMessage());
         model.setSeverity(issue.getSeverity());
-        model.setAssignedTo(assignedTo);
+        model.setOwnerId(assignedTo);
         model.setStatus(issue.getStatus());
         model.setCreatedAt(issue.getCreatedAt() != null ? issue.getCreatedAt().toString() : null);
-
-
+        model.setDueDate(issue.getDueDate() != null ? issue.getDueDate().toString() : null);
 
         return model;
     }
 
     @Transactional
-    public IssueModel assign(UUID issueId, UUID assignTo, LocalDate dueDate) {
+    public AssignModel.getAssign assign(UUID issueId, UUID assignTo, LocalDate dueDate) {
 
         IssuesEntity issue = issuesRepository.findById(issueId)
                 .orElseThrow(IssueNotFoundException::new);
@@ -168,31 +191,42 @@ public class IssueService {
                 .existsByIssues_IssuesIdAndAssignedTo(issueId, assignTo);
         if (alreadyRecorded || issue.getStatus().equals("REJECT")) {
             issue.setAssignedTo(user);
-            saveAssign(assignTo, issue, dueDate);
-            return getIssueById(issue.getIssuesId());
+            return saveAssign(assignTo, issue, dueDate, user);
         }
 
         if (!issue.getStatus().equals("DONE") || issue.getAssignedTo().equals(user) ){
             issue.setAssignedTo(user);
-            issue.setStatus("IN PROGRESS");
+            issue.setStatus("PENDING");
             issue.setDueDate(dueDate);
-            saveAssign(assignTo, issue, dueDate);
+            return saveAssign(assignTo, issue, dueDate, user);
         }
 
-        return getIssueById(issue.getIssuesId());
+        return null;
     }
 
-    private void saveAssign(UUID assignTo, IssuesEntity issue, LocalDate dueDate) {
+    private AssignModel.getAssign saveAssign(UUID assignTo, IssuesEntity issue, LocalDate dueDate,  UsersEntity user) {
         issuesRepository.save(issue);
         AssignHistoryEntity assign = new AssignHistoryEntity();
+        AssignModel.getAssign model =  new AssignModel.getAssign();
         if(!Objects.equals(assign.getMessage(), issue.getMessage())) {
             assign.setIssues(issue);
             assign.setAssignedTo(assignTo);
-            assign.setStatus("IN PROGRESS");
+            assign.setStatus("PENDING");
             assign.setMessage(issue.getMessage());
             assign.setDueDate(dueDate);
             assignHistoryRepository.save(assign);
+
+            model.setIssueId(issue.getIssuesId());
+            model.setAssignedTo(assignTo);
+            model.setSeverity(issue.getSeverity());
+            model.setAssignedToName(user.getUsername());
+            model.setStatus(issue.getStatus());
+            model.setMessage(issue.getMessage());
+            model.setDueDate(dueDate);
+
+
         }
+        return model;
     }
     @Transactional
     public CommentModel addComment(UUID issueId, String comment, UUID userId) {
@@ -213,6 +247,7 @@ public class IssueService {
         model.setCreatedAt(saved.getCreatedAt());
         model.setUserId(saved.getUser().getUserId());
         model.setIssueId(saved.getIssues().getIssuesId());
+        model.setUsername(saved.getUser().getUsername());
         return model;
     }
 
@@ -228,6 +263,7 @@ public class IssueService {
             model.setUserId(entity.getUser().getUserId());
             model.setComment(entity.getComment());
             model.setCreatedAt(entity.getCreatedAt());
+            model.setUsername(entity.getUser().getUsername());
             return model;
         }).toList();
     }

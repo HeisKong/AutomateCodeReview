@@ -1,6 +1,8 @@
 package com.automate.CodeReview.Controller;
 
+import com.automate.CodeReview.Models.UserSummary;
 import com.automate.CodeReview.dto.ChangePasswordRequest;
+import com.automate.CodeReview.dto.UpdateUserProfileRequest;
 import com.automate.CodeReview.dto.UpdateUserRequest;
 import com.automate.CodeReview.Models.UserModel;
 import com.automate.CodeReview.Service.AuthService;
@@ -8,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
@@ -25,16 +29,16 @@ public class UserController {
         this.authService = authService;
     }
 
-    @PostMapping("/update")
+    @PostMapping("/admin-update")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserModel> updateUser(@RequestBody UpdateUserRequest req) {
         UserModel updated = authService.updateUser(req);
         return ResponseEntity.ok(updated);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{useId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, String>> deleteUser(@PathVariable("id") UUID id) {
+    public ResponseEntity<Map<String, String>> deleteUser(@PathVariable("useId") UUID id) {
         authService.deleteUser(id);
         return ResponseEntity.ok(Map.of(
                 "message", "User deleted successfully",
@@ -58,12 +62,25 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message","Password changed successfully"));
     }
 
-    @GetMapping("/users")
-    @PreAuthorize("hasRole('USER')")
+    @GetMapping("/get-users")
     public ResponseEntity<List<UserModel>> getAllUsers() {
         return ResponseEntity.ok(authService.listAllUsers());
     }
 
+    @GetMapping("/users/{id}")
+    public ResponseEntity<UserSummary> getUserSummaryById(@PathVariable UUID id) {
+        return ResponseEntity.ok(authService.getUserSummaryById(id));
+    }
+
+    @PutMapping("/update-user-profile")
+    public ResponseEntity<UserModel> updateUserProfile(
+            @RequestBody UpdateUserProfileRequest req,
+            Authentication authentication) {
+
+        String email = authentication.getName(); // ได้ email จาก JWT
+        UserModel updated = authService.updateUserProfile(req, email);
+        return ResponseEntity.ok(updated);
+    }
 
 }
 

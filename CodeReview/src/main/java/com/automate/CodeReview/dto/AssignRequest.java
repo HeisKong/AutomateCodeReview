@@ -4,11 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+import java.util.UUID;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UpdateStatusRequest {
-    private String status;
-    private String annotation;
+public class AssignRequest {
+    private UUID assignTo;
+    private LocalDate dueDate;
 }
-
