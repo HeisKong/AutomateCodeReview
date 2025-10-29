@@ -5,9 +5,12 @@ import com.automate.CodeReview.dto.ResendRequest;
 import com.automate.CodeReview.Service.EmailVerificationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.RedirectView;
+
+import java.net.URI;
 
 @RestController
 @RequestMapping("/api/auth/verify")
@@ -29,12 +32,18 @@ public class EmailVerificationController {
      * ✅ คลิกลิงก์ยืนยันจากอีเมล
      */
     @GetMapping
-    public RedirectView  verifyEmail(@RequestParam("token") String token) {
+    public ResponseEntity<Void> verifyEmail(@RequestParam("token") String token) {
         try {
             emailVerificationService.verifyEmail(token);
-            return new RedirectView("http://localhost:4200/verify-success");
+            return ResponseEntity
+                    .status(HttpStatus.FOUND)
+                    .location(URI.create("http://localhost:4200/verify-success"))
+                    .build();
         } catch (Exception e) {
-            return new RedirectView("http://localhost:4200/verify-failed");
+            return ResponseEntity
+                    .status(HttpStatus.FOUND)
+                    .location(URI.create("http://localhost:4200/verify-failed"))
+                    .build();
         }
     }
 }
