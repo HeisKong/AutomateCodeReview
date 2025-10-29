@@ -247,6 +247,7 @@ public class IssueService {
         model.setCreatedAt(saved.getCreatedAt());
         model.setUserId(saved.getUser().getUserId());
         model.setIssueId(saved.getIssues().getIssuesId());
+        model.setUsername(saved.getUser().getUsername());
         return model;
     }
 
@@ -262,6 +263,7 @@ public class IssueService {
             model.setUserId(entity.getUser().getUserId());
             model.setComment(entity.getComment());
             model.setCreatedAt(entity.getCreatedAt());
+            model.setUsername(entity.getUser().getUsername());
             return model;
         }).toList();
     }
