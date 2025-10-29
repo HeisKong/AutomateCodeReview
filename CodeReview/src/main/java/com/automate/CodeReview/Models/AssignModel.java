@@ -23,6 +23,7 @@ public class AssignModel {
         private String status;
         private LocalDate dueDate;
         private String annotation;
+        private Boolean own;
     }
     @Data
     @AllArgsConstructor

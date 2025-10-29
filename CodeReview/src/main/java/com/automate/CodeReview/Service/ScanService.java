@@ -4,16 +4,20 @@ import com.automate.CodeReview.Models.ScanLogModel;
 import com.automate.CodeReview.Models.ScanModel;
 import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.ScansEntity;
+import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.repository.ProjectsRepository;
 import com.automate.CodeReview.repository.ScansRepository;
+import com.automate.CodeReview.repository.UsersRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -47,6 +51,7 @@ public class ScanService {
     private final ProjectsRepository projectRepository;
     private final RepositoryService repositoryService;
     private final WebClient sonarWebClient;
+    private final UsersRepository userRepository;
 
 
     private static final String BASE_DIR = "C:\\gitpools";
@@ -54,12 +59,14 @@ public class ScanService {
     private static final String LOG_BASE = "C:\\scan-logs";
     private final JdbcTemplate jdbcTemplate;
 
-    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate) {
+    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate,
+                       UsersRepository userRepository) {
         this.scanRepository = scanRepository;
         this.projectRepository = projectRepository;
         this.repositoryService = repositoryService;
         this.sonarWebClient = sonarWebClient;
         this.jdbcTemplate = jdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     // ส่วนของ startScan
@@ -570,9 +577,16 @@ public class ScanService {
 
     //ส่วนของ startScan
 
-    public List<ScanModel> getAllScan(){
+    public List<ScanModel> getAllScan(UUID userId){
         List<ScanModel> scansModel = new ArrayList<>();
-        List<ScansEntity> scansEntities = scanRepository.findAll();
+        UsersEntity user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        final boolean isAdmin = "ADMIN".equalsIgnoreCase(String.valueOf(user.getRole()));
+
+        List<ScansEntity> scansEntities = isAdmin
+                ? scanRepository.findAll()
+                : scanRepository.findByProject_User_UserId(userId);
 
 
         for(ScansEntity scanEntity : scansEntities){
