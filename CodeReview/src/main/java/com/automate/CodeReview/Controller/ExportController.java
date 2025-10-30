@@ -28,15 +28,21 @@ public class ExportController {
 
         String filename;
         String mediaType;
+        String dateStr = new java.text.SimpleDateFormat("yyMMdd").format(new java.util.Date());
 
         if (isZip) {
             // กรณีเป็น ZIP
-            filename = String.format("report_%s.zip",
-                    new java.text.SimpleDateFormat("yyMMdd").format(new java.util.Date()));
+            filename = String.format("report_%s.zip",dateStr);
             mediaType = "application/zip";
         } else {
             // กรณีไฟล์เดียว (xlsx หรือ section เดียว)
-            filename = String.format("report-%s.%s", req.projectId(), format);
+            String projectName = exportService.getProjectNameForExport(req.projectId());
+            String sectionName = String.join(", ", req.includeSections());
+            filename = String.format("%s_%s_%s.%s", sectionName, projectName, dateStr, format);
+            if ("xlsx".equals(format)) {
+                filename = String.format("Report_%s_%s.%s", projectName, dateStr, format);
+            }
+
             mediaType = switch (format) {
                 case "pdf" -> "application/pdf";
                 case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";

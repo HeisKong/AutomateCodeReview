@@ -111,7 +111,7 @@ COMPUTER]]></text>
     <columnHeader>
         <band height="30" splitType="Stretch">
             <staticText>
-                <reportElement mode="Opaque" x="30" y="0" width="70" height="30" backcolor="#6AACF7" uuid="951cb1f9-2d6a-4793-9261-bd5e54354b0c">
+                <reportElement mode="Opaque" x="31" y="0" width="69" height="30" backcolor="#6AACF7" uuid="951cb1f9-2d6a-4793-9261-bd5e54354b0c">
                     <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="552d5241-fd31-4178-9095-ac37804e4bcc"/>
                 </reportElement>
                 <box>
@@ -295,7 +295,7 @@ COMPUTER]]></text>
     <detail>
         <band height="30" splitType="Stretch">
             <textField>
-                <reportElement x="30" y="0" width="70" height="30" uuid="19711408-1e74-44a0-9d6f-ad122ab00381">
+                <reportElement x="31" y="0" width="69" height="30" uuid="19711408-1e74-44a0-9d6f-ad122ab00381">
                     <property name="com.jaspersoft.studio.spreadsheet.connectionID" value="5d07a475-5f7b-48d8-bdfe-6d031f5384ac"/>
                     <property name="com.jaspersoft.studio.unit.rightIndent" value="px"/>
                 </reportElement>
