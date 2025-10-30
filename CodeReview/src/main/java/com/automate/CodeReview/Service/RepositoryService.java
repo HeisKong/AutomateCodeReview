@@ -36,6 +36,15 @@ import java.time.Instant;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import java.util.Base64;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
+
 import java.time.LocalDateTime;
 
 @Service
@@ -52,6 +61,12 @@ public class RepositoryService {
 
     @Value("${app.sonar.token}")
     private String sonarToken;
+
+    @Value("${sonar.service-token}")
+    private String sonarServiceToken;
+
+    @Value("${sonar.host-url}")
+    private String sonarHostUrl;
 
     public RepositoryService(ProjectsRepository projectsRepository, UsersRepository usersRepository, NotiService notiService, JdbcTemplate jdbcTemplate) {
         this.projectsRepository = projectsRepository;
@@ -708,10 +723,20 @@ public class RepositoryService {
             throw new ProjectNotFoundException();
         }
 
-        String clonePath = jdbcTemplate.queryForObject(
-                "SELECT clone_path FROM projects where project_id = ?",
-                String.class,id
-        );
+        String quary = "SELECT clone_path , sonar_project_key FROM projects WHERE project_id = ?";
+        Map<String, Object> projectData = jdbcTemplate.queryForMap(quary, id);
+
+        String clonePath = (String) projectData.get("clone_path");
+        String projectKey = (String) projectData.get("sonar_project_key");
+
+
+        //ลบใน SonarQube ก่อน (ก่อนลบใน DB)
+        if (projectKey != null && !projectKey.isEmpty()) {
+            deleteSonarQubeProject(projectKey);
+        } else {
+            log.warn("No projectKey found!");
+        }
+
 
         String[] queries = {
                 "DELETE FROM noti where project_id = ?",
@@ -728,6 +753,32 @@ public class RepositoryService {
             deleteCloneDirectory(clonePath);
         }
     }
+
+    //DELETE SonarQubeProject
+    private void deleteSonarQubeProject(String projectKey) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+
+            String auth = sonarServiceToken + ':';
+            byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes());
+            String authHeader = "Basic " + new String(encodedAuth);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", authHeader);
+
+            String deleteUrl = sonarHostUrl + "/api/projects/delete?project=" + projectKey;
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            restTemplate.exchange(deleteUrl, HttpMethod.POST, entity, String.class);
+
+            log.info("Delete SonarQube project success at: {}", projectKey);
+
+        } catch (Exception e) {
+            log.error("Failed Delete Error: {}", e.getMessage(), e);
+        }
+    }
+
+
     private void deleteCloneDirectory(String directoryPath) {
         try {
             Path path = Paths.get(directoryPath);
