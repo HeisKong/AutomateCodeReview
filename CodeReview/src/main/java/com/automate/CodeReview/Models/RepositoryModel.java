@@ -9,7 +9,7 @@ import java.util.UUID;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class RepositoryModel {
+public class  RepositoryModel {
 
     // ใช้สำหรับกรณี update หรือ mapping กลับมาจาก DB
     private UUID projectId;

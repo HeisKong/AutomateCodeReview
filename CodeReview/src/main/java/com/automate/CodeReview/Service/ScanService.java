@@ -15,7 +15,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -60,13 +59,14 @@ public class ScanService {
     private static final String LOG_BASE = "C:\\scan-logs";
     private final JdbcTemplate jdbcTemplate;
 
-    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate, NotiService notiService) {
+    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate, NotiService notiService,UsersRepository userRepository) {
         this.scanRepository = scanRepository;
         this.projectRepository = projectRepository;
         this.repositoryService = repositoryService;
         this.sonarWebClient = sonarWebClient;
         this.jdbcTemplate = jdbcTemplate;
         this.notiService = notiService;
+        this.userRepository = userRepository;
     }
 
     // ส่วนของ startScan

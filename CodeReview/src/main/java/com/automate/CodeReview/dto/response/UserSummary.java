@@ -1,4 +1,4 @@
-package com.automate.CodeReview.Models;
+package com.automate.CodeReview.dto.response;
 
 import com.automate.CodeReview.entity.UserStatus;
 

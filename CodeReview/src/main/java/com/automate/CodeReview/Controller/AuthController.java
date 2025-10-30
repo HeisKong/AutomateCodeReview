@@ -1,8 +1,8 @@
 package com.automate.CodeReview.Controller;
 
-import com.automate.CodeReview.Models.LoginRequest;
-import com.automate.CodeReview.Models.RegisterRequest;
-import com.automate.CodeReview.Response.LoginResponse;
+import com.automate.CodeReview.dto.request.LoginRequest;
+import com.automate.CodeReview.dto.request.RegisterRequest;
+import com.automate.CodeReview.dto.response.LoginResponse;
 import com.automate.CodeReview.Service.AuthService;
 import com.automate.CodeReview.util.CookieUtil;
 import jakarta.servlet.http.HttpServletRequest;

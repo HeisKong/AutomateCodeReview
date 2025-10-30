@@ -2,16 +2,13 @@ package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Models.ScanLogModel;
 import com.automate.CodeReview.Models.ScanModel;
-import com.automate.CodeReview.Models.ScanRequest;
+import com.automate.CodeReview.dto.request.ScanRequest;
 import com.automate.CodeReview.Service.ScanService;
-import com.automate.CodeReview.entity.ScansEntity;
-import com.automate.CodeReview.repository.ScansRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 @RestController

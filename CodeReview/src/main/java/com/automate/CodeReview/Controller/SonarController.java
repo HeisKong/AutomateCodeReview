@@ -1,14 +1,12 @@
 package com.automate.CodeReview.Controller;
 
-import com.automate.CodeReview.dto.SonarBatchResponse;
+import com.automate.CodeReview.dto.response.SonarBatchResponse;
 import com.automate.CodeReview.dto.SonarSummary;
 import com.automate.CodeReview.Service.SonarService;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 import java.nio.charset.StandardCharsets;

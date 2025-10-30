@@ -1,17 +1,15 @@
 package com.automate.CodeReview.Controller;
 
-import com.automate.CodeReview.Models.UserSummary;
-import com.automate.CodeReview.dto.ChangePasswordRequest;
-import com.automate.CodeReview.dto.UpdateUserProfileRequest;
-import com.automate.CodeReview.dto.UpdateUserRequest;
+import com.automate.CodeReview.dto.response.UserSummary;
+import com.automate.CodeReview.dto.request.ChangePasswordRequest;
+import com.automate.CodeReview.dto.request.UpdateUserProfileRequest;
+import com.automate.CodeReview.dto.request.UpdateUserRequest;
 import com.automate.CodeReview.Models.UserModel;
 import com.automate.CodeReview.Service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
@@ -19,7 +17,6 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping("/api/users")
 public class UserController {
 

@@ -1,6 +1,6 @@
 package com.automate.CodeReview.exception;
 
-import com.automate.CodeReview.dto.ErrorResponse;
+import com.automate.CodeReview.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
