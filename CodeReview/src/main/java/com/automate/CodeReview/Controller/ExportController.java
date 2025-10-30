@@ -39,9 +39,6 @@ public class ExportController {
             String projectName = exportService.getProjectNameForExport(req.projectId());
             String sectionName = String.join(", ", req.includeSections());
             filename = String.format("%s_%s_%s.%s", sectionName, projectName, dateStr, format);
-            if ("xlsx".equals(format)) {
-                filename = String.format("Report_%s_%s.%s", projectName, dateStr, format);
-            }
 
             mediaType = switch (format) {
                 case "pdf" -> "application/pdf";
