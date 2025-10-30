@@ -49,6 +49,7 @@ public class ScanService {
     private final ScansRepository scanRepository;
     private final ProjectsRepository projectRepository;
     private final RepositoryService repositoryService;
+    private final NotiService notiService;
     private final WebClient sonarWebClient;
     private final UsersRepository userRepository;
 
@@ -58,14 +59,13 @@ public class ScanService {
     private static final String LOG_BASE = "C:\\scan-logs";
     private final JdbcTemplate jdbcTemplate;
 
-    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate,
-                       UsersRepository userRepository) {
+    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate, NotiService notiService) {
         this.scanRepository = scanRepository;
         this.projectRepository = projectRepository;
         this.repositoryService = repositoryService;
         this.sonarWebClient = sonarWebClient;
         this.jdbcTemplate = jdbcTemplate;
-        this.userRepository = userRepository;
+        this.notiService = notiService;
     }
 
     // ส่วนของ startScan
@@ -150,25 +150,36 @@ public class ScanService {
             // 9. รัน Sonar Analysis พร้อมเขียน log ลงไฟล์
             Map<String, Object> scanResult = runSonarAnalysis(newClonePath, logFilePath, scanId);
 
-            // ดึง analysisId จาก SonarQube ทันที
-            if (scanResult.get("success").equals(true)) {
-                // Poll หา analysisId พร้อม retry
-                String analysisId = pollForAnalysisId(sonarProjectKey, 30); // timeout 30 วินาที
-                if (analysisId != null) {
-                    scan.setAnalysisId(analysisId);
-//                    log.info("เซ็ต analysisId ไว้ล่วงหน้า: {} สำหรับ scanId: {}", analysisId, scanId);
-                } else {
-                    log.warn("ไม่สามารถดึง analysisId ได้ภายในเวลาที่กำหนด");
-                }
-            }
+            // ตรวจสอบผลลัพธ์ของ Sonar Analysis
+            boolean scanSuccess = Boolean.TRUE.equals(scanResult.get("success"));
 
-            // 10. อัพเดท status ของ scan
             scan.setCompletedAt(LocalDateTime.now());
 
-            // เก็บ error message ถ้ามี
-            if (scanResult.containsKey("error")) {
-                // สามารถเพิ่ม field errorMessage ใน ScansEntity ได้
-                log.error("Scan failed: {}", scanResult.get("error"));
+            if (scanSuccess) {
+                // ดึง analysisId จาก SonarQube ทันที
+                String analysisId = pollForAnalysisId(sonarProjectKey, 30);
+
+                if (analysisId != null) {
+                    scan.setAnalysisId(analysisId);
+                    scan.setStatus("COMPLETED");
+                    scan.setQualityGate("PENDING"); // รอ webhook update
+                    log.info("Scan completed successfully - scanId: {}, analysisId: {}", scanId, analysisId);
+                } else {
+                    // Scan สำเร็จแต่หา analysisId ไม่เจอ (อาจจะ webhook จะส่งมาภายหลัง)
+                    scan.setStatus("COMPLETED");
+                    scan.setQualityGate("PENDING");
+                    log.warn("Scan completed but analysisId not found yet - scanId: {}", scanId);
+                }
+            } else {
+                // Scan ล้มเหลว
+                scan.setStatus("FAILED");
+                scan.setQualityGate("FAILED");
+                String errorMsg = scanResult.containsKey("error")
+                        ? scanResult.get("error").toString()
+                        : "Unknown error";
+                notiService.scanNotiAsync(scan.getScanId(), scan.getProject().getProjectId(), "Scan Failed! Please try again.");
+
+                log.error("Scan failed - scanId: {}, error: {}", scanId, errorMsg);
             }
 
             scanRepository.save(scan);
@@ -199,10 +210,15 @@ public class ScanService {
             // ลบ scan record ที่ล้มเหลว
             if (scan != null && scan.getScanId() != null) {
                 try {
-                    scanRepository.delete(scan);
-//                    log.info("Deleted failed scan: {}", scan.getScanId());
-                } catch (Exception deleteEx) {
-                    log.error("Failed to delete scan", deleteEx);
+                    scan.setStatus("FAILED");
+                    scan.setQualityGate("FAILED");
+                    scan.setCompletedAt(LocalDateTime.now());
+                    scanRepository.save(scan);
+                    notiService.scanNotiAsync(scan.getScanId(), scan.getProject().getProjectId(), "Scan Failed! Please try again.");
+
+                    log.info("Updated scan status to FAILED: {}", scan.getScanId());
+                } catch (Exception updateEx) {
+                    log.error("Failed to update scan status", updateEx);
                 }
             }
 
