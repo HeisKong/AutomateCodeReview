@@ -41,6 +41,10 @@ public class UsersEntity {
     @Column(name = "role",   nullable = false)
     private String role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 32)
+    private UserStatus status = UserStatus.PENDING_VERIFICATION;
+
     @CreationTimestamp
     @Column(name = "created_at",  nullable = false)
     private LocalDateTime createdAt;

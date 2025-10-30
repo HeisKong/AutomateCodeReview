@@ -18,4 +18,5 @@ public interface ProjectsRepository extends JpaRepository<ProjectsEntity, UUID> 
 
     String user(UsersEntity user);
 
+    boolean existsByNameIgnoreCase(String name);
 }

@@ -78,7 +78,7 @@ public class EmailService {
           </div>
         </div>
       </div>
-    """.formatted(safeName, "https://yourapp.example.com/login");
+    """.formatted(safeName, "http://localhost:4200/login");
 
         sendHtml(to, subject, html);
     }
@@ -96,5 +96,32 @@ public class EmailService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to send email", e);
         }
+    }
+
+    public void sendEmailVerification(String to, String username, String link) {
+        String subject = "Verify your email address";
+        String html = """
+      <div style="font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;">
+        <div style="max-width:560px; margin:0 auto; background:#ffffff; border-radius:14px; overflow:hidden; box-shadow:0 6px 20px rgba(0,0,0,0.06);">
+          <div style="padding:28px;">
+            <h2 style="margin:0 0 10px; font-size:22px; color:#111827;">Verify your email</h2>
+            <p style="margin:0; color:#6b7280;">Hi <strong>%s</strong>, please verify your email address to activate your account.</p>
+          </div>
+
+          <div style="padding:20px 28px;">
+            <a href="%s" style="display:inline-block; text-decoration:none; padding:12px 18px; border-radius:10px; background:#10b981; color:#ffffff; font-weight:600;">
+              Verify Email
+            </a>
+          </div>
+
+          <hr style="border:none; border-top:1px solid #e5e7eb; margin:0;">
+          <div style="padding:16px 28px; color:#9ca3af; font-size:12px;">
+            <p style="margin:0;">This link will expire in 24 hours.</p>
+          </div>
+        </div>
+      </div>
+    """.formatted(username, link);
+
+        sendHtml(to, subject, html);
     }
 }

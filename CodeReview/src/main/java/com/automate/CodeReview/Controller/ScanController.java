@@ -21,11 +21,9 @@ import java.util.UUID;
 public class ScanController {
 
     private final ScanService scanService;
-    private final ScansRepository scanRepository;
 
-    public ScanController(ScanService scanService, ScansRepository scanRepository) {
+    public ScanController(ScanService scanService ) {
         this.scanService = scanService;
-        this.scanRepository = scanRepository;
 
     }
 
@@ -45,9 +43,9 @@ public class ScanController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/getProject")
-    public List<ScanModel> getAllScan() {
-        return scanService.getAllScan();
+    @GetMapping("/getProject/{userId}")
+    public List<ScanModel> getAllScan(@PathVariable UUID userId) {
+        return scanService.getAllScan(userId);
     }
 
     @GetMapping("/{scanId}")

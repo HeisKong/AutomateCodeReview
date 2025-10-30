@@ -54,7 +54,7 @@ public class ProjectsEntity {
     @OneToMany(mappedBy = "project", fetch = FetchType.LAZY)
     private List<ScansEntity> scan;
 
-    @Column(name = "clone_path" , nullable = false)
+    @Column(name = "clone_path" , nullable = true)
     private String clonePath;
 
     @Column(name = "script")

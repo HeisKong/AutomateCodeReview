@@ -112,8 +112,6 @@ public class SecurityConfig {
                         // ✅ Sonar webhook (public endpoint สำหรับรับ callback)
                         .requestMatchers("/api/sonar/webhook").permitAll()
 
-                        // ✅ Scans endpoints
-                        .requestMatchers("/api/scans/**").hasAnyRole("USER", "ADMIN")
 
                         // ✅ ทุก request อื่นๆ ต้อง authenticated
                         .anyRequest().authenticated()

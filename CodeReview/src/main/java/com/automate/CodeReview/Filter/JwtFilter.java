@@ -58,43 +58,24 @@ public class JwtFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         String method = request.getMethod();
 
-        log.info("🟢 [JwtFilter] Start for [{} {}]", method, uri);
 
         try {
             String token = extractTokenFromRequest(request);
 
             if (token != null) {
-                log.debug("🔹 Token extracted: {}...", token.substring(0, Math.min(20, token.length())));
                 authenticateToken(request, token);
             } else {
                 log.debug("🔹 No Bearer token found in Authorization header");
             }
 
-            // ✅ หลังจาก authenticate เสร็จ ลอง log context ปัจจุบัน
-            var ctx = SecurityContextHolder.getContext();
-            if (ctx.getAuthentication() != null) {
-                log.info("🔒 SecurityContext now holds authentication: {}", ctx.getAuthentication().getName());
-                log.info("🔸 Authorities: {}", ctx.getAuthentication().getAuthorities());
-            } else {
-                log.warn("⚠️ SecurityContext is still empty after JwtFilter (no authentication)");
-            }
 
         } catch (Exception ex) {
-            log.error("❌ Unexpected error in JWT filter for [{} {}]: {}", method, uri, ex.getMessage(), ex);
             SecurityContextHolder.clearContext();
         }
 
-        log.info("➡️ [JwtFilter] Passing request [{} {}] to next filter...", method, uri);
         filterChain.doFilter(request, response);
-
         var postCtx = SecurityContextHolder.getContext();
-        if (postCtx.getAuthentication() != null) {
-            log.info("🧩 [JwtFilter] After chain: still authenticated as {}", postCtx.getAuthentication().getName());
-        } else {
-            log.warn("🧨 [JwtFilter] After chain: authentication was cleared");
-        }
 
-        log.info("🔚 [JwtFilter] End for [{} {}]", method, uri);
     }
 
     private String extractTokenFromRequest(HttpServletRequest request) {
@@ -115,10 +96,7 @@ public class JwtFilter extends OncePerRequestFilter {
             String email = claims.get("email", String.class);
             String tokenType = claims.get("token_type", String.class);
 
-            log.debug("🔹 Token type: {}, email: {}", tokenType, email);
-
             if (!"access".equalsIgnoreCase(tokenType)) {
-                log.warn("⚠️ Token type is not 'access': {}", tokenType);
                 return;
             }
 
@@ -127,7 +105,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 List<SimpleGrantedAuthority> authorities;
 
                 if (rolesClaim instanceof List<?> roleList) {
-                    // ✅ สำหรับ List: map และเติม ROLE_ prefix
+                    // สำหรับ List: map และเติม ROLE_ prefix
                     authorities = roleList.stream()
                             .map(r -> {
                                 String role = r.toString().toUpperCase();
@@ -138,24 +116,20 @@ public class JwtFilter extends OncePerRequestFilter {
                             })
                             .collect(Collectors.toList());
                 } else if (rolesClaim != null) {
-                    // ✅ สำหรับ String/Single Object: จัดการ prefix
+                    // สำหรับ String/Single Object: จัดการ prefix
                     String role = rolesClaim.toString().toUpperCase();
                     String prefixedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-                    log.debug("🔸 Mapped single role: {}", prefixedRole);
                     authorities = List.of(new SimpleGrantedAuthority(prefixedRole));
                 } else {
-                    log.warn("⚠️ No roles claim found in token");
                     authorities = List.of();
                 }
 
                 // ตรวจสอบว่า user มีอยู่ใน database
                 Optional<UsersEntity> userOpt = usersRepository.findByEmail(email);
                 if (userOpt.isEmpty()) {
-                    log.warn("⚠️ User not found in database: {}", email);
                     return;
                 }
 
-                log.info("✅ Authenticating user: {} with authorities: {}", email, authorities);
 
                 var authToken = new UsernamePasswordAuthenticationToken(
                         email,
@@ -165,19 +139,15 @@ public class JwtFilter extends OncePerRequestFilter {
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
 
-                log.info("✅ Authentication set successfully for: {}", email);
             }
 
         } catch (ExpiredJwtException ex) {
-            log.info("⏰ Token expired: {}", ex.getMessage());
             SecurityContextHolder.clearContext();
 
         } catch (JwtException ex) {
-            log.warn("⚠️ Invalid token: {}", ex.getMessage());
             SecurityContextHolder.clearContext();
 
         } catch (Exception ex) {
-            log.error("❌ Error during authentication: {}", ex.getMessage(), ex);
             SecurityContextHolder.clearContext();
         }
     }
