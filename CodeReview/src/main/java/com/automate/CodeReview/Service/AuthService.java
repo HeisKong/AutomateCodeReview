@@ -40,7 +40,6 @@ public class AuthService {
     private static final int MAX_LOGIN_ATTEMPTS = 5;
     private static final int LOCKOUT_DURATION_MINUTES = 30;
 
-    // Simple in-memory login attempt tracking
     private final Map<String, Integer> loginAttempts = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, LocalDateTime> lockoutTime = new java.util.concurrent.ConcurrentHashMap<>();
 
