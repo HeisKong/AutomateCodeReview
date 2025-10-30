@@ -133,6 +133,19 @@ public class ExportService {
 
     }
 
+    public String getProjectNameForExport(UUID projectId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT name FROM projects WHERE project_id = ?",
+                    String.class,
+                    projectId
+            );
+        } catch (Exception e) {
+            log.warn("Cannot get project name for project_id: {}", projectId);
+            return "Unknown";
+        }
+    }
+
     private byte[] generateQualityGateReport(ReportRequest req, Timestamp fromTs, Timestamp toExcl,
                                              Date dateFromDisplay, Date dateToDisplay, String format) throws Exception {
         List<Map<String, ?>> qgateRows = fetchSectionRows(req, "QualityGateSummary", fromTs, toExcl);
