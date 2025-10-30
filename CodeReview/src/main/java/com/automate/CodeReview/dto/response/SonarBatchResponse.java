@@ -1,4 +1,6 @@
-package com.automate.CodeReview.dto;
+package com.automate.CodeReview.dto.response;
+
+import com.automate.CodeReview.dto.SonarSummary;
 
 import java.util.List;
 import java.util.Map;

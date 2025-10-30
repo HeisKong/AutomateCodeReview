@@ -5,15 +5,12 @@ import com.automate.CodeReview.Models.AssignModel;
 import com.automate.CodeReview.Models.CommentModel;
 import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.Service.IssueService;
-import com.automate.CodeReview.dto.AssignRequest;
+import com.automate.CodeReview.dto.request.AssignRequest;
 import com.automate.CodeReview.dto.CommentDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController

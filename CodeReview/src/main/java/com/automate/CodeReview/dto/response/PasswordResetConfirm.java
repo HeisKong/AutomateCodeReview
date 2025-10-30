@@ -1,5 +1,5 @@
 
-package com.automate.CodeReview.dto;
+package com.automate.CodeReview.dto.response;
 
 import jakarta.validation.constraints.NotBlank;
 

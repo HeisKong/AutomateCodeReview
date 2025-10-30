@@ -59,13 +59,14 @@ public class ScanService {
     private static final String LOG_BASE = "C:\\scan-logs";
     private final JdbcTemplate jdbcTemplate;
 
-    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate, NotiService notiService) {
+    public ScanService(ScansRepository scanRepository, ProjectsRepository projectRepository, RepositoryService repositoryService, WebClient sonarWebClient, JdbcTemplate jdbcTemplate, NotiService notiService,UsersRepository userRepository) {
         this.scanRepository = scanRepository;
         this.projectRepository = projectRepository;
         this.repositoryService = repositoryService;
         this.sonarWebClient = sonarWebClient;
         this.jdbcTemplate = jdbcTemplate;
         this.notiService = notiService;
+        this.userRepository = userRepository;
     }
 
     // ส่วนของ startScan

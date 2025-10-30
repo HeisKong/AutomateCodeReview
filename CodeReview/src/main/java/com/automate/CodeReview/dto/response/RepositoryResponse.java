@@ -1,4 +1,4 @@
-package com.automate.CodeReview.dto;
+package com.automate.CodeReview.dto.response;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
