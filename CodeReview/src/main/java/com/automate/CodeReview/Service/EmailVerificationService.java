@@ -7,7 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+
 
 @Service
 @RequiredArgsConstructor
@@ -43,7 +45,7 @@ public class EmailVerificationService {
         });
     }
 
-    /** ตรวจ token จากลิงก์ยืนยัน */
+    @Transactional
     public void verifyEmail(String token) {
         String email = verificationTokenService.validateAndGetEmail(token);
         UsersEntity user = usersRepository.findByEmail(email.toLowerCase())
