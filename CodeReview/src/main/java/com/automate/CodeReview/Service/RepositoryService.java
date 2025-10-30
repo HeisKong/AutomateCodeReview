@@ -1,8 +1,8 @@
 package com.automate.CodeReview.Service;
 
 import com.automate.CodeReview.Models.RepositoryModel;
-import com.automate.CodeReview.dto.RepositoryCreateRequest;
-import com.automate.CodeReview.dto.RepositoryResponse;
+import com.automate.CodeReview.dto.request.RepositoryCreateRequest;
+import com.automate.CodeReview.dto.response.RepositoryResponse;
 import com.automate.CodeReview.entity.ProjectsEntity;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.exception.*;

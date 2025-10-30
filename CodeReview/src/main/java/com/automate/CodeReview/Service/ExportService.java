@@ -1,7 +1,7 @@
 package com.automate.CodeReview.Service;
 
 
-import com.automate.CodeReview.dto.ReportRequest;
+import com.automate.CodeReview.dto.request.ReportRequest;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jasperreports.engine.*;
 

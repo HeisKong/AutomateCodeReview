@@ -1,7 +1,7 @@
 package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Service.ExportService;
-import com.automate.CodeReview.dto.ReportRequest;
+import com.automate.CodeReview.dto.request.ReportRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
