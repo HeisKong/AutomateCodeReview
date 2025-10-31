@@ -99,7 +99,8 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/auth/login",
                                 "/api/auth/register",
-                                "/api/auth/password-reset/**"
+                                "/api/auth/password-reset/**",
+                                        "api/sse/subscribe"
                         ).permitAll()
 
                         .requestMatchers("/api/sonar/webhook").permitAll()

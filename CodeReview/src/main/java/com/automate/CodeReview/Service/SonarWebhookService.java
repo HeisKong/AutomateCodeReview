@@ -1,6 +1,7 @@
 package com.automate.CodeReview.Service;
 
 import com.automate.CodeReview.Config.SonarProperties;
+import com.automate.CodeReview.Controller.SseController;
 import com.automate.CodeReview.dto.LogPayload;
 import com.automate.CodeReview.dto.SonarWebhookPayload;
 import com.automate.CodeReview.entity.IssuesEntity;
@@ -34,10 +35,11 @@ public class SonarWebhookService {
     private final WebClient sonarWebClient;
     private final SonarProperties props;
     private final NotiService notiService;
+    private final SseController sseController;
 
     private final ObjectMapper objectMapper;
 
-    public SonarWebhookService(ProjectsRepository projectsRepository, ScansRepository scansRepository,  IssuesRepository issuesRepository, SonarProperties props, WebClient sonarWebClient , ObjectMapper objectMapper, NotiService notiService) {
+    public SonarWebhookService(ProjectsRepository projectsRepository, ScansRepository scansRepository,  IssuesRepository issuesRepository, SonarProperties props, WebClient sonarWebClient , ObjectMapper objectMapper, NotiService notiService, SseController sseController) {
         this.projectsRepository = projectsRepository;
         this.scansRepository = scansRepository;
         this.issuesRepository = issuesRepository;
@@ -45,6 +47,7 @@ public class SonarWebhookService {
         this.props = props;
         this.objectMapper = objectMapper;
         this.notiService = notiService;
+        this.sseController = sseController;
     }
 
     @Value("${sonar.host-url}")
@@ -405,6 +408,22 @@ public class SonarWebhookService {
             log.info("✅ Webhook processed: proj={}, analysis={}, QG={}, conds={}",
                     projectKey, savedScan.getAnalysisId(), savedScan.getQualityGate(),
                     conditions != null ? conditions.size() : 0);
+            sseController.send(projectKey, Map.of(
+                    "status", "COMPLETED",
+                    "projectKey", projectKey
+            ));
+
+            // 4) ถ้าหน้าบ้าน subscribe ด้วย UUID (projectId) → map ด้วย projectsRepository
+            String finalProjectKey = projectKey;
+            projectsRepository.findBySonarProjectKey(projectKey)
+                    .ifPresent(proj -> sseController.send(
+                            proj.getProjectId().toString(),
+                            Map.of(
+                                    "status", "COMPLETED",
+                                    "projectKey", finalProjectKey,
+                                    "repoId", proj.getProjectId().toString()
+                            )
+                    ));
         }catch (Exception e) {
             try {
                 if (scan == null) {

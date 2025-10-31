@@ -51,7 +51,7 @@ public class RepositoryController {
         }
     }
 
-    @PutMapping("/{projectId}")
+    @PutMapping("/update/{projectId}")
     public ResponseEntity<RepositoryModel> updateRepository(@PathVariable UUID projectId,
                                                             @RequestBody RepositoryModel repo){
         return ResponseEntity.ok(repositoryService.updateRepository(projectId, repo));
