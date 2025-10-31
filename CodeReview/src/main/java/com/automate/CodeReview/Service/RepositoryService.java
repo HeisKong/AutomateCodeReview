@@ -77,7 +77,6 @@ public class RepositoryService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Project name already exists");
         }
 
-
         boolean valid = checkRepo(req.getRepositoryUrl(), req.getUsername(), req.getPassword());
         if (!valid) throw new IllegalArgumentException("Invalid repository or authentication failed");
 
