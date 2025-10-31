@@ -629,9 +629,11 @@ public class ScanService {
         ScansEntity scan = scanRepository.findById(scanId)
                 .orElse(null);
 
+
         ScanModel model = new ScanModel();
         model.setScanId(scan.getScanId());
         model.setProjectId(scan.getProject().getProjectId());
+        model.setProjectName(scan.getProject().getName());
         model.setStatus(scan.getStatus());
         model.setStartedAt(scan.getStartedAt());
         model.setCompletedAt(scan.getCompletedAt());

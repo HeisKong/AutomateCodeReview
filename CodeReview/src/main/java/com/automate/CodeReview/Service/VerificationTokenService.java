@@ -10,13 +10,10 @@ import java.util.Date;
 @Service
 public class VerificationTokenService {
 
-    // key สำหรับ sign token (ควรย้ายไป config หรือ .env)
     private final Key secretKey = Keys.hmacShaKeyFor("verysecretandlongemailverificationkey123!".getBytes());
 
-    // อายุของ token (24 ชั่วโมง)
     private static final long EXPIRE_MS = 24 * 60 * 60 * 1000;
 
-    // ออก token
     public String generateToken(String email) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + EXPIRE_MS);
@@ -30,7 +27,6 @@ public class VerificationTokenService {
                 .compact();
     }
 
-    // ตรวจและคืนค่า email
     public String validateAndGetEmail(String token) {
         try {
             Claims claims = Jwts.parserBuilder()

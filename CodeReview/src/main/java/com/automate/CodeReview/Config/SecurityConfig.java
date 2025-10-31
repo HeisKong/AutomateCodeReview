@@ -62,7 +62,6 @@ public class SecurityConfig {
         http
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
-                // ✅ ลบ .anonymous(AbstractHttpConfigurer::disable) ออก
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
 
@@ -73,15 +72,12 @@ public class SecurityConfig {
 
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // ✅ เพิ่ม SecurityContextHolderFilter เพื่อให้แน่ใจว่า SecurityContext persist
                 .securityContext(context -> context
                         .requireExplicitSave(false)
                 )
 
-                // ✅ เพิ่ม JwtFilter ก่อน UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // ✅ Debug: ดูว่า filter chain ทำงานอย่างไร
                 .addFilterBefore(
                         (request, response, chain) -> {
                             log.debug("🔵 [Before Authorization] URI: {}, Auth: {}",
@@ -95,25 +91,20 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ OPTIONS requests (CORS preflight)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // ✅ Swagger/OpenAPI docs
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
-                        // ✅ Public auth endpoints
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/auth/login",
                                 "/api/auth/register",
-                                "/api/auth/password-reset/**"
+                                "/api/auth/password-reset/**",
+                                        "api/sse/subscribe"
                         ).permitAll()
 
-                        // ✅ Sonar webhook (public endpoint สำหรับรับ callback)
                         .requestMatchers("/api/sonar/webhook").permitAll()
 
-
-                        // ✅ ทุก request อื่นๆ ต้อง authenticated
                         .anyRequest().authenticated()
                 );
 

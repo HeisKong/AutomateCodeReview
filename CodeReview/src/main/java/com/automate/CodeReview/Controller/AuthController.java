@@ -16,13 +16,11 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping("/api/auth")
 public class AuthController {
 
     private final AuthService authService;
     private final CookieUtil cookieUtil;
-    // ใช้ค่านี้ตั้งอายุคุกกี้ rt ให้สอดคล้องกับ JWT refresh (ms)
 
     public AuthController(AuthService authService,
                           @Value("${jwt.refresh-ms}") long refreshMs) {
