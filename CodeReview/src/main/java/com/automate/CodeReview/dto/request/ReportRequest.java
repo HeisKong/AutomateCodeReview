@@ -1,11 +1,6 @@
-package com.automate.CodeReview.dto;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
+package com.automate.CodeReview.dto.request;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 

@@ -1,4 +1,4 @@
-package com.automate.CodeReview.dto;
+package com.automate.CodeReview.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;

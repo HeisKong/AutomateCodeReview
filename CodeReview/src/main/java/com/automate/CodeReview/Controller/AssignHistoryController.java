@@ -1,15 +1,11 @@
 package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Models.AssignModel;
-import com.automate.CodeReview.Models.IssueModel;
 import com.automate.CodeReview.Service.AssignHistoryService;
-import com.automate.CodeReview.dto.UpdateStatusRequest;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import com.automate.CodeReview.dto.request.UpdateStatusRequest;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController

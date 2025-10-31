@@ -1,4 +1,4 @@
-package com.automate.CodeReview.dto;
+package com.automate.CodeReview.dto.request;
 import lombok.Getter;
 import lombok.Setter;
 

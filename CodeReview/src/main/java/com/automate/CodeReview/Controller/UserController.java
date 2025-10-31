@@ -1,9 +1,9 @@
 package com.automate.CodeReview.Controller;
 
-import com.automate.CodeReview.Models.UserSummary;
-import com.automate.CodeReview.dto.ChangePasswordRequest;
-import com.automate.CodeReview.dto.UpdateUserProfileRequest;
-import com.automate.CodeReview.dto.UpdateUserRequest;
+import com.automate.CodeReview.dto.response.UserSummary;
+import com.automate.CodeReview.dto.request.ChangePasswordRequest;
+import com.automate.CodeReview.dto.request.UpdateUserProfileRequest;
+import com.automate.CodeReview.dto.request.UpdateUserRequest;
 import com.automate.CodeReview.Models.UserModel;
 import com.automate.CodeReview.Service.AuthService;
 import org.springframework.http.HttpStatus;

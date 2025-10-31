@@ -1,12 +1,12 @@
 package com.automate.CodeReview.Service;
 
-import com.automate.CodeReview.Models.LoginRequest;
-import com.automate.CodeReview.Models.RegisterRequest;
+import com.automate.CodeReview.dto.request.LoginRequest;
+import com.automate.CodeReview.dto.request.RegisterRequest;
 import com.automate.CodeReview.Models.UserModel;
-import com.automate.CodeReview.Models.UserSummary;
-import com.automate.CodeReview.dto.ChangePasswordRequest;
-import com.automate.CodeReview.dto.UpdateUserProfileRequest;
-import com.automate.CodeReview.dto.UpdateUserRequest;
+import com.automate.CodeReview.dto.response.UserSummary;
+import com.automate.CodeReview.dto.request.ChangePasswordRequest;
+import com.automate.CodeReview.dto.request.UpdateUserProfileRequest;
+import com.automate.CodeReview.dto.request.UpdateUserRequest;
 import com.automate.CodeReview.entity.UserStatus;
 import com.automate.CodeReview.entity.UsersEntity;
 import com.automate.CodeReview.exception.DuplicateFieldsException;
@@ -40,7 +40,6 @@ public class AuthService {
     private static final int MAX_LOGIN_ATTEMPTS = 5;
     private static final int LOCKOUT_DURATION_MINUTES = 30;
 
-    // Simple in-memory login attempt tracking
     private final Map<String, Integer> loginAttempts = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, LocalDateTime> lockoutTime = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -109,7 +108,7 @@ public class AuthService {
         boolean exists = switch (field.toLowerCase()) {
             case "username" -> usersRepository.existsByUsername(value);
             case "email" -> usersRepository.existsByEmail(value);
-            case "phonenumber" -> usersRepository.existsByPhoneNumber(value);
+            case "phone_number" -> usersRepository.existsByPhoneNumber(value);
             default -> false;
         };
 

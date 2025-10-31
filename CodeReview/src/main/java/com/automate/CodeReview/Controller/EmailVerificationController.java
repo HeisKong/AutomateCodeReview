@@ -1,7 +1,7 @@
 package com.automate.CodeReview.Controller;
 
-import com.automate.CodeReview.dto.ApiMessage;
-import com.automate.CodeReview.dto.ResendRequest;
+import com.automate.CodeReview.dto.response.ApiMessage;
+import com.automate.CodeReview.dto.request.ResendRequest;
 import com.automate.CodeReview.Service.EmailVerificationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

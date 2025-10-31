@@ -1,8 +1,8 @@
 package com.automate.CodeReview.Controller;
 
 import com.automate.CodeReview.Service.PasswordResetService;
-import com.automate.CodeReview.dto.PasswordResetConfirm;
-import com.automate.CodeReview.dto.PasswordResetRequest;
+import com.automate.CodeReview.dto.response.PasswordResetConfirm;
+import com.automate.CodeReview.dto.request.PasswordResetRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;

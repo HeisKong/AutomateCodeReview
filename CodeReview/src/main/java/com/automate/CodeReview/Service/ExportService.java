@@ -1,7 +1,7 @@
 package com.automate.CodeReview.Service;
 
 
-import com.automate.CodeReview.dto.ReportRequest;
+import com.automate.CodeReview.dto.request.ReportRequest;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jasperreports.engine.*;
 
@@ -131,6 +131,19 @@ public class ExportService {
             throw new RuntimeException("Generate report failed", e);
         }
 
+    }
+
+    public String getProjectNameForExport(UUID projectId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT name FROM projects WHERE project_id = ?",
+                    String.class,
+                    projectId
+            );
+        } catch (Exception e) {
+            log.warn("Cannot get project name for project_id: {}", projectId);
+            return "Unknown";
+        }
     }
 
     private byte[] generateQualityGateReport(ReportRequest req, Timestamp fromTs, Timestamp toExcl,
