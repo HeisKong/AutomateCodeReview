@@ -430,15 +430,25 @@ public class SonarWebhookService {
                     Optional<ScansEntity> lastestScan = scansRepository.findTopByProject_SonarProjectKeyOrderByStartedAtDesc(projectKey);
                     if (lastestScan.isPresent()) scan = lastestScan.get();
                 }
-
                 if (scan != null) {
+                    // 🔥 ป้องกันเขียนทับ scan ที่สำเร็จแล้ว
+                    if ("SUCCESS".equals(scan.getStatus())) {
+                        log.warn("⚠️ Scan already SUCCESS, not overwriting. Error was in post-processing.");
+                        return; // หรือ throw exception ใหม่
+                    }
+
                     scan.setStatus("FAILED");
                     scan.setQualityGate("N/A");
                     scan.setCompletedAt(LocalDateTime.now());
                     scansRepository.save(scan);
 
-                    notiService.scanNotiAsync(scan.getScanId(), scan.getProject().getProjectId(), "Scan Failed!");
+                    notiService.scanNotiAsync(
+                            scan.getScanId(),
+                            scan.getProject().getProjectId(),
+                            "Scan Failed!"
+                    );
                 }
+
             } catch (Exception ex) {
                 log.info("Exception: ", ex.getMessage());
             }

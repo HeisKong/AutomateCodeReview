@@ -1,10 +1,7 @@
 package com.automate.CodeReview.Controller;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -16,18 +13,24 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @RestController
 @RequestMapping("/api/sse")
+@CrossOrigin(origins = "http://localhost:4200")
 public class SseController {
-    private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
     private final Map<String, List<SseEmitter>> emitterMap = new ConcurrentHashMap<>();
 
     @GetMapping("/subscribe")
     public SseEmitter subscribe(@RequestParam String repoId) {
         SseEmitter emitter = new SseEmitter(0L);
-        emitters.put(repoId, emitter);
-        emitter.onCompletion(() -> emitters.remove(repoId));
-        emitter.onTimeout(() -> emitters.remove(repoId));
+
+        // ให้ repoId มีได้หลาย emitter
+        emitterMap.computeIfAbsent(repoId, k -> new ArrayList<>())
+                .add(emitter);
+
+        emitter.onCompletion(() -> removeEmitter(repoId, emitter));
+        emitter.onTimeout(() -> removeEmitter(repoId, emitter));
+
         return emitter;
     }
+
 
     public void send(String key, Object data) {
         List<SseEmitter> dead = new ArrayList<>();
