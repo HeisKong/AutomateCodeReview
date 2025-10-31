@@ -101,7 +101,7 @@ public class AuthService {
         }
     }
 
-    private void checkFieldDuplicate(String field, String value, String currentValue, UUID userId) {
+    private void checkFieldDuplicate(String field, String value, String currentValue) {
         if (value == null || value.isBlank()) return;
         if (currentValue != null && value.equals(currentValue)) return;
 
@@ -121,19 +121,16 @@ public class AuthService {
 
     @Transactional
     public void register(RegisterRequest req) {
-        // Validate inputs
         validateUsername(req.username());
         validateEmail(req.email());
         validatePassword(req.password());
         validatePhoneNumber(req.phoneNumber());
 
-        // Check duplicates
         List<String> duplicates = checkDuplicates(req);
         if (!duplicates.isEmpty()) {
             throw new DuplicateFieldsException(duplicates);
         }
 
-        // Create user
         UsersEntity user = new UsersEntity();
         user.setUsername(req.username().trim());
         user.setEmail(req.email().trim().toLowerCase());
@@ -151,7 +148,6 @@ public class AuthService {
                     "Failed to register user");
         }
 
-        // Send email
         try {
             emailService.sendRegistrationSuccess(user.getEmail(), user.getUsername());
             log.info("Registration successful for user: {}", user.getEmail());
@@ -196,15 +192,15 @@ public class AuthService {
         // Validate and check duplicates
         if (req.getUsername() != null && !req.getUsername().isBlank()) {
             validateUsername(req.getUsername());
-            checkFieldDuplicate("username", req.getUsername(), user.getUsername(), user.getUserId());
+            checkFieldDuplicate("username", req.getUsername(), user.getUsername());
         }
         if (req.getEmail() != null && !req.getEmail().isBlank()) {
             validateEmail(req.getEmail());
-            checkFieldDuplicate("email", req.getEmail(), user.getEmail(), user.getUserId());
+            checkFieldDuplicate("email", req.getEmail(), user.getEmail());
         }
         if (req.getPhoneNumber() != null && !req.getPhoneNumber().isBlank()) {
             validatePhoneNumber(req.getPhoneNumber());
-            checkFieldDuplicate("phonenumber", req.getPhoneNumber(), user.getPhoneNumber(), user.getUserId());
+            checkFieldDuplicate("phonenumber", req.getPhoneNumber(), user.getPhoneNumber());
         }
 
         // Update fields
@@ -237,7 +233,7 @@ public class AuthService {
         // Validate and check duplicates
         if (req.getUsername() != null && !req.getUsername().isBlank()) {
             validateUsername(req.getUsername());
-            checkFieldDuplicate("username", req.getUsername(), user.getUsername(), user.getUserId());
+            checkFieldDuplicate("username", req.getUsername(), user.getUsername());
             user.setUsername(req.getUsername().trim());
         }
 
@@ -245,7 +241,7 @@ public class AuthService {
             validateEmail(req.getEmail());
             String newEmail = req.getEmail().trim().toLowerCase();
             if (!newEmail.equals(user.getEmail())) {
-                checkFieldDuplicate("email", newEmail, user.getEmail(), user.getUserId());
+                checkFieldDuplicate("email", newEmail, user.getEmail());
                 user.setEmail(newEmail);
                 user.setStatus(UserStatus.PENDING_VERIFICATION);
                 emailChanged = true;
@@ -254,7 +250,7 @@ public class AuthService {
 
         if (req.getPhoneNumber() != null && !req.getPhoneNumber().isBlank()) {
             validatePhoneNumber(req.getPhoneNumber());
-            checkFieldDuplicate("phonenumber", req.getPhoneNumber(), user.getPhoneNumber(), user.getUserId());
+            checkFieldDuplicate("phonenumber", req.getPhoneNumber(), user.getPhoneNumber());
             user.setPhoneNumber(req.getPhoneNumber().trim());
         }
 
@@ -298,10 +294,8 @@ public class AuthService {
 
     @Transactional
     public void changePassword(String principal, ChangePasswordRequest req) {
-        // Find user
         UsersEntity user = findUserByPrincipal(principal);
 
-        // Validate new password
         validatePassword(req.getNewPassword());
 
         if (!req.getNewPassword().equals(req.getConfirmPassword())) {
@@ -309,7 +303,6 @@ public class AuthService {
                     "New password and confirm password do not match");
         }
 
-        // Verify old password (unless forced password change)
         if (!user.isForcePasswordChange()) {
             if (req.getOldPassword() == null ||
                     !encoder.matches(req.getOldPassword(), user.getPassword())) {
@@ -317,12 +310,10 @@ public class AuthService {
             }
         }
 
-        // Update password
         user.setPassword(encoder.encode(req.getNewPassword()));
         user.setForcePasswordChange(false);
         usersRepository.save(user);
 
-        // Revoke all refresh tokens for security
         try {
             refreshTokenService.revokeAll(user);
             log.info("Password changed and all sessions revoked for user: {}", user.getEmail());
@@ -396,7 +387,6 @@ public class AuthService {
         // Reset failed attempts on successful login
         resetLoginAttempts(req.email());
 
-        // Generate tokens
         UUID jti = UUID.randomUUID();
         String accessToken = jwtService.generateAccessToken(
                 user.getUserId(),
@@ -418,29 +408,20 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No refresh token provided");
         }
 
-        // Validate token type
         if (!jwtService.isRefreshToken(refreshToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token type");
         }
 
-        // Check if token exists and is valid
         if (!refreshTokenService.existsValid(refreshToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
                     "Refresh token expired or revoked");
         }
 
-        // Get user from token
         String email = jwtService.validateTokenAndGetUsername(refreshToken);
         UsersEntity user = usersRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
                         "User not found"));
 
-        // Check user status (optional - uncomment if needed)
-        // if (user.getStatus() == UserStatus.SUSPENDED) {
-        //     throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is suspended");
-        // }
-
-        // Generate new tokens
         UUID newJti = UUID.randomUUID();
         String newAccessToken = jwtService.generateAccessToken(
                 user.getUserId(),
@@ -475,7 +456,7 @@ public class AuthService {
     @Transactional
     public void logoutAllDevices(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
-            return; // Idempotent
+            return;
         }
 
         try {

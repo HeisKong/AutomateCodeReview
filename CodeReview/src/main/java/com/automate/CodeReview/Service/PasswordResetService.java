@@ -66,7 +66,7 @@ public class PasswordResetService {
 
         var user = userOpt.get();
 
-        // ลบ token เก่าที่ยังไม่ได้ใช้
+        // delete old token
         tokenRepository.deleteUnusedTokensByUserId(user.getUserId());
 
         String rawToken = UUID.randomUUID().toString();
@@ -90,7 +90,6 @@ public class PasswordResetService {
         } catch (Exception e) {
             log.error("Failed to send password reset email to {}: {}",
                     user.getEmail(), e.getMessage(), e);
-            // อาจพิจารณา throw exception หรือ return error ตาม business requirement
         }
 
         boolean isDevOrLocal = env.acceptsProfiles(Profiles.of("dev", "local"));
@@ -116,15 +115,12 @@ public class PasswordResetService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required");
         }
 
-        // Normalize token (ป้องกัน whitespace issues)
         String normalized = rawToken.trim();
 
-        // ป้องกัน hash bombing
         if (normalized.length() > 256) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid token format");
         }
 
-        // Password policy
         if (newPassword.length() < passwordMinLength) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     String.format("Password must be at least %d characters", passwordMinLength));
@@ -132,12 +128,10 @@ public class PasswordResetService {
 
         String tokenHash = TokenHashUtils.sha256(normalized);
 
-        // ล็อกแถวเพื่อป้องกัน race condition
         PasswordResetToken token = tokenRepository.findByTokenHashWithLock(tokenHash)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.BAD_REQUEST, "Invalid or expired token"));
 
-        // ตรวจสอบสถานะ token
         if (token.isRevoked() || token.getUsedAt() != null) {
             log.warn("Attempted to use revoked/used token: {}", tokenHash.substring(0, 8));
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token");
@@ -148,25 +142,19 @@ public class PasswordResetService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token");
         }
 
-        // เปลี่ยนรหัสผ่าน
         UsersEntity user = token.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setForcePasswordChange(false);
         usersRepository.save(user);
 
-        // Mark token ว่าใช้แล้ว
         token.setUsedAt(Instant.now());
         token.setRevoked(true);
         tokenRepository.save(token);
 
-        // ✅ Revoke token อื่นๆ ที่ยังไม่ใช้ (1 query แทน N+1)
         int revoked = tokenRepository.revokeOtherUnusedTokens(user.getUserId(), tokenHash);
 
         log.info("Password reset successful for user: {} (revoked {} other tokens)",
                 user.getEmail(), revoked);
-
-        // ทางเลือก: Invalidate refresh tokens ทั้งหมด (เพิ่ม security)
-        // refreshTokenService.revokeAll(user);
     }
 
     /**
