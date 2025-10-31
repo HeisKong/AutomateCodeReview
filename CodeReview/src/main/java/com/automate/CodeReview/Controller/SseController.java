@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequestMapping("/api/sse")
 public class SseController {
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+    private final Map<String, List<SseEmitter>> emitterMap = new ConcurrentHashMap<>();
 
     @GetMapping("/subscribe")
     public SseEmitter subscribe(@RequestParam String repoId) {
@@ -27,16 +30,30 @@ public class SseController {
     }
 
     public void send(String key, Object data) {
-        var emitter = emitters.get(key);
-        if (emitter != null) {
+        List<SseEmitter> dead = new ArrayList<>();
+        List<SseEmitter> emitters = emitterMap.getOrDefault(key, List.of());
+
+        for (SseEmitter emitter : emitters) {
             try {
-                emitter.send(SseEmitter.event().name("message").data(data));
+                emitter.send(SseEmitter.event()
+                        .name("scan-complete")
+                        .data(data));
             } catch (IOException e) {
-                log.warn("⚠️ SSE connection closed for key={} : {}", key, e.getMessage());
-                emitters.remove(key);
+                // ✅ สำคัญ: client หลุดแล้ว ให้จดไว้ลบ
+                dead.add(emitter);
             }
-        } else {
-            log.debug("No SSE emitter found for key={}", key);
+        }
+
+        // ลบตัวที่ตายออก
+        emitters.removeAll(dead);
+    }
+    private void removeEmitter(String key, SseEmitter emitter) {
+        List<SseEmitter> emitters = emitterMap.get(key);
+        if (emitters != null) {
+            emitters.remove(emitter);
+            if (emitters.isEmpty()) {
+                emitterMap.remove(key);
+            }
         }
     }
 
