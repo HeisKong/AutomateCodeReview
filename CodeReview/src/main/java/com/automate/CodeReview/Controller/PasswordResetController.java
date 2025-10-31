@@ -18,28 +18,6 @@ public class PasswordResetController {
 
     private final PasswordResetService passwordResetService;
     private final Environment env;
-    /**
-     * Endpoint: POST /auth/password-reset/request
-     * Body: { "email": "user@example.com" }
-     */
-//    @PostMapping("/request")
-//    public ResponseEntity<Map<String, Object>> requestReset(@RequestBody Map<String, String> body) {
-//        String email = body.get("email");
-//        if (email == null || email.isBlank()) {
-//            return ResponseEntity.badRequest().body(Map.of(
-//                    "status", "FAILED",
-//                    "message", "Email is required"
-//            ));
-//        }
-//
-//        // เสมอ: ตอบ SUCCESS เพื่อป้องกันการเดาอีเมล (ไม่บอกว่าเจอหรือไม่เจอ)
-//        passwordResetService.requestReset(email.trim());
-//
-//        return ResponseEntity.ok(Map.of(
-//                "status", "SUCCESS",
-//                "message", "If the account exists, a reset link has been sent."
-//        ));
-//    }
 
     @PostMapping("/request")
     public ResponseEntity<Map<String, Object>> requestReset(@RequestBody PasswordResetRequest req) {
@@ -61,17 +39,13 @@ public class PasswordResetController {
             ));
         }
 
-        // ✅ โปรดักชัน / โปรไฟล์อื่น: ไม่เปิดเผย token
         return ResponseEntity.ok(Map.of(
                 "status", "SUCCESS",
                 "message", "If the account exists, a reset link has been sent."
         ));
     }
 
-    /**
-     * Endpoint: POST /auth/password-reset/confirm
-     * Body: { "token": "...", "newPassword": "MyNewPass123" }
-     */
+
     @PostMapping("/confirm")
     public ResponseEntity<Map<String, Object>> confirmReset(@RequestBody PasswordResetConfirm req) {
         String token = req.token();

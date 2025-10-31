@@ -63,10 +63,10 @@ public class JwtService {
         String normalizedRole = role.toUpperCase().replace("ROLE_", "");
 
         Map<String, Object> claims = new HashMap<>();
-        claims.put("user_id", userId.toString());  // ส่งเป็น String ป้องกัน serialization issue
+        claims.put("user_id", userId.toString());
         claims.put("email", email);
         claims.put("username", username);
-        claims.put("roles", List.of(normalizedRole));  // ✅ ส่งเป็น List เสมอ
+        claims.put("roles", List.of(normalizedRole));
 
         return Jwts.builder()
                 .setClaims(claims)
