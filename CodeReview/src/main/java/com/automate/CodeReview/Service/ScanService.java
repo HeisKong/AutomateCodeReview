@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.BufferedReader;
@@ -158,7 +159,7 @@ public class ScanService {
 
             if (scanSuccess) {
                 // ดึง analysisId จาก SonarQube ทันที
-                String analysisId = pollForAnalysisId(sonarProjectKey, 30);
+                String analysisId = pollForAnalysisId(sonarProjectKey, 60);
 
                 if (analysisId != null) {
                     scan.setAnalysisId(analysisId);
@@ -362,11 +363,24 @@ public class ScanService {
             if (response != null) {
                 JsonNode analyses = response.path("analyses");
                 if (analyses.isArray() && analyses.size() > 0) {
-                    return analyses.get(0).path("key").asText(null);
+                    String analysisId = analyses.get(0).path("key").asText(null);
+                    if (analysisId != null) {
+                        log.debug("Found analysisId: {}", analysisId);
+                    }
+                    return analysisId;
+                } else {
+                    log.debug("No analyses found for project: {}", projectKey);
                 }
             }
+        } catch (WebClientResponseException.NotFound e) {
+            // 404 = project ยังไม่ถูกสร้างใน SonarQube หรือยังไม่มี analysis
+            log.debug("Project {} not found in SonarQube (404)", projectKey);
+        } catch (WebClientResponseException e) {
+            // HTTP error อื่นๆ
+            log.warn("HTTP error from SonarQube [{}]: {}", e.getStatusCode(), e.getMessage());
         } catch (Exception e) {
-            log.error("Failed to fetch analysisId", e);
+            // Error อื่นๆ ที่ไม่คาดคิด
+            log.error("Failed to fetch analysisId for project {}: {}", projectKey, e.getMessage());
         }
         return null;
     }
@@ -558,6 +572,15 @@ public class ScanService {
     }
 
     private String pollForAnalysisId(String projectKey, int timeoutSeconds) {
+
+        // ⭐ เพิ่มตรงนี้ - รอ 10 วินาทีก่อน ให้ SonarQube ทำงานก่อน
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+
         long endTime = System.currentTimeMillis() + (timeoutSeconds * 1000L);
         int attempt = 0;
 
@@ -566,26 +589,25 @@ public class ScanService {
             try {
                 String analysisId = fetchLatestAnalysisId(projectKey);
                 if (analysisId != null && !analysisId.isBlank()) {
-//                    log.info("✅ พบ analysisId ในครั้งที่ {}: {}", attempt, analysisId);
                     return analysisId;
                 }
 
-                if (attempt == 1) {
-//                    log.info("🔄 กำลังรอ analysisId จาก SonarQube...");
+                // ⭐ แก้ตรงนี้ - แสดง log ทุก 5 ครั้ง
+                if (attempt == 1 || attempt % 5 == 0) {
+                    long remainingSeconds = (endTime - System.currentTimeMillis()) / 1000;
                 }
 
                 Thread.sleep(2000); // รอ 2 วินาที
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.warn("⚠️ Polling ถูกขัดจังหวะ");
                 return null;
             } catch (Exception e) {
                 log.error("Error polling analysisId (attempt {}): {}", attempt, e.getMessage());
             }
         }
 
-        log.error("⏰ Timeout: ไม่พบ analysisId หลังจาก {} วินาที", timeoutSeconds);
+        log.error("Timeout: ไม่พบ analysisId หลังจาก {} วินาที (พยายาม {} ครั้ง)", timeoutSeconds, attempt);  // ⭐ เพิ่มจำนวนครั้ง
         return null;
     }
 

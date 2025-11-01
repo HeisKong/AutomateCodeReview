@@ -412,30 +412,28 @@ public class RepositoryService {
     public Path createSonarScriptMaven(String clonePath, String projectKey, String projectName, String sonarToken) throws IOException {
         Path scriptPath = Paths.get(clonePath, SCRIPT_FILENAME);
 
-        // การ Escape สำหรับ Batch Script: %% -> % ใน Batch
         String scriptContent = String.format(
                 "@echo off\r\n" +
                         "setlocal EnableExtensions EnableDelayedExpansion\r\n" +
                         "REM Script created at %s\r\n" +
                         "\r\n" +
-                        "REM ===== Default values from generator (ถูก override ได้ด้วย args) =====\r\n" +
+                        "REM ===== Default values from generator =====\r\n" +
                         "set \"SONAR_TOKEN=%s\"\r\n" +
                         "set \"PROJECT_KEY=%s\"\r\n" +
                         "set \"PROJECT_NAME=%s\"\r\n" +
                         "\r\n" +
-                        "REM ===== Allow override by args: 1=token 2=projectKey 3=projectName =====\r\n" +
+                        "REM ===== Allow override by args =====\r\n" +
                         "if not \"%%~1\"==\"\" set \"SONAR_TOKEN=%%~1\"\r\n" +
                         "if not \"%%~2\"==\"\" set \"PROJECT_KEY=%%~2\"\r\n" +
                         "if not \"%%~3\"==\"\" set \"PROJECT_NAME=%%~3\"\r\n" +
                         "\r\n" +
-                        "REM ===== Find pom.xml starting from this script directory (Guarantees to find pom.xml in nested structure) =====\r\n" +
+                        "REM ===== Find pom.xml =====\r\n" +
                         "set \"ROOT=%%~dp0\"\r\n" +
                         "set \"POM=\"\r\n" +
                         "if exist \"%%ROOT%%pom.xml\" (\r\n" +
                         "  set \"POM=%%ROOT%%pom.xml\"\r\n" +
                         ") else (\r\n" +
                         "  for /r \"%%ROOT%%\" %%%%F in (pom.xml) do (\r\n" +
-                        "    REM ให้คะแนนไฟล์ที่มีโฟลเดอร์ src ข้าง ๆ ก่อน เพื่อเลี่ยง pom ระดับ aggregator\r\n" +
                         "    if exist \"%%%%~dpFsrc\" (\r\n" +
                         "      set \"POM=%%%%~fF\"\r\n" +
                         "      goto :pom_found\r\n" +
@@ -465,16 +463,21 @@ public class RepositoryService {
                         "if not defined POM_DIR set \"POM_DIR=!ROOT!\"\r\n" +
                         "if \"!USING_WRAPPER!\"==\"0\" echo INFO: Using system Maven. Make sure it is installed and in PATH.\r\n" +
                         "\r\n" +
-                        "echo Starting Sonar Analysis...\r\n" +
+                        "echo.\r\n" +
+                        "echo Starting Maven Build and SonarQube Analysis (Tests SKIPPED)\r\n" +
+                        "echo Project Key : !PROJECT_KEY!\r\n" +
+                        "echo Project Name: !PROJECT_NAME!\r\n" +
+                        "echo Host URL    : http://localhost:9000\r\n" +
+                        "echo.\r\n" +
                         "\r\n" +
-                        "\"!MVN!\" -f \"!POM!\" clean verify sonar:sonar -Dsonar.token=\"!SONAR_TOKEN!\" -Dsonar.host.url=http://localhost:9000 -Dsonar.projectKey=\"!PROJECT_KEY!\" -Dsonar.projectName=\"!PROJECT_NAME!\" -Dsonar.projectBaseDir=\"!POM_DIR!\"\r\n" +
+                        "\"!MVN!\" -f \"!POM!\" clean install sonar:sonar -DskipTests -Dsonar.token=\"!SONAR_TOKEN!\" -Dsonar.host.url=http://localhost:9000 -Dsonar.projectKey=\"!PROJECT_KEY!\" -Dsonar.projectName=\"!PROJECT_NAME!\" -Dsonar.projectBaseDir=\"!POM_DIR!\"\r\n" +
                         "\r\n" +
-                        "if errorlevel 1 (\r\n" +
-                        "  echo [ERROR] Sonar Analysis FAILED! Exit Code: !errorlevel!\r\n" +
+                        "if !errorlevel! neq 0 (\r\n" +
+                        "  echo.\r\n" +
+                        "  echo [ERROR] Build or Sonar Analysis FAILED! Exit Code: !errorlevel!\r\n" +
                         "  pause\r\n" +
-                        "  exit /b 1\r\n" +
+                        "  exit /b !errorlevel!\r\n" +
                         ")\r\n" +
-                        "echo Sonar Analysis COMPLETED successfully.\r\n" +
                         "pause\r\n" +
                         "endlocal & exit /b 0\r\n",
                 LocalDateTime.now(),
@@ -489,7 +492,6 @@ public class RepositoryService {
     }
 
     //angular
-    // RepositoryService.java  — แทนที่เมธอด createSonarScriptAngular ทั้งก้อนนี้
     public Path createSonarScriptAngular(String clonePath, String projectKey, String projectName, String sonarToken) throws IOException {
         Path projectPath = Paths.get(clonePath);
 
@@ -511,7 +513,7 @@ public class RepositoryService {
         Files.writeString(propertiesPath, propertiesContent);
         log.info("Created sonar-project.properties at: {}", propertiesPath);
 
-        // 2) เขียน run_sonar.bat: cd เข้าโปรเจกต์ → รัน sonar-scanner (ไม่ส่ง -Dsonar.projectBaseDir)
+        // 2) เขียน run_sonar.bat: ติดตั้ง dependencies → รัน npm install → ติดตั้ง sonarqube-scanner → scan
         Path scriptPath = projectPath.resolve(SCRIPT_FILENAME);
         String scriptContent =
                 "@echo off\r\n" +
@@ -522,21 +524,69 @@ public class RepositoryService {
                         "set \"PROJECT_DIR=%ROOT%\"\r\n" +
                         "REM --- sanitize: ลบเครื่องหมายคำพูดเผื่อมี quote แอบติดมา ---\r\n" +
                         "set \"PROJECT_DIR=!PROJECT_DIR:\"=!\"\r\n" +
-                        "echo [DBG] PROJECT_DIR=[!PROJECT_DIR!]\r\n" +
+                        "echo [INFO] PROJECT_DIR=[!PROJECT_DIR!]\r\n" +
                         "\r\n" +
-                        "REM --- ตรวจ npm/sonar-scanner ---\r\n" +
-                        "where npm >nul 2>&1 || (echo [ERROR] npm not found in PATH.& exit /b 1)\r\n" +
-                        "where sonar-scanner >nul 2>&1 || (\r\n" +
-                        "  echo [ERROR] sonar-scanner not found in PATH.& echo Install: npm i -g sonarqube-scanner & exit /b 1)\r\n" +
+                        "REM --- ตรวจสอบ npm ---\r\n" +
+                        "where npm >nul 2>&1 || (\r\n" +
+                        "  echo [ERROR] npm not found in PATH.\r\n" +
+                        "  echo Please install Node.js from: https://nodejs.org/\r\n" +
+                        "  pause\r\n" +
+                        "  exit /b 1\r\n" +
+                        ")\r\n" +
                         "\r\n" +
                         "REM --- เข้าดิเรกทอรีโปรเจกต์ ---\r\n" +
-                        "cd /d \"!PROJECT_DIR!\" || (echo [ERROR] Cannot CD to !PROJECT_DIR! & exit /b 1)\r\n" +
+                        "cd /d \"!PROJECT_DIR!\" || (\r\n" +
+                        "  echo [ERROR] Cannot CD to !PROJECT_DIR!\r\n" +
+                        "  pause\r\n" +
+                        "  exit /b 1\r\n" +
+                        ")\r\n" +
                         "\r\n" +
-                        "REM --- รันสแกน โดยให้อ่าน config จาก sonar-project.properties ---\r\n" +
-                        "echo Running SonarScanner in !CD! using sonar-project.properties\r\n" +
+                        "REM --- ติดตั้ง node_modules ถ้ายังไม่มี ---\r\n" +
+                        "if not exist \"node_modules\" (\r\n" +
+                        "  echo [INFO] node_modules not found. Running npm install...\r\n" +
+                        "  call npm install\r\n" +
+                        "  if errorlevel 1 (\r\n" +
+                        "    echo [ERROR] npm install FAILED!\r\n" +
+                        "    pause\r\n" +
+                        "    exit /b 1\r\n" +
+                        "  )\r\n" +
+                        "  echo [INFO] npm install completed.\r\n" +
+                        ")\r\n" +
+                        "\r\n" +
+                        "REM --- ตรวจสอบและติดตั้ง sonarqube-scanner ---\r\n" +
+                        "where sonar-scanner >nul 2>&1\r\n" +
+                        "if errorlevel 1 (\r\n" +
+                        "  echo [INFO] sonar-scanner not found. Installing sonarqube-scanner globally...\r\n" +
+                        "  call npm install -g sonarqube-scanner\r\n" +
+                        "  if errorlevel 1 (\r\n" +
+                        "    echo [ERROR] Failed to install sonarqube-scanner!\r\n" +
+                        "    echo Please install manually: npm install -g sonarqube-scanner\r\n" +
+                        "    pause\r\n" +
+                        "    exit /b 1\r\n" +
+                        "  )\r\n" +
+                        "  echo [INFO] sonarqube-scanner installed successfully.\r\n" +
+                        ")\r\n" +
+                        "\r\n" +
+                        "REM --- ตรวจสอบไฟล์ config ---\r\n" +
+                        "if not exist \"sonar-project.properties\" (\r\n" +
+                        "  echo [ERROR] sonar-project.properties not found!\r\n" +
+                        "  pause\r\n" +
+                        "  exit /b 1\r\n" +
+                        ")\r\n" +
+                        "\r\n" +
+                        "REM --- รันสแกน Sonar ---\r\n" +
+                        "echo [INFO] Starting Sonar Analysis for Angular project...\r\n" +
+                        "echo [INFO] Using sonar-project.properties in !CD!\r\n" +
                         "sonar-scanner\r\n" +
-                        "if errorlevel 1 (echo [ERROR] Sonar Analysis FAILED! ExitCode=!errorlevel! & exit /b 1)\r\n" +
-                        "echo Sonar Analysis COMPLETED.\r\n" +
+                        "\r\n" +
+                        "if errorlevel 1 (\r\n" +
+                        "  echo [ERROR] Sonar Analysis FAILED! ExitCode=!errorlevel!\r\n" +
+                        "  pause\r\n" +
+                        "  exit /b 1\r\n" +
+                        ")\r\n" +
+                        "\r\n" +
+                        "echo [SUCCESS] Sonar Analysis COMPLETED.\r\n" +
+                        "pause\r\n" +
                         "exit /b 0\r\n";
 
         Files.writeString(scriptPath, scriptContent);
