@@ -20,6 +20,7 @@ public class SseController {
     @GetMapping("/subscribe")
     public SseEmitter subscribe(@RequestParam String repoId) {
         SseEmitter emitter = new SseEmitter(0L);
+        log.info("🔥 SSE SUBSCRIBE repoId={}", repoId);   // 👈 เพิ่มบรรทัดนี้
 
         // ให้ repoId มีได้หลาย emitter
         emitterMap.computeIfAbsent(repoId, k -> new ArrayList<>())
@@ -33,8 +34,13 @@ public class SseController {
 
 
     public void send(String key, Object data) {
+        List<SseEmitter> emitters = emitterMap.get(key);
+        if (emitters == null || emitters.isEmpty()) {
+            log.warn("No SSE subscribers for key={}", key);
+            return;
+        }
+
         List<SseEmitter> dead = new ArrayList<>();
-        List<SseEmitter> emitters = emitterMap.getOrDefault(key, List.of());
 
         for (SseEmitter emitter : emitters) {
             try {
@@ -42,14 +48,20 @@ public class SseController {
                         .name("scan-complete")
                         .data(data));
             } catch (IOException e) {
-                // ✅ สำคัญ: client หลุดแล้ว ให้จดไว้ลบ
+                log.warn("SSE connection dead for key={}, marking emitter dead", key);
                 dead.add(emitter);
             }
         }
 
-        // ลบตัวที่ตายออก
         emitters.removeAll(dead);
+        if (emitters.isEmpty()) {
+            emitterMap.remove(key);
+        }
+
+        log.info("SSE sent: key={}, alive={}, removed={}", key,
+                emitters.size(), dead.size());
     }
+
     private void removeEmitter(String key, SseEmitter emitter) {
         List<SseEmitter> emitters = emitterMap.get(key);
         if (emitters != null) {
